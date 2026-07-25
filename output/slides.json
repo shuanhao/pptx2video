@@ -1,0 +1,31 @@
+{
+  "source_pptx": "examples/sample_test.pptx",
+  "slide_count": 5,
+  "slides": [
+    {
+      "slide_num": 1,
+      "title": "Cover Page",
+      "notes": null
+    },
+    {
+      "slide_num": 2,
+      "title": "Page 1",
+      "notes": "This is the first paragraph of a long note for page one.\n\nThis is the third paragraph with more detail and a second line of content for page one."
+    },
+    {
+      "slide_num": 3,
+      "title": "Page 2",
+      "notes": "This is the opening paragraph for page two.\nThis is a second paragraph for page two with extra detail.\n\nThis is the final paragraph for page two."
+    },
+    {
+      "slide_num": 4,
+      "title": "Page 3",
+      "notes": "This is the first paragraph of a long note for page three.\n\nThis is the third paragraph with even more detail for page three."
+    },
+    {
+      "slide_num": 5,
+      "title": "Q&A / Thanks",
+      "notes": null
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+python-pptx>=0.6.21
+edge-tts>=6.1.9
+pywin32>=306
+pydub>=0.25.1
