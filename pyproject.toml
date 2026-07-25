@@ -12,4 +12,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["src"]
+packages = ["src", "pptx2video"]
+
+[project.scripts]
+pptx2video = "src.main:main"

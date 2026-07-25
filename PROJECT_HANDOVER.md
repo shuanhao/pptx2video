@@ -49,54 +49,52 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 
 ## 3. 目前專案實際狀態
 
-目前倉庫中已具備基本骨架：
-- README.md
-- requirements.txt
-- .gitignore
-- LICENSE
+目前倉庫已完成第一階段的可執行原型：
+- 已建立 CLI 入口：[src/main.py](src/main.py)
+- 已實作 PowerPoint notes 解析：[src/pptx_parser.py](src/pptx_parser.py)
+- 已支援多頁簡報、長段落、空白行、無 notes 頁面處理
+- 已提供 JSON 輸出與範例簡報生成腳本：[examples/create_sample_pptx.py](examples/create_sample_pptx.py)
+- 已加入單元測試：[tests/test_pptx_parser.py](tests/test_pptx_parser.py)
 
-但尚未看到以下實作檔案：
-- main.py
-- pptx_parser.py
-- tts_engine.py
-- ppt_automation.py
-- subtitle_generator.py
+目前仍未實作的部分：
+- TTS 語音生成
+- PowerPoint 自動化匯出 MP4
+- SRT 字幕生成
 
-這表示目前文件層面已經有清楚設計，但程式實作仍屬「待開發」狀態。
+這表示目前專案已經從「設計文件」進展到「可運作的解析原型」，接下來要往語音與影片輸出方向前進。
 
 ---
 
 ## 4. 建議的實作順序
 
-### Phase 1：建立最小可執行版本（MVP）
-優先完成下列功能：
+### Phase 1：已完成的基礎解析原型
+已完成下列功能：
 - 讀取一個 .pptx 檔
-- 擷取每頁的 notes
-- 生成語音檔
-- 產出簡單字幕檔
+- 擷取每頁的標題與 notes
+- 支援多頁、長段落、空白行與無 notes 頁面
+- 輸出 JSON 並提供 CLI 介面
 
-這個階段目標是先讓流程可跑通，而不是追求所有細節完美。
+這個階段已經讓流程可跑通，並建立可作為後續擴充的基礎。
 
-### Phase 2：完成核心流程整合
-實作主流程：
-- 讀取整份簡報
-- 逐頁生成語音
-- 將語音與字幕附加至輸出流程
+### Phase 2：語音生成與字幕流程
+下一步要實作：
+- 讀取整份簡報的 notes
+- 逐頁生成語音檔
+- 產生對應字幕內容
 
 ### Phase 3：PowerPoint 輸出與動畫保留
-完成 COM 自動化流程：
+下一步要完成 COM 自動化流程：
 - 開啟 PowerPoint
 - 插入音檔
 - 設定播放與切換時間
 - 匯出 MP4
 
 ### Phase 4：穩定性與產品化
-新增：
-- 錯誤處理
-- 日誌輸出
-- 清理暫存檔
-- CLI 參數支援
-- 例外情況防呆
+待補強項目：
+- 更完整的錯誤處理
+- 更清楚的日誌輸出
+- 暫存檔與輸出資料夾管理
+- 進一步的 CLI 擴充
 
 ---
 

@@ -52,6 +52,12 @@ python examples/create_sample_pptx.py
 python src/main.py examples/sample_test.pptx --output output/slides.json
 ```
 
+或使用更像套件的方式：
+
+```powershell
+python -m pptx2video examples/sample_test.pptx --output output/slides.json
+```
+
 這會讀取簡報檔，解析每頁的標題與 notes，並輸出 JSON 到 [output/slides.json](output/slides.json)。
 
 ### 7. CLI 進階選項
@@ -93,12 +99,20 @@ python -m unittest discover -s tests -v
 
 ---
 
-## 🌟 核心特色
+## ✅ 目前已完成的功能
 
-* **自動備忘稿提取**：自動讀取 `.pptx` 每一頁投影片的備忘稿（Notes）作為語音腳本。
-* **高質感免費語音**：整合 `edge-tts`，無需付費 API Key 即可呼叫微軟高品質神經網絡語音（如台灣語音 `zh-TW-HsiaoChenNeural`）。
-* **100% 原生動畫保留**：透過 Windows COM 自動化控制 PowerPoint 原生匯出引擎，完整保留簡報中的動畫、轉場特效與字型排版。
-* **零錯字精確字幕**：利用備忘稿原文與音檔長度進行時間累加計算，自動輸出毫秒級精確、100% 無錯別字的 `.srt` 字幕檔。
+* **解析 `.pptx` 投影片內容**：可讀取投影片編號、標題與 notes。
+* **支援長篇備忘稿**：可處理多段落、換行與空白行。
+* **支援沒有 notes 的頁面**：封面頁與結束頁也能正常處理。
+* **輸出 JSON**：可將解析結果輸出為結構化 JSON 檔。
+* **提供 CLI 介面**：支援 `--output`、`--pretty`、`--verbose`、`--strict` 等選項。
+* **提供範例與測試**：內建範例簡報生成腳本與單元測試。
+
+## 🚧 後續發展方向
+
+* **語音生成**：整合 `edge-tts`，將 notes 轉成音訊檔。
+* **PowerPoint 匯出**：透過 Windows COM 控制 PowerPoint 匯出 MP4。
+* **字幕生成**：根據語音時長輸出 `.srt` 字幕。
 
 ---
 
