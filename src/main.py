@@ -7,6 +7,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.pptx_parser import extract_notes
+from src.subtitle_generator import write_srt
 from src.tts import generate_audio_files
 
 
@@ -42,6 +43,12 @@ def build_payload(slides, pptx_path, audio_manifest=None, audio_output_dir=None)
         },
     }
     return payload
+
+
+def write_subtitle_output(payload, output_path, audio_dir=None):
+    slides = payload.get("slides", [])
+    output_path = Path(output_path)
+    return write_srt(slides, output_path, audio_dir=audio_dir)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -101,6 +108,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--pitch",
         default="+0Hz",
         help="Pitch for edge-tts (use +0Hz to keep the pitch unchanged)",
+    )
+    parser.add_argument(
+        "--subtitles-output",
+        default="output/captions.srt",
+        help="Path to write the generated subtitles .srt file",
     )
     return parser
 
@@ -162,6 +174,15 @@ def main() -> None:
             encoding="utf-8",
         )
         print(f"Saved JSON to {output_path}")
+
+    subtitle_output_path = Path(args.subtitles_output)
+    if subtitle_output_path:
+        subtitle_output_path = write_subtitle_output(
+            payload,
+            subtitle_output_path,
+            audio_dir=args.audio_output_dir,
+        )
+        print(f"Saved subtitles to {subtitle_output_path}")
 
     if args.pretty or output_path is None:
         print(json.dumps(payload, ensure_ascii=False, indent=args.indent))

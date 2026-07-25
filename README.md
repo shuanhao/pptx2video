@@ -154,3 +154,22 @@ graph TD
     
     E --> G[輸出 output.mp4]
     F --> H[輸出 output.srt]
+
+## Current Status
+
+### Completed
+- PPTX Parser
+- Notes Extraction
+- Edge-TTS Audio Generation
+- Audio Manifest
+- CLI
+- Subtitle Generator (Experimental / PoC)
+
+### In Progress
+- PowerPoint Automation (Insert Audio / Auto Play / Transition Timing)
+
+### Planned
+- Export MP4 using Microsoft PowerPoint
+
+### Experimental Features
+The current Subtitle Generator is a Proof of Concept (PoC). It is retained for architecture validation and is not yet part of the official video generation pipeline.

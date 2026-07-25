@@ -235,3 +235,20 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 這是一個「有明確願景、架構清楚、技術路線可行」的專案；目前最重要的工作不是重新設計，而是把設計逐步落成可執行的程式與流程。
 
 如果你要接手，建議先以一個最小可執行版本為目標，先讓單一簡報從 .pptx 生成音訊，再逐步擴大到字幕與 PowerPoint 匯出影片。 
+
+
+## Current Development Status
+
+Completed:
+- PPTX Parser
+- Notes Extraction
+- Edge-TTS
+- Audio Manifest
+- CLI
+- Subtitle Generator (Experimental / PoC)
+
+Current focus:
+- PowerPoint Automation
+- MP4 export
+
+Subtitle Generator is intentionally kept as a PoC and is not part of the production pipeline.
