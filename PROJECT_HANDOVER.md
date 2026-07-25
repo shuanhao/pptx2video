@@ -4,7 +4,7 @@
 pptx2video (PPTX Auto Presenter)
 
 ## 文件版本
-v1.0
+v0.1.0 (TTS milestone)
 
 ## 目標對象
 接手開發者、AI 協作 Agent
@@ -49,19 +49,20 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 
 ## 3. 目前專案實際狀態
 
-目前倉庫已完成第一階段的可執行原型：
+目前倉庫已完成一個可用的里程碑版本，並且已把 TTS 流程初步接上：
 - 已建立 CLI 入口：[src/main.py](src/main.py)
 - 已實作 PowerPoint notes 解析：[src/pptx_parser.py](src/pptx_parser.py)
-- 已支援多頁簡報、長段落、空白行、無 notes 頁面處理
-- 已提供 JSON 輸出與範例簡報生成腳本：[examples/create_sample_pptx.py](examples/create_sample_pptx.py)
-- 已加入單元測試：[tests/test_pptx_parser.py](tests/test_pptx_parser.py)
+- 已實作 edge-tts 音訊生成：[src/tts.py](src/tts.py)
+- 已支援多頁簡報、長段落、空白行、無 notes 頁面處理，並在無 notes 頁面跳過生成音訊
+- 已提供可供後續字幕流程使用的 JSON 輸出，包含 `subtitle_text`、`has_notes`、`audio_file` 等欄位
+- 已提供範例簡報生成腳本：[examples/create_sample_pptx.py](examples/create_sample_pptx.py)
+- 已加入單元測試：[tests/test_pptx_parser.py](tests/test_pptx_parser.py)、[tests/test_tts_generator.py](tests/test_tts_generator.py)、[tests/test_main_payload.py](tests/test_main_payload.py)
 
 目前仍未實作的部分：
-- TTS 語音生成
-- PowerPoint 自動化匯出 MP4
 - SRT 字幕生成
+- PowerPoint 自動化匯出 MP4
 
-這表示目前專案已經從「設計文件」進展到「可運作的解析原型」，接下來要往語音與影片輸出方向前進。
+這表示目前專案已經從「解析原型」進展到「可產生音訊的可運作流程」，但字幕與影片輸出仍然是下一階段的目標。
 
 ---
 
@@ -76,11 +77,15 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 
 這個階段已經讓流程可跑通，並建立可作為後續擴充的基礎。
 
-### Phase 2：語音生成與字幕流程
-下一步要實作：
+### Phase 2：語音與資料流程
+目前已完成：
 - 讀取整份簡報的 notes
 - 逐頁生成語音檔
-- 產生對應字幕內容
+- 輸出可供後續字幕流程使用的 JSON 結構
+
+下一步要實作：
+- 根據音訊與 notes 生成 `.srt` 字幕
+- 透過 PowerPoint 自動化匯出 MP4
 
 ### Phase 3：PowerPoint 輸出與動畫保留
 下一步要完成 COM 自動化流程：
@@ -229,4 +234,4 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 
 這是一個「有明確願景、架構清楚、技術路線可行」的專案；目前最重要的工作不是重新設計，而是把設計逐步落成可執行的程式與流程。
 
-如果你要接手，建議先做一個最小可執行版本，先讓單一簡報從 .pptx 生成音訊與字幕，再逐步擴大到 PowerPoint 匯出影片。 
+如果你要接手，建議先以一個最小可執行版本為目標，先讓單一簡報從 .pptx 生成音訊，再逐步擴大到字幕與 PowerPoint 匯出影片。 
