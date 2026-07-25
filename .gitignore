@@ -203,6 +203,18 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# Project-specific generated files
+output/
+examples/sample_test.pptx
+*.mp3
+*.mp4
+*.srt
+*.wav
+*.log
+
+# Local temporary directories
+temp/
+
 # Ruff stuff:
 .ruff_cache/
 
