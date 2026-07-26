@@ -54,31 +54,44 @@ def generate_audio_files(
     manifest_path: Optional[Path | str] = None,
     rate: str = "-10%",
     pitch: str = "+0Hz",
+    progress_callback: Optional[Callable[[int, int, int], None]] = None,
 ) -> Dict[str, Any]:
     """Generate MP3 files for slides that have notes.
 
     Slides without notes are skipped and omitted from the manifest.
+
+    Args:
+        progress_callback: Optional callback invoked as
+            ``progress_callback(current, total, slide_num)`` right after each
+            audio file finishes generating - ``current`` is 1-based (e.g.
+            ``2, 5, 4`` means "2nd of 5 audio files done, was slide 4"). Use
+            this to print progress instead of only being able to tell how far
+            along generation is by counting files in the output directory.
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     generator_func = generator or _default_generator
+
+    slides_with_notes = [
+        slide for slide in slides if slide.get("notes") and str(slide.get("notes")).strip()
+    ]
+    total = len(slides_with_notes)
     manifest_entries = []
 
-    for slide in slides:
-        notes = slide.get("notes")
-        if not notes or not str(notes).strip():
-            continue
-
+    for index, slide in enumerate(slides_with_notes, start=1):
         slide_num = int(slide["slide_num"])
         output_file = _build_output_path(output_path, slide_num)
 
-        _invoke_generator(generator_func, str(notes), output_file, voice, rate, pitch)
+        _invoke_generator(generator_func, str(slide["notes"]), output_file, voice, rate, pitch)
         manifest_entries.append({
             "slide_num": slide_num,
             "title": slide.get("title"),
             "audio_file": output_file.name,
         })
+
+        if progress_callback is not None:
+            progress_callback(index, total, slide_num)
 
     manifest = {
         "voice": voice,

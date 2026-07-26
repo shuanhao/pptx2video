@@ -167,6 +167,9 @@ def main() -> None:
 
     audio_manifest = None
     if args.generate_audio:
+        def _print_audio_progress(current: int, total: int, slide_num: int) -> None:
+            print(f"Generating audio {current}/{total} (slide {slide_num})...")
+
         audio_manifest = generate_audio_files(
             slides,
             args.audio_output_dir,
@@ -174,6 +177,7 @@ def main() -> None:
             manifest_path=Path(args.audio_output_dir) / "manifest.json",
             rate=args.rate,
             pitch=args.pitch,
+            progress_callback=_print_audio_progress,
         )
         if args.verbose:
             print(json.dumps(audio_manifest, ensure_ascii=False, indent=args.indent))
