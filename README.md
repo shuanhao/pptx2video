@@ -30,7 +30,7 @@ py -3 -m venv .venv
 若 PowerShell 擋下執行腳本，可先執行：
 
 ```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
 ### 4. 安裝依賴套件
