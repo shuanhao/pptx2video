@@ -4,13 +4,13 @@
 pptx2video (PPTX Auto Presenter)
 
 ## 文件版本
-v0.1.0 (TTS milestone)
+v0.2.0 (PowerPoint Audio Insertion milestone)
 
 ## 目標對象
 接手開發者、AI 協作 Agent
 
 ## 撰寫日期
-2026-07-25
+2026-07-26（v0.2.0 更新）
 
 ---
 
@@ -56,13 +56,19 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 - 已支援多頁簡報、長段落、空白行、無 notes 頁面處理，並在無 notes 頁面跳過生成音訊
 - 已提供可供後續字幕流程使用的 JSON 輸出，包含 `subtitle_text`、`has_notes`、`audio_file` 等欄位
 - 已提供範例簡報生成腳本：[examples/create_sample_pptx.py](examples/create_sample_pptx.py)
-- 已加入單元測試：[tests/test_pptx_parser.py](tests/test_pptx_parser.py)、[tests/test_tts_generator.py](tests/test_tts_generator.py)、[tests/test_main_payload.py](tests/test_main_payload.py)
+- 已實作字幕生成 PoC：[src/subtitle_generator.py](src/subtitle_generator.py)
+- 已實作 PowerPoint 音訊插入：[src/ppt_automation.py](src/ppt_automation.py)，透過 `pywin32` COM 自動化把音訊插入對應投影片（縮小圖示、移到右上角、盡量隱藏），並已在真實 Windows + PowerPoint 環境驗證：搭配 PowerPoint「建立視訊」匯出 MP4 時，每頁會正確依音檔長度播放並自動切換
+- 已加入單元測試：[tests/test_pptx_parser.py](tests/test_pptx_parser.py)、[tests/test_tts_generator.py](tests/test_tts_generator.py)、[tests/test_subtitle_generator.py](tests/test_subtitle_generator.py)、[tests/test_ppt_automation.py](tests/test_ppt_automation.py)、[tests/test_main_payload.py](tests/test_main_payload.py)
 
 目前仍未實作的部分：
-- SRT 字幕生成
-- PowerPoint 自動化匯出 MP4
+- 透過程式自動觸發 PowerPoint「建立視訊」匯出 MP4（目前音訊插入完成後，匯出仍是手動步驟）
+- 現場簡報放映模式的真正自動播放（目前音訊在 PowerPoint 編輯 UI 仍顯示「按一下時」，只有匯出影片的情境已驗證不受影響，見下方「重要實測發現」）
 
-這表示目前專案已經從「解析原型」進展到「可產生音訊的可運作流程」，但字幕與影片輸出仍然是下一階段的目標。
+這表示目前專案已經從「可產生音訊的可運作流程」進展到「音訊已能正確插入投影片，且已驗證可產出正確配音的 MP4」，剩下的主要缺口是把匯出動作也自動化，以及（若有需要）解決現場放映的點擊問題。
+
+### 重要實測發現：`PlayOnEntry` 旗標
+
+在開發過程中發現一個不直觀但重要的行為：`shape.AnimationSettings.PlaySettings.PlayOnEntry` 這個舊版 API，雖然在 PowerPoint 編輯 UI 上完全看不出任何效果（Start 設定依然顯示「按一下時」），但**拿掉這個設定會讓 PowerPoint「建立視訊」匯出的 MP4 完全沒有聲音、且每頁變回固定 5 秒**，設定它之後匯出就正確無誤。目前程式碼固定會設定這個旗標，但底層原理尚未查證清楚，如果之後 PowerPoint 版本行為改變，需要重新測試這個結論是否仍然成立。
 
 ---
 
@@ -88,11 +94,16 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 - 透過 PowerPoint 自動化匯出 MP4
 
 ### Phase 3：PowerPoint 輸出與動畫保留
-下一步要完成 COM 自動化流程：
-- 開啟 PowerPoint
-- 插入音檔
-- 設定播放與切換時間
-- 匯出 MP4
+已完成：
+- 開啟 PowerPoint（COM）
+- 插入音檔（縮小圖示、移到右上角、盡量隱藏）
+- 驗證搭配「建立視訊」匯出 MP4 時播放與時長正確
+
+下一步要完成：
+- 透過 COM 自動觸發「建立視訊」匯出 MP4（目前仍是手動步驟）
+- 若有現場放映需求，解決音訊仍需點擊才播放的限制（不影響匯出影片，優先度較低）
+
+> 備註：原本規劃的「設定投影片自動播放與切換時間」已確認不需要額外處理——PowerPoint 的「建立視訊」匯出功能在沒有手動錄製時間的情況下，本來就會自動依嵌入媒體的時長決定該頁停留多久。
 
 ### Phase 4：穩定性與產品化
 待補強項目：
@@ -121,12 +132,15 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 
 ### 5.3 ppt_automation.py
 負責：
-- 啟動 PowerPoint
+- 啟動 PowerPoint（COM，`pywin32`）
 - 開啟簡報檔
-- 插入音訊
-- 設定投影片自動播放與切換時間
-- 匯出 MP4
-- 確保 COM 物件正常釋放
+- 插入音訊：縮小圖示（20pt）、移到投影片右上角、盡量在非播放狀態隱藏（`HideWhileNotPlaying`）
+- 設定 `PlayOnEntry = True`（實測發現匯出 MP4 是否正確依賴這個舊版旗標，即使編輯 UI 看不出效果）
+- 確保 COM 物件正常釋放（`Presentation.Close()` / `Application.Quit()`，皆包在 `finally` 區塊）
+
+尚未負責（規劃中）：
+- 自動觸發「建立視訊」匯出 MP4（目前這步驟仍需在 PowerPoint 手動操作）
+- 投影片自動播放（現場放映模式）：目前刻意不處理，因為已確認不影響 MP4 匯出結果，優先度較低
 
 ### 5.4 subtitle_generator.py
 負責：
@@ -246,9 +260,16 @@ Completed:
 - Audio Manifest
 - CLI
 - Subtitle Generator (Experimental / PoC)
+- PowerPoint Audio Insertion (`ppt_automation.py`) - verified correct with
+  PowerPoint's video export (audio plays, per-slide duration matches audio
+  length automatically)
 
 Current focus:
-- PowerPoint Automation
-- MP4 export
+- Automating PowerPoint's "Create a Video" MP4 export itself (currently a
+  manual step after audio insertion)
+
+Known limitation (not currently prioritized):
+- Inserted audio still requires a click during live Slide Show playback
+  (editor UI shows "On Click"). Confirmed this does not affect video export.
 
 Subtitle Generator is intentionally kept as a PoC and is not part of the production pipeline.

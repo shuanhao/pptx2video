@@ -6,6 +6,7 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src import ppt_automation
 from src.pptx_parser import extract_notes
 from src.subtitle_generator import write_srt
 from src.tts import generate_audio_files
@@ -114,6 +115,24 @@ def build_parser() -> argparse.ArgumentParser:
         default="output/captions.srt",
         help="Path to write the generated subtitles .srt file",
     )
+    parser.add_argument(
+        "--insert-audio",
+        action="store_true",
+        help=(
+            "Insert generated audio into the PPTX, shrunk and tucked into "
+            "the top-right corner. Requires Windows with Microsoft "
+            "PowerPoint and pywin32 installed. Slides without notes/audio "
+            "are left untouched, and slide transition timing is not changed."
+        ),
+    )
+    parser.add_argument(
+        "--pptx-output",
+        default=None,
+        help=(
+            "Path to save the PPTX with inserted audio (used with "
+            "--insert-audio). Defaults to overwriting the input file."
+        ),
+    )
     return parser
 
 
@@ -183,6 +202,37 @@ def main() -> None:
             audio_dir=args.audio_output_dir,
         )
         print(f"Saved subtitles to {subtitle_output_path}")
+
+    if args.insert_audio:
+        manifest_for_insert = audio_manifest
+        if manifest_for_insert is None:
+            manifest_path = Path(args.audio_output_dir) / "manifest.json"
+            try:
+                manifest_for_insert = ppt_automation.load_audio_manifest(manifest_path)
+            except FileNotFoundError:
+                parser.error(
+                    "--insert-audio requires an audio manifest. Run with "
+                    f"--generate-audio first, or ensure {manifest_path} exists."
+                )
+
+        pptx_output_path = args.pptx_output or pptx_path
+        try:
+            insert_result = ppt_automation.insert_audio(
+                pptx_path,
+                manifest_for_insert,
+                args.audio_output_dir,
+                output_path=pptx_output_path,
+            )
+        except (RuntimeError, FileNotFoundError) as exc:
+            parser.error(str(exc))
+
+        if args.verbose:
+            print(json.dumps(insert_result, ensure_ascii=False, indent=args.indent))
+        print(
+            f"Inserted audio into {len(insert_result['inserted_slides'])} slide(s); "
+            f"skipped {len(insert_result['skipped_slides'])}. "
+            f"Saved to {insert_result['output_path']}"
+        )
 
     if args.pretty or output_path is None:
         print(json.dumps(payload, ensure_ascii=False, indent=args.indent))
