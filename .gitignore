@@ -205,7 +205,8 @@ tempCodeRunnerFile.py
 
 # Project-specific generated files
 output/
-examples/sample_test.pptx
+examples/*.pptx
+!examples/sample_test.pptx
 *.mp3
 *.mp4
 *.srt
