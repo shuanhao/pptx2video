@@ -121,6 +121,49 @@ Exported video to D:\...\output\deck.mp4 (42.3s)
 
 > ⚠️ `Presentation.CreateVideo()` 是非同步 API，匯出時間會依投影片數量與解析度而定，可能長達數十秒到數分鐘。程式會輪詢匯出狀態，並設有逾時保護（預設 600 秒，可用 `--video-timeout` 調整）。
 
+### 11. 一次到底：單一指令完成整個流程
+
+上面 1～10 是拆開一步步介紹，方便逐步理解與除錯；但實際使用時**不需要分開下指令**，所有步驟（解析 → 生成語音 → 輸出 JSON → 生成字幕 → 插入音訊 → 匯出 MP4）都可以寫在同一行指令裡，`main.py` 會依序自動完成：
+
+```powershell
+python src/main.py examples/sample_test.pptx `
+  --output output/slides.json `
+  --generate-audio `
+  --audio-output-dir output/audio `
+  --voice "zh-TW-YunJheNeural" `
+  --rate=-10% `
+  --pitch="+0Hz" `
+  --subtitles-output output/captions.srt `
+  --insert-audio `
+  --pptx-output output/deck_with_audio.pptx `
+  --export-video `
+  --video-output output/deck.mp4 `
+  --verbose
+```
+
+執行時會依序印出每個階段的進度：
+
+```
+Parsing PowerPoint file: ...
+Loaded 5 slide(s)
+Generating audio 1/3 (slide 2)...
+Generating audio 2/3 (slide 3)...
+Generating audio 3/3 (slide 4)...
+Generated 3 audio file(s) in output/audio
+Saved JSON to output\slides.json
+Saved subtitles to output\captions.srt
+Inserted audio into 3 slide(s); skipped 0. Saved to ...\deck_with_audio.pptx
+Exporting video... status: queued
+Exporting video... status: in_progress
+Exporting video... status: done
+Exported video to ...\deck.mp4 (42.3s)
+```
+
+**注意事項：**
+- 生成語音需要能連上 Edge-TTS 服務（`speech.platform.bing.com`）
+- 插入音訊與匯出 MP4 都需要 Windows + 已安裝 PowerPoint + `pywin32`
+- 這一行指令裡 PowerPoint 實際上會被開關兩次：`--insert-audio` 用一次、`--export-video` 又用一次（各自獨立完成後就關閉），不是同一個 PowerPoint session 做完兩件事。這不影響結果，只是會多花一點點時間；如果之後有大量批次處理、在意這個開銷，可以再優化成同一個 session 共用（目前尚未實作）。
+
 ---
 
 ## 📋 CLI 完整指令與參數說明
@@ -205,7 +248,7 @@ python src/main.py examples/sample_test.pptx --insert-audio --audio-output-dir o
 python src/main.py output/deck_with_audio.pptx --export-video --video-output output/deck.mp4 --video-resolution 1080
 ```
 
-**完整流程（解析 + 語音 + 字幕 + 插入音訊 + 匯出 MP4）：**
+**完整流程（解析 + 語音 + 字幕 + 插入音訊 + 匯出 MP4，等同於上方「11. 一次到底」的單一指令）：**
 
 ```powershell
 python src/main.py examples/sample_test.pptx `
