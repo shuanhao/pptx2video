@@ -133,6 +133,75 @@ def build_parser() -> argparse.ArgumentParser:
             "--insert-audio). Defaults to overwriting the input file."
         ),
     )
+    parser.add_argument(
+        "--export-video",
+        action="store_true",
+        help=(
+            "Export the PPTX to MP4 using PowerPoint's 'Create a Video' "
+            "feature. Requires Windows with Microsoft PowerPoint and "
+            "pywin32 installed. If --insert-audio was also given, the "
+            "deck with inserted audio is exported; otherwise the input "
+            "PPTX (or --pptx-output, if given) is exported as-is."
+        ),
+    )
+    parser.add_argument(
+        "--video-output",
+        default=None,
+        help=(
+            "Path to write the exported .mp4 (used with --export-video). "
+            "Defaults to the PPTX path with its extension changed to .mp4."
+        ),
+    )
+    parser.add_argument(
+        "--video-resolution",
+        type=int,
+        default=720,
+        help=(
+            "Vertical resolution in pixels, matching PowerPoint's export "
+            "presets (e.g. 480, 720 for HD, 1080 for Full HD, 2160 for 4K)"
+        ),
+    )
+    parser.add_argument(
+        "--video-fps",
+        type=int,
+        default=30,
+        help="Frames per second for the exported video",
+    )
+    parser.add_argument(
+        "--video-quality",
+        type=int,
+        default=85,
+        help="Encoding quality, 0-100 (PowerPoint's own default is 85)",
+    )
+    parser.add_argument(
+        "--video-default-duration",
+        type=float,
+        default=5.0,
+        help=(
+            "Seconds to show a slide that has neither recorded timing nor "
+            "auto-playing embedded audio (e.g. a cover slide). Matches "
+            "PowerPoint's 'Seconds spent on each slide' export field."
+        ),
+    )
+    parser.add_argument(
+        "--video-use-recorded-timings",
+        action="store_true",
+        help=(
+            "Use recorded slide timings/narrations instead of "
+            "--video-default-duration / embedded-audio-driven timing. "
+            "Off by default, matching PowerPoint's 'Don't Use Recorded "
+            "Timings and Narrations' option."
+        ),
+    )
+    parser.add_argument(
+        "--video-timeout",
+        type=float,
+        default=600,
+        help=(
+            "Give up waiting for PowerPoint to finish exporting after this "
+            "many seconds. Increase for longer decks or higher resolutions."
+        ),
+    )
     return parser
 
 
@@ -207,6 +276,12 @@ def main() -> None:
         )
         print(f"Saved subtitles to {subtitle_output_path}")
 
+    # Shared by --insert-audio and --export-video: the PPTX path that
+    # downstream steps should operate on. If --insert-audio ran, this is
+    # where its output was saved; --export-video reads from the same path
+    # so it exports the audio-enriched deck by default.
+    pptx_output_path = args.pptx_output or pptx_path
+
     if args.insert_audio:
         manifest_for_insert = audio_manifest
         if manifest_for_insert is None:
@@ -219,7 +294,6 @@ def main() -> None:
                     f"--generate-audio first, or ensure {manifest_path} exists."
                 )
 
-        pptx_output_path = args.pptx_output or pptx_path
         try:
             insert_result = ppt_automation.insert_audio(
                 pptx_path,
@@ -236,6 +310,39 @@ def main() -> None:
             f"Inserted audio into {len(insert_result['inserted_slides'])} slide(s); "
             f"skipped {len(insert_result['skipped_slides'])}. "
             f"Saved to {insert_result['output_path']}"
+        )
+
+    if args.export_video:
+        video_source_pptx = Path(pptx_output_path)
+        video_output_path = (
+            Path(args.video_output)
+            if args.video_output
+            else video_source_pptx.with_suffix(".mp4")
+        )
+
+        def _print_video_progress(status_name: str) -> None:
+            print(f"Exporting video... status: {status_name}")
+
+        try:
+            export_result = ppt_automation.export_video(
+                video_source_pptx,
+                video_output_path,
+                resolution_height=args.video_resolution,
+                frames_per_second=args.video_fps,
+                quality=args.video_quality,
+                default_slide_duration=args.video_default_duration,
+                use_timings_and_narrations=args.video_use_recorded_timings,
+                timeout_seconds=args.video_timeout,
+                progress_callback=_print_video_progress,
+            )
+        except (RuntimeError, FileNotFoundError, TimeoutError) as exc:
+            parser.error(str(exc))
+
+        if args.verbose:
+            print(json.dumps(export_result, ensure_ascii=False, indent=args.indent))
+        print(
+            f"Exported video to {export_result['output_path']} "
+            f"({export_result['elapsed_seconds']:.1f}s)"
         )
 
     if args.pretty or output_path is None:

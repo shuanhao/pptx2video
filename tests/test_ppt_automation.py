@@ -59,17 +59,67 @@ class FakePageSetup:
 
 
 class FakePresentation:
-    def __init__(self, slide_nums, slide_width=960):
+    def __init__(
+        self,
+        slide_nums,
+        slide_width=960,
+        video_status_sequence=None,
+        write_output_on_create_video=True,
+    ):
         self.Slides = FakeSlides(slide_nums)
         self.PageSetup = FakePageSetup(slide_width)
         self.saved_to = None
         self.closed = False
+
+        # --- export_video / CreateVideo simulation ---
+        # Each read of CreateVideoStatus advances through this sequence,
+        # then repeats the last value - simulating PowerPoint's async
+        # export progressing through states over successive polls.
+        self._video_status_sequence = (
+            list(video_status_sequence)
+            if video_status_sequence is not None
+            else [ppt_automation.PP_MEDIA_TASK_STATUS_DONE]
+        )
+        self._video_status_index = 0
+        self._write_output_on_create_video = write_output_on_create_video
+        self.create_video_calls = []
 
     def SaveAs(self, path):
         self.saved_to = path
 
     def Close(self):
         self.closed = True
+
+    def CreateVideo(
+        self,
+        FileName,
+        UseTimingsAndNarrations,
+        DefaultSlideDuration,
+        VertResolution,
+        FramesPerSecond,
+        Quality,
+    ):
+        self.create_video_calls.append(
+            {
+                "FileName": FileName,
+                "UseTimingsAndNarrations": UseTimingsAndNarrations,
+                "DefaultSlideDuration": DefaultSlideDuration,
+                "VertResolution": VertResolution,
+                "FramesPerSecond": FramesPerSecond,
+                "Quality": Quality,
+            }
+        )
+        if self._write_output_on_create_video:
+            out = Path(FileName)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(b"fake-mp4-bytes")
+
+    @property
+    def CreateVideoStatus(self):
+        idx = min(self._video_status_index, len(self._video_status_sequence) - 1)
+        value = self._video_status_sequence[idx]
+        self._video_status_index += 1
+        return value
 
 
 class FakePresentations:
@@ -229,6 +279,163 @@ class PptAutomationTests(unittest.TestCase):
                         manifest,
                         Path(tmp),
                         powerpoint_app=app,
+                    )
+
+    def test_export_video_success_uses_expected_default_parameters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+            video_path = tmp_path / "out" / "deck.mp4"
+
+            presentation = FakePresentation(
+                slide_nums=[1, 2, 3],
+                video_status_sequence=[
+                    ppt_automation.PP_MEDIA_TASK_STATUS_QUEUED,
+                    ppt_automation.PP_MEDIA_TASK_STATUS_IN_PROGRESS,
+                    ppt_automation.PP_MEDIA_TASK_STATUS_IN_PROGRESS,
+                    ppt_automation.PP_MEDIA_TASK_STATUS_DONE,
+                ],
+            )
+            app = FakeApplication(presentation)
+
+            progress_events = []
+
+            with mock.patch("sys.platform", "win32"):
+                result = ppt_automation.export_video(
+                    pptx_path,
+                    video_path,
+                    powerpoint_app=app,
+                    poll_interval_seconds=0,
+                    progress_callback=progress_events.append,
+                )
+
+            self.assertEqual(result["output_path"], str(video_path.resolve()))
+            self.assertGreaterEqual(result["elapsed_seconds"], 0)
+            self.assertTrue(video_path.exists())
+            self.assertTrue(presentation.closed)
+
+            # Progress callback fires once per distinct status, in order.
+            self.assertEqual(progress_events, ["queued", "in_progress", "done"])
+
+            # Defaults match PowerPoint's "HD (720p)" / "Don't use recorded
+            # timings" / 5 seconds-per-slide export dialog settings.
+            call = presentation.create_video_calls[0]
+            self.assertEqual(call["VertResolution"], 720)
+            self.assertEqual(call["FramesPerSecond"], 30)
+            self.assertEqual(call["Quality"], 85)
+            self.assertEqual(call["DefaultSlideDuration"], 5.0)
+            self.assertEqual(call["UseTimingsAndNarrations"], False)
+
+    def test_export_video_accepts_custom_resolution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+            video_path = tmp_path / "deck.mp4"
+
+            presentation = FakePresentation(slide_nums=[1])
+            app = FakeApplication(presentation)
+
+            with mock.patch("sys.platform", "win32"):
+                ppt_automation.export_video(
+                    pptx_path,
+                    video_path,
+                    resolution_height=1080,
+                    powerpoint_app=app,
+                    poll_interval_seconds=0,
+                )
+
+            self.assertEqual(presentation.create_video_calls[0]["VertResolution"], 1080)
+
+    def test_export_video_raises_on_failed_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+            video_path = tmp_path / "deck.mp4"
+
+            presentation = FakePresentation(
+                slide_nums=[1],
+                video_status_sequence=[
+                    ppt_automation.PP_MEDIA_TASK_STATUS_IN_PROGRESS,
+                    ppt_automation.PP_MEDIA_TASK_STATUS_FAILED,
+                ],
+            )
+            app = FakeApplication(presentation)
+
+            with mock.patch("sys.platform", "win32"):
+                with self.assertRaises(RuntimeError):
+                    ppt_automation.export_video(
+                        pptx_path,
+                        video_path,
+                        powerpoint_app=app,
+                        poll_interval_seconds=0,
+                    )
+
+    def test_export_video_times_out_when_stuck_in_progress(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+            video_path = tmp_path / "deck.mp4"
+
+            # Never reaches DONE/FAILED - stays stuck at IN_PROGRESS forever.
+            presentation = FakePresentation(
+                slide_nums=[1],
+                video_status_sequence=[ppt_automation.PP_MEDIA_TASK_STATUS_IN_PROGRESS],
+            )
+            app = FakeApplication(presentation)
+
+            with mock.patch("sys.platform", "win32"):
+                with self.assertRaises(TimeoutError):
+                    ppt_automation.export_video(
+                        pptx_path,
+                        video_path,
+                        powerpoint_app=app,
+                        timeout_seconds=0.05,
+                        poll_interval_seconds=0.01,
+                    )
+
+    def test_export_video_raises_when_output_file_missing_despite_done_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+            video_path = tmp_path / "deck.mp4"
+
+            # PowerPoint reports "done" but never actually wrote the file -
+            # the safety net should catch this instead of reporting success.
+            presentation = FakePresentation(
+                slide_nums=[1],
+                video_status_sequence=[ppt_automation.PP_MEDIA_TASK_STATUS_DONE],
+                write_output_on_create_video=False,
+            )
+            app = FakeApplication(presentation)
+
+            with mock.patch("sys.platform", "win32"):
+                with self.assertRaises(RuntimeError):
+                    ppt_automation.export_video(
+                        pptx_path,
+                        video_path,
+                        powerpoint_app=app,
+                        poll_interval_seconds=0,
+                    )
+
+    def test_export_video_raises_when_pptx_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            missing_path = tmp_path / "does_not_exist.pptx"
+            video_path = tmp_path / "deck.mp4"
+            app = FakeApplication(FakePresentation(slide_nums=[]))
+
+            with mock.patch("sys.platform", "win32"):
+                with self.assertRaises(FileNotFoundError):
+                    ppt_automation.export_video(
+                        missing_path,
+                        video_path,
+                        powerpoint_app=app,
+                        poll_interval_seconds=0,
                     )
 
 
