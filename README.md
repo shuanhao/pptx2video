@@ -65,7 +65,7 @@ python -m pptx2video examples/sample_test.pptx --output output/slides.json
 ### 7. 生成語音（TTS）
 
 ```powershell
-python -m pptx2video examples/sample_test.pptx --generate-audio --audio-output-dir output/audio --voice "zh-TW-YunJheNeural" --rate "-10%%" --pitch "+0Hz"
+python -m pptx2video examples/sample_test.pptx --generate-audio --audio-output-dir output/audio --voice "zh-TW-YunJheNeural" --rate=-10% --pitch="+0Hz"
 ```
 
 這會把有 notes 的投影片轉成 MP3，並在 `output/audio/manifest.json` 建立對應的音訊清單。
@@ -126,11 +126,13 @@ python -m pptx2video <pptx_path> [選項...]
 | `--generate-audio` | `False`（flag） | 啟用語音生成，會呼叫 edge-tts 把每頁 notes 轉成 MP3 |
 | `--audio-output-dir` | `output/audio` | 生成的 MP3 與 `manifest.json` 存放目錄（需搭配 `--generate-audio` 才有作用） |
 | `--voice` | `Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)` | edge-tts 使用的語音。也可用簡短格式如 `zh-TW-YunJheNeural`，若完整格式在你的環境報錯可改用簡短格式 |
-| `--rate` | `-10%` | 語速調整，語音會比原始語速慢 10%；正值加快、負值放慢，例如 `+10%`、`-20%` |
+| `--rate` | `-10%` | 語速調整，語音會比原始語速慢 10%；正值加快、負值放慢，例如 `+10%`、`-20%`。⚠️ **負值務必用 `--rate=-20%` 等號寫法**，不要用空格分隔的 `--rate "-20%"`（見下方說明） |
 | `--pitch` | `+0Hz` | 音高調整，預設不改變音高 |
 | `--subtitles-output` | `output/captions.srt` | 字幕輸出路徑（PoC 功能，每次執行都會自動產生） |
 | `--insert-audio` | `False`（flag） | 把已生成的音訊插入 PPTX 對應投影片，圖示縮小移到右上角並盡量隱藏。需要 Windows + PowerPoint + pywin32，且需已用 `--generate-audio` 產生過音檔（或指定的 `--audio-output-dir` 底下已有 `manifest.json`） |
 | `--pptx-output` | 覆蓋輸入檔 | 搭配 `--insert-audio` 使用，指定插入音訊後另存的 PPTX 路徑；未指定則直接覆蓋原始輸入檔 |
+
+> ⚠️ **關於 `--rate` 負值的一個 Python argparse 陷阱**：像 `--rate "-10%"` 這種用空格分隔、值又以 `-` 開頭的寫法，會被 `argparse` 誤判成另一個選項旗標而報錯 `expected one argument`（`--pitch` 因為預設是 `+0Hz`，以 `+` 開頭，不受影響）。**負值請一律用等號寫法**，例如：`--rate=-20%`（等號連在一起、不要空格）。加速（正值）用空格或等號都可以，例如 `--rate "+10%"` 或 `--rate=+10%` 皆正常。
 
 ### 使用範例
 
@@ -149,7 +151,7 @@ python src/main.py examples/sample_test.pptx --strict
 **生成語音，使用加快 10% 的語速：**
 
 ```powershell
-python src/main.py examples/sample_test.pptx --generate-audio --rate "+10%%"
+python src/main.py examples/sample_test.pptx --generate-audio --rate "+10%"
 ```
 
 **指定輸出到自訂資料夾，並顯示詳細訊息：**
@@ -172,8 +174,8 @@ python src/main.py examples/sample_test.pptx `
   --generate-audio `
   --audio-output-dir output/audio `
   --voice "zh-TW-YunJheNeural" `
-  --rate "-10%%" `
-  --pitch "+0Hz" `
+  --rate=-10% `
+  --pitch="+0Hz" `
   --subtitles-output output/captions.srt `
   --insert-audio `
   --pptx-output output/deck_with_audio.pptx `
