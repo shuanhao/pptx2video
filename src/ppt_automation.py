@@ -237,7 +237,7 @@ def export_video(
     quality: int = 85,
     default_slide_duration: float = 5.0,
     use_timings_and_narrations: bool = False,
-    timeout_seconds: float = 600,
+    timeout_seconds: float = 3600,
     poll_interval_seconds: float = 2.0,
     visible: bool = True,
     powerpoint_app: Optional[Any] = None,

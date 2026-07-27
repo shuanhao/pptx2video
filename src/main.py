@@ -196,7 +196,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--video-timeout",
         type=float,
-        default=600,
+        default=3600,
         help=(
             "Give up waiting for PowerPoint to finish exporting after this "
             "many seconds. Increase for longer decks or higher resolutions."
