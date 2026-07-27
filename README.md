@@ -1,6 +1,6 @@
 # PPTX Auto Presenter (`pptx2video`)
 
-一個基於 Python 的自動化工具，目標是自動解析 PowerPoint 簡報檔（`.pptx`）的頁數與備忘稿內容，並透過 **Edge-TTS** 生成語音，後續再朝向 PowerPoint 匯出帶配音的 MP4 影片與 SRT 字幕的流程前進。
+一個基於 Python 的自動化工具，可將 PowerPoint 簡報檔（`.pptx`）自動轉換成帶旁白配音的 MP4 影片：解析每頁的標題與備忘稿內容 → 透過 **Edge-TTS** 生成語音 → 把音訊插入對應投影片 → 自動呼叫 PowerPoint 匯出 MP4。**核心流程（pptx → 配音 MP4）已完整打通，並在真實 Windows + PowerPoint 環境驗證過**。另外也附帶 SRT 字幕生成功能，目前為實驗性 PoC，尚未整合進正式管線。
 
 ---
 
@@ -119,7 +119,7 @@ Exported video to D:\...\output\deck.mp4 (42.3s)
 
 已在真實 Windows + PowerPoint 環境驗證：影片可以正確產生，語音與每頁時長都對齊。
 
-> ⚠️ `Presentation.CreateVideo()` 是非同步 API，匯出時間會依投影片數量與解析度而定，可能長達數十秒到數分鐘。程式會輪詢匯出狀態，並設有逾時保護（預設 600 秒，可用 `--video-timeout` 調整）。
+> ⚠️ `Presentation.CreateVideo()` 是非同步 API，匯出時間會依投影片數量與解析度而定，可能長達數十秒到數分鐘。程式會輪詢匯出狀態，並設有逾時保護（預設 3600 秒，可用 `--video-timeout` 調整）。
 
 ### 11. 一次到底：單一指令完成整個流程
 
@@ -206,7 +206,7 @@ python -m pptx2video <pptx_path> [選項...]
 | `--video-quality` | `85` | 編碼品質，0–100（PowerPoint 官方預設值就是 85） |
 | `--video-default-duration` | `5.0` | 沒有錄製時間、也沒有自動播放音訊的頁面（例如封面頁）要停留幾秒，對應 PowerPoint 匯出視窗的「每張投影片所用秒數」 |
 | `--video-use-recorded-timings` | `False`（flag） | 是否改用簡報錄製的時間/旁白，而不是 `--video-default-duration` / 音訊時長驅動的時間。預設關閉，對應 PowerPoint「不使用錄製的時間和旁白」選項 |
-| `--video-timeout` | `600`（秒） | 等待 PowerPoint 匯出完成的逾時秒數，投影片數量多或解析度高時建議調大 |
+| `--video-timeout` | `3600`（秒） | 等待 PowerPoint 匯出完成的逾時秒數，投影片數量多或解析度高時建議調大 |
 
 > ⚠️ **關於 `--rate` 負值的一個 Python argparse 陷阱**：像 `--rate "-10%"` 這種用空格分隔、值又以 `-` 開頭的寫法，會被 `argparse` 誤判成另一個選項旗標而報錯 `expected one argument`（`--pitch` 因為預設是 `+0Hz`，以 `+` 開頭，不受影響）。**負值請一律用等號寫法**，例如：`--rate=-20%`（等號連在一起、不要空格）。加速（正值）用空格或等號都可以，例如 `--rate "+10%"` 或 `--rate=+10%` 皆正常。
 
@@ -373,28 +373,3 @@ graph TD
     G --> I[輸出 output.mp4]
     F --> H[輸出 output/captions.srt]
 ```
-
-## Current Status
-
-### Completed
-- PPTX Parser
-- Notes Extraction
-- Edge-TTS Audio Generation (with real-time progress reporting)
-- Audio Manifest
-- CLI
-- Subtitle Generator (Experimental / PoC)
-- PowerPoint Audio Insertion (`ppt_automation.py: insert_audio`) - verified working with PowerPoint's video export
-- MP4 Export Automation (`ppt_automation.py: export_video`) - verified end-to-end on real Windows + PowerPoint: video plays correctly, per-slide timing matches audio length
-
-### Planned
-- Live-presentation auto-play (currently still requires a click; not needed for video export)
-- Progress reporting for `--insert-audio` (currently only `--generate-audio` and `--export-video` report progress)
-- Formalizing the subtitle generator into the main pipeline
-
-### Known Limitations
-- Inserted audio still shows "On Click" in the PowerPoint editor UI and requires a click during live Slide Show playback. This does not affect video export, which was verified to auto-play and time each slide correctly.
-- The legacy `PlayOnEntry` flag was empirically found to be required for correct video export (audio + duration), even though it has no visible effect in the editor UI. The underlying reason is not fully understood; revisit if a future PowerPoint version changes this behavior.
-- `CreateVideoStatus`'s enum values are assumed from Microsoft's documented `PpMediaTaskStatus` reference, not verified against every PowerPoint COM version. A safety-net file-existence check after a reported "done" status mitigates this risk.
-
-### Experimental Features
-The current Subtitle Generator is a Proof of Concept (PoC). It is retained for architecture validation and is not yet part of the official video generation pipeline.

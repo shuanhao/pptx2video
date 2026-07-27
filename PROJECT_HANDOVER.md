@@ -1,4 +1,4 @@
-# Project Handover Report
+# 專案交接報告
 
 ## 專案名稱
 pptx2video (PPTX Auto Presenter)
@@ -70,6 +70,10 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 ### 重要實測發現：`PlayOnEntry` 旗標
 
 在開發過程中發現一個不直觀但重要的行為：`shape.AnimationSettings.PlaySettings.PlayOnEntry` 這個舊版 API，雖然在 PowerPoint 編輯 UI 上完全看不出任何效果（Start 設定依然顯示「按一下時」），但**拿掉這個設定會讓 PowerPoint「建立視訊」匯出的 MP4 完全沒有聲音、且每頁變回固定 5 秒**，設定它之後匯出就正確無誤。目前程式碼固定會設定這個旗標，但底層原理尚未查證清楚，如果之後 PowerPoint 版本行為改變，需要重新測試這個結論是否仍然成立。
+
+### 另一個待留意的假設：`CreateVideoStatus` 列舉值
+
+`export_video()` 用來判斷匯出是否完成的 `CreateVideoStatus` 狀態值（none/in_progress/queued/done/failed），是依照 Microsoft 官方文件的 `PpMediaTaskStatus` 列舉假設，**並未逐一比對過所有 PowerPoint 版本**。目前已加上安全網：即使 API 回報「完成」，程式還是會額外檢查輸出檔案是否真的存在且非空，來降低誤判風險。如果之後在不同 PowerPoint 版本上遇到匯出邏輯誤判（例如卡住不進行、或誤報完成），這裡是優先排查的地方。
 
 ---
 
@@ -245,38 +249,13 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 
 這是一個「有明確願景、架構清楚、技術路線可行」的專案；目前最重要的工作不是重新設計，而是把設計逐步落成可執行的程式與流程。
 
-如果你要接手，建議先以一個最小可執行版本為目標，先讓單一簡報從 .pptx 生成音訊，再逐步擴大到字幕與 PowerPoint 匯出影片。 
+如果你要接手，建議先以一個最小可執行版本為目標，先讓單一簡報從 .pptx 生成音訊，再逐步擴大到字幕與 PowerPoint 匯出影片。（*此建議寫於專案初期，目前這個最小可執行版本已經達成並擴展完成，詳見下方最新狀態。*）
 
+## 目前開發狀態（最新）
 
-## Current Development Status
+**核心流程（pptx → 帶配音的 MP4）已完整打通，並在真實 Windows + PowerPoint 環境驗證通過。** 詳細清單與技術細節請見上方「3. 目前專案實際狀態」章節，這裡不重複列出，避免兩處內容日後不同步。
 
-Completed:
-- PPTX Parser
-- Notes Extraction
-- Edge-TTS (with real-time progress reporting)
-- Audio Manifest
-- CLI
-- Subtitle Generator (Experimental / PoC)
-- PowerPoint Audio Insertion (`ppt_automation.py: insert_audio`) - verified
-  correct with PowerPoint's video export (audio plays, per-slide duration
-  matches audio length automatically)
-- MP4 Export Automation (`ppt_automation.py: export_video`) - verified
-  end-to-end on real Windows + PowerPoint: video plays correctly, per-slide
-  timing matches audio length
-
-**Core pipeline (pptx -> narrated MP4) is complete and verified end-to-end.**
-
-Current focus (lower priority, polish items):
-- Progress reporting for `--insert-audio` (generate-audio and export-video
-  already report progress; audio insertion doesn't yet)
-- Live-presentation auto-play, if a non-export use case ever needs it
-- Formalizing the subtitle generator into the main pipeline
-
-Known limitations (not currently prioritized):
-- Inserted audio still requires a click during live Slide Show playback
-  (editor UI shows "On Click"). Confirmed this does not affect video export.
-- `CreateVideoStatus`'s enum values are taken from Microsoft's documented
-  reference, not individually verified against every PowerPoint COM version;
-  a file-existence safety net after a reported "done" status mitigates this.
-
-Subtitle Generator is intentionally kept as a PoC and is not part of the production pipeline.
+目前優先度較低、還沒做的項目：
+- `--insert-audio` 的進度顯示（`--generate-audio` 和 `--export-video` 已有）
+- 現場放映自動播放（目前僅影響「投影片放映」模式，不影響 MP4 匯出）
+- 字幕生成器正式整合進主流程（目前為獨立 PoC）
