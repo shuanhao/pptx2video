@@ -279,7 +279,7 @@ def export_video(
             embedded audio, not recorded rehearsal timings).
         timeout_seconds: Give up waiting after this many seconds and raise
             ``TimeoutError``. Export time scales with slide count and
-            resolution; the default (600s / 10min) may need to be raised for
+            resolution; the default (3600s / 1hr) may need to be raised for
             long decks.
         poll_interval_seconds: How often to check ``CreateVideoStatus``.
         visible: Whether the PowerPoint window should be shown while working.
