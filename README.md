@@ -303,7 +303,7 @@ pptx2video/
 
 ## 🪵 錯誤處理與 Logging
 
-從 v0.3.0 之後，專案加入了自訂例外階層與正式 Logging，取代原本單純依賴 `print()` 跟通用 `RuntimeError` 的做法。
+從 v0.4.0 開始，專案加入了自訂例外階層與正式 Logging，取代原本單純依賴 `print()` 跟通用 `RuntimeError` 的做法。
 
 ### 自訂例外階層（`src/exceptions.py`）
 

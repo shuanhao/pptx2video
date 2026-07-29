@@ -11,7 +11,7 @@
 
 ## 穩定性改善計劃（Robustness）
 
-依 v0.3.0 之後的穩定性提升規劃，正在 `robustness-improvements` 分支上進行，尚未合併回 `main`：
+依 v0.3.0 之後的穩定性提升規劃，已從 `robustness-improvements` 分支合併回 `main`（v0.4.0）：
 
 - [x] Exception 分類（`src/exceptions.py`）：`PptParseError`、`TTSGenerationError`、`PowerPointLaunchError`、`AudioInsertionError`、`VideoExportError`、`VideoExportTimeoutError`，取代原本泛用的 `RuntimeError`
 - [x] 正式 Logging（`src/logging_config.py`）：終端機維持原本簡潔輸出，同時永遠把完整 DEBUG 細節記錄到 `logs/YYYY-MM-DD.log`，不受 `--verbose` 影響；新增 `--log-dir`、`--no-file-log` 兩個 CLI 參數

@@ -4,13 +4,13 @@
 pptx2video (PPTX Auto Presenter)
 
 ## 文件版本
-v0.3.0 (Core Pipeline Complete: pptx to MP4)
+v0.4.0 (Robustness Improvements)
 
 ## 目標對象
 接手開發者、AI 協作 Agent
 
 ## 撰寫日期
-2026-07-26（v0.3.0 更新）
+2026-07-28（v0.4.0 更新）
 
 ---
 
@@ -110,7 +110,7 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 > 備註：原本規劃的「設定投影片自動播放與切換時間」已確認不需要額外處理——PowerPoint 的「建立視訊」匯出功能在沒有手動錄製時間的情況下，本來就會自動依嵌入媒體的時長決定該頁停留多久。
 
 ### Phase 4：穩定性與產品化
-已完成（v0.3.0 之後，於 `robustness-improvements` 分支進行，尚未合併回 `main`）：
+已完成（v0.3.0 之後，已從 `robustness-improvements` 分支合併回 `main`）：
 - 自訂例外階層（`src/exceptions.py`），取代泛用的 `RuntimeError`
 - 正式 Logging（`src/logging_config.py`），終端機維持簡潔輸出，log 檔案永遠記錄完整 DEBUG 細節
 - `--generate-audio` 補上原本缺失的錯誤處理
