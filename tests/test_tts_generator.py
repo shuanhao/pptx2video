@@ -1,3 +1,4 @@
+import ssl
 import tempfile
 import unittest
 from pathlib import Path
@@ -105,6 +106,10 @@ class TtsGeneratorTests(unittest.TestCase):
                     output_dir,
                     voice="en-US-AriaNeural",
                     generator=flaky_generator,
+                    # ConnectionError is retryable (see test_retries_* below
+                    # for that behavior) - use a zero delay here since this
+                    # test only cares about the final failure, not retrying.
+                    retry_delay_seconds=0,
                 )
 
             # The error message should say which slide failed, and the
@@ -130,6 +135,145 @@ class TtsGeneratorTests(unittest.TestCase):
                 )
 
             self.assertIn("ffmpeg", str(ctx.exception))
+
+    def test_generate_audio_files_retries_transient_error_then_succeeds(self):
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+        call_count = {"n": 0}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def flaky_then_ok_generator(text, output_path, voice):
+                call_count["n"] += 1
+                if call_count["n"] < 3:
+                    raise ConnectionError("temporary network blip")
+                output_path.write_bytes(b"fake-audio")
+
+            retry_events = []
+
+            def track_retry(attempt, max_retries, slide_num, exc):
+                retry_events.append((attempt, max_retries, slide_num))
+
+            manifest = generate_audio_files(
+                slides,
+                output_dir,
+                voice="en-US-AriaNeural",
+                generator=flaky_then_ok_generator,
+                retry_delay_seconds=0,
+                on_retry=track_retry,
+            )
+
+            # Failed twice, succeeded on the 3rd attempt - audio should
+            # still end up generated and in the manifest.
+            self.assertEqual(call_count["n"], 3)
+            self.assertEqual(len(manifest["slides"]), 1)
+            self.assertTrue((output_dir / "slide_001.mp3").exists())
+            # on_retry fires once per failed attempt before the eventual
+            # success (attempts 1 and 2 failed; no retry event for the
+            # successful 3rd attempt).
+            self.assertEqual(retry_events, [(1, 3, 1), (2, 3, 1)])
+
+    def test_generate_audio_files_gives_up_after_max_retries(self):
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+        call_count = {"n": 0}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def always_fails_generator(text, output_path, voice):
+                call_count["n"] += 1
+                raise ConnectionError("network is permanently down")
+
+            with self.assertRaises(TTSGenerationError):
+                generate_audio_files(
+                    slides,
+                    output_dir,
+                    voice="en-US-AriaNeural",
+                    generator=always_fails_generator,
+                    max_retries=2,
+                    retry_delay_seconds=0,
+                )
+
+            # 1 initial attempt + 2 retries = 3 total attempts, then give up.
+            self.assertEqual(call_count["n"], 3)
+
+    def test_generate_audio_files_does_not_retry_missing_ffmpeg(self):
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+        call_count = {"n": 0}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def missing_ffmpeg_generator(text, output_path, voice):
+                call_count["n"] += 1
+                raise FileNotFoundError("ffmpeg not found")
+
+            with self.assertRaises(TTSGenerationError):
+                generate_audio_files(
+                    slides,
+                    output_dir,
+                    voice="en-US-AriaNeural",
+                    generator=missing_ffmpeg_generator,
+                    retry_delay_seconds=0,
+                )
+
+            # FileNotFoundError (missing ffmpeg) is not retryable - retrying
+            # wouldn't fix a missing executable, so this should fail
+            # immediately on the first attempt.
+            self.assertEqual(call_count["n"], 1)
+
+    def test_generate_audio_files_retries_disabled_with_max_retries_zero(self):
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+        call_count = {"n": 0}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def always_fails_generator(text, output_path, voice):
+                call_count["n"] += 1
+                raise ConnectionError("network is down")
+
+            with self.assertRaises(TTSGenerationError):
+                generate_audio_files(
+                    slides,
+                    output_dir,
+                    voice="en-US-AriaNeural",
+                    generator=always_fails_generator,
+                    max_retries=0,
+                    retry_delay_seconds=0,
+                )
+
+            self.assertEqual(call_count["n"], 1)
+
+
+    def test_generate_audio_files_does_not_retry_ssl_cert_errors(self):
+        # This mirrors a real failure observed when testing against an
+        # environment with a broken/self-signed certificate in the chain:
+        # edge-tts (via aiohttp) raises ClientConnectorCertificateError,
+        # which is-a ssl.SSLCertVerificationError. A bad certificate won't
+        # become valid by retrying, so this must fail immediately.
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+        call_count = {"n": 0}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def bad_cert_generator(text, output_path, voice):
+                call_count["n"] += 1
+                raise ssl.SSLCertVerificationError(
+                    "certificate verify failed: self-signed certificate in certificate chain"
+                )
+
+            with self.assertRaises(TTSGenerationError):
+                generate_audio_files(
+                    slides,
+                    output_dir,
+                    voice="en-US-AriaNeural",
+                    generator=bad_cert_generator,
+                    retry_delay_seconds=0,
+                )
+
+            self.assertEqual(call_count["n"], 1)
 
 
 if __name__ == "__main__":

@@ -126,6 +126,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pitch for edge-tts (use +0Hz to keep the pitch unchanged)",
     )
     parser.add_argument(
+        "--tts-max-retries",
+        type=int,
+        default=3,
+        help=(
+            "How many times to retry generating a slide's audio after a "
+            "transient failure (network blip, service hiccup) before giving "
+            "up. Set to 0 to disable retrying entirely. Non-transient "
+            "failures (e.g. missing ffmpeg) are never retried."
+        ),
+    )
+    parser.add_argument(
+        "--tts-retry-delay",
+        type=float,
+        default=2.0,
+        help="Seconds to wait between TTS retry attempts",
+    )
+    parser.add_argument(
         "--subtitles-output",
         default="output/captions.srt",
         help="Path to write the generated subtitles .srt file",
@@ -270,6 +287,12 @@ def main() -> None:
         def _print_audio_progress(current: int, total: int, slide_num: int) -> None:
             logger.info(f"Generating audio {current}/{total} (slide {slide_num})...")
 
+        def _print_audio_retry(attempt: int, max_retries: int, slide_num: int, exc: Exception) -> None:
+            logger.warning(
+                f"Slide {slide_num}: attempt {attempt}/{max_retries + 1} failed "
+                f"({exc}); retrying in {args.tts_retry_delay:.0f}s..."
+            )
+
         try:
             audio_manifest = generate_audio_files(
                 slides,
@@ -279,6 +302,9 @@ def main() -> None:
                 rate=args.rate,
                 pitch=args.pitch,
                 progress_callback=_print_audio_progress,
+                max_retries=args.tts_max_retries,
+                retry_delay_seconds=args.tts_retry_delay,
+                on_retry=_print_audio_retry,
             )
         except TTSGenerationError as exc:
             _fail(parser, logger, str(exc))
