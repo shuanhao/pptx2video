@@ -3,6 +3,8 @@ from typing import List, Dict, Optional
 
 from pptx import Presentation
 
+from src.exceptions import PptParseError
+
 
 def _get_slide_title(slide) -> Optional[str]:
     title = None
@@ -56,7 +58,7 @@ def extract_notes(pptx_path: str) -> List[Dict[str, Optional[str]]]:
     try:
         prs = Presentation(str(path))
     except Exception as exc:
-        raise RuntimeError(f"Failed to load PowerPoint file: {exc}") from exc
+        raise PptParseError(f"Failed to load PowerPoint file: {exc}") from exc
 
     slides_data: List[Dict[str, Optional[str]]] = []
     for idx, slide in enumerate(prs.slides, start=1):
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     except ValueError as exc:
         print(f"Error: {exc}")
         sys.exit(1)
-    except RuntimeError as exc:
+    except PptParseError as exc:
         print(f"Error: {exc}")
         sys.exit(1)
     except Exception as exc:

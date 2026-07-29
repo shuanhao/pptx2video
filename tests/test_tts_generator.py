@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from src.exceptions import TTSGenerationError
 from src.tts import generate_audio_files
 
 
@@ -83,6 +84,52 @@ class TtsGeneratorTests(unittest.TestCase):
                 generator=fake_generator,
             )
             self.assertEqual(len(manifest["slides"]), 1)
+
+    def test_generate_audio_files_wraps_generator_failure_with_slide_context(self):
+        slides = [
+            {"slide_num": 1, "title": "Intro", "notes": "Hello there"},
+            {"slide_num": 2, "title": "Boom", "notes": "This one fails"},
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def flaky_generator(text, output_path, voice):
+                if "fails" in text:
+                    raise ConnectionError("network is down")
+                output_path.write_bytes(b"fake-audio")
+
+            with self.assertRaises(TTSGenerationError) as ctx:
+                generate_audio_files(
+                    slides,
+                    output_dir,
+                    voice="en-US-AriaNeural",
+                    generator=flaky_generator,
+                )
+
+            # The error message should say which slide failed, and the
+            # original exception should still be reachable via chaining.
+            self.assertIn("slide 2", str(ctx.exception))
+            self.assertIsInstance(ctx.exception.__cause__, ConnectionError)
+
+    def test_generate_audio_files_hints_at_ffmpeg_for_file_not_found(self):
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def missing_ffmpeg_generator(text, output_path, voice):
+                raise FileNotFoundError("ffmpeg not found")
+
+            with self.assertRaises(TTSGenerationError) as ctx:
+                generate_audio_files(
+                    slides,
+                    output_dir,
+                    voice="en-US-AriaNeural",
+                    generator=missing_ffmpeg_generator,
+                )
+
+            self.assertIn("ffmpeg", str(ctx.exception))
 
 
 if __name__ == "__main__":

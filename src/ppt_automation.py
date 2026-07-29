@@ -30,12 +30,27 @@ This module requires Windows with Microsoft PowerPoint and pywin32 installed,
 since it drives PowerPoint over COM. It cannot be exercised on non-Windows
 systems; ``_require_windows`` raises a clear error instead of failing with a
 confusing import error.
+
+``insert_audio`` and ``export_video`` both need to open PowerPoint, open a
+presentation, do their work, and reliably close both afterward - even if
+something fails partway through. That open/close bookkeeping (and now, the
+exception wrapping around it) is shared via the ``_powerpoint_session`` and
+``_open_presentation`` context managers below, instead of being duplicated
+in each function.
 """
 
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+
+from src.exceptions import (
+    AudioInsertionError,
+    PowerPointLaunchError,
+    VideoExportError,
+    VideoExportTimeoutError,
+)
 
 
 # Icon size and margin (in points) used to shrink the inserted audio icon
@@ -46,10 +61,67 @@ ICON_MARGIN_PT = 10
 
 def _require_windows() -> None:
     if sys.platform != "win32":
-        raise RuntimeError(
+        raise PowerPointLaunchError(
             "PowerPoint automation requires Windows with Microsoft PowerPoint "
             "and pywin32 installed. This step cannot run on this platform."
         )
+
+
+@contextmanager
+def _powerpoint_session(
+    powerpoint_app: Optional[Any], visible: bool
+) -> Iterator[Tuple[Any, bool]]:
+    """Get a PowerPoint COM Application, and ensure it's cleaned up after.
+
+    If ``powerpoint_app`` is given (typically a real already-running
+    instance, or a fake for testing), it's used as-is and left running when
+    this context exits - only Applications *created* here get Quit(). Yields
+    ``(app, created_app)``.
+    """
+    app = powerpoint_app
+    created_app = False
+    try:
+        if app is None:
+            try:
+                import win32com.client  # Imported lazily: only available on Windows
+
+                app = win32com.client.Dispatch("PowerPoint.Application")
+            except Exception as exc:
+                raise PowerPointLaunchError(
+                    f"Failed to start PowerPoint via COM: {exc}"
+                ) from exc
+            created_app = True
+            # PowerPoint's COM automation generally requires Visible = True
+            # to reliably manipulate shapes; some operations fail silently
+            # with a hidden application window.
+            app.Visible = True
+
+        yield app, created_app
+    finally:
+        if created_app and app is not None:
+            try:
+                app.Quit()
+            except Exception:  # noqa: BLE001 - best-effort cleanup
+                pass
+
+
+@contextmanager
+def _open_presentation(app: Any, pptx_path: Path, visible: bool) -> Iterator[Any]:
+    """Open a presentation for ``app``, and ensure it's closed after."""
+    try:
+        presentation = app.Presentations.Open(str(pptx_path), WithWindow=visible)
+    except Exception as exc:
+        raise PowerPointLaunchError(
+            f"Failed to open presentation {pptx_path}: {exc}"
+        ) from exc
+
+    try:
+        yield presentation
+    finally:
+        try:
+            presentation.Close()
+        except Exception:  # noqa: BLE001 - best-effort cleanup
+            pass
 
 
 def load_audio_manifest(manifest_path: Path | str) -> Dict[str, Any]:
@@ -105,7 +177,16 @@ def insert_audio(
         A summary dict: ``{"output_path", "inserted_slides", "skipped_slides"}``.
 
     Slides without a matching audio file are left untouched entirely -
-    no shapes are added and no slide settings are changed.
+    no shapes are added and no slide settings are changed. Per-slide
+    problems (missing audio file, bad slide number, failed insertion) are
+    recorded in ``skipped_slides`` rather than raised, so one bad slide
+    doesn't abort the whole deck.
+
+    Raises:
+        PowerPointLaunchError: if PowerPoint can't be started or the
+            presentation can't be opened.
+        AudioInsertionError: if the resulting .pptx can't be saved.
+        FileNotFoundError: if ``pptx_path`` doesn't exist.
     """
     _require_windows()
 
@@ -118,98 +199,76 @@ def insert_audio(
 
     slide_audio_map = _build_slide_audio_map(manifest, audio_dir)
 
-    app = powerpoint_app
-    created_app = False
-    presentation = None
+    with _powerpoint_session(powerpoint_app, visible) as (app, _created_app):
+        with _open_presentation(app, pptx_path, visible) as presentation:
+            inserted: List[int] = []
+            skipped: List[Dict[str, Any]] = []
 
-    try:
-        if app is None:
-            import win32com.client  # Imported lazily: only available on Windows
+            # Compute a top-right position for the (shrunk) audio icon so it
+            # stays out of the way of slide content, without moving it off
+            # the visible slide area (the deck may be reused/edited
+            # standalone).
+            slide_width = presentation.PageSetup.SlideWidth
+            icon_left = slide_width - ICON_SIZE_PT - ICON_MARGIN_PT
+            icon_top = ICON_MARGIN_PT
 
-            app = win32com.client.Dispatch("PowerPoint.Application")
-            created_app = True
-            # PowerPoint's COM automation generally requires Visible = True
-            # to reliably manipulate shapes; some operations fail silently
-            # with a hidden application window.
-            app.Visible = True
+            for slide_num, audio_path in slide_audio_map.items():
+                if not audio_path.exists():
+                    skipped.append(
+                        {"slide_num": slide_num, "reason": f"audio file not found: {audio_path}"}
+                    )
+                    continue
 
-        presentation = app.Presentations.Open(
-            str(pptx_path),
-            WithWindow=visible,
-        )
+                try:
+                    slide = presentation.Slides(slide_num)
+                except Exception as exc:  # noqa: BLE001 - surface as a skip, not a crash
+                    skipped.append({"slide_num": slide_num, "reason": f"slide not found: {exc}"})
+                    continue
 
-        inserted: List[int] = []
-        skipped: List[Dict[str, Any]] = []
+                try:
+                    shape = slide.Shapes.AddMediaObject2(
+                        FileName=str(audio_path),
+                        LinkToFile=False,
+                        SaveWithDocument=True,
+                        Left=icon_left,
+                        Top=icon_top,
+                        Width=ICON_SIZE_PT,
+                        Height=ICON_SIZE_PT,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    skipped.append(
+                        {"slide_num": slide_num, "reason": f"failed to insert audio: {exc}"}
+                    )
+                    continue
 
-        # Compute a top-right position for the (shrunk) audio icon so it
-        # stays out of the way of slide content, without moving it off the
-        # visible slide area (the deck may be reused/edited standalone).
-        slide_width = presentation.PageSetup.SlideWidth
-        icon_left = slide_width - ICON_SIZE_PT - ICON_MARGIN_PT
-        icon_top = ICON_MARGIN_PT
+                # Best-effort: hide the icon except while it's actually
+                # playing, and mark it to play on entry. NOTE: empirically,
+                # PlayOnEntry is NOT just cosmetic - even though it doesn't
+                # change what the editor UI shows (still "On Click"), leaving
+                # it unset caused PowerPoint's "Create a Video" export to
+                # ignore the audio entirely and fall back to a fixed
+                # 5-second slide duration with no sound. Keep both flags set
+                # together.
+                try:
+                    shape.AnimationSettings.PlaySettings.PlayOnEntry = True
+                    shape.AnimationSettings.PlaySettings.HideWhileNotPlaying = True
+                except Exception:  # noqa: BLE001
+                    pass
 
-        for slide_num, audio_path in slide_audio_map.items():
-            if not audio_path.exists():
-                skipped.append(
-                    {"slide_num": slide_num, "reason": f"audio file not found: {audio_path}"}
-                )
-                continue
+                inserted.append(slide_num)
 
             try:
-                slide = presentation.Slides(slide_num)
-            except Exception as exc:  # noqa: BLE001 - surface as a skip, not a crash
-                skipped.append({"slide_num": slide_num, "reason": f"slide not found: {exc}"})
-                continue
+                presentation.SaveAs(str(output_path))
+            except Exception as exc:
+                raise AudioInsertionError(
+                    f"Failed to save PPTX with inserted audio to {output_path}: {exc}"
+                ) from exc
 
-            try:
-                shape = slide.Shapes.AddMediaObject2(
-                    FileName=str(audio_path),
-                    LinkToFile=False,
-                    SaveWithDocument=True,
-                    Left=icon_left,
-                    Top=icon_top,
-                    Width=ICON_SIZE_PT,
-                    Height=ICON_SIZE_PT,
-                )
-            except Exception as exc:  # noqa: BLE001
-                skipped.append(
-                    {"slide_num": slide_num, "reason": f"failed to insert audio: {exc}"}
-                )
-                continue
-
-            # Best-effort: hide the icon except while it's actually playing,
-            # and mark it to play on entry. NOTE: empirically, PlayOnEntry
-            # is NOT just cosmetic - even though it doesn't change what the
-            # editor UI shows (still "On Click"), leaving it unset caused
-            # PowerPoint's "Create a Video" export to ignore the audio
-            # entirely and fall back to a fixed 5-second slide duration with
-            # no sound. Keep both flags set together.
-            try:
-                shape.AnimationSettings.PlaySettings.PlayOnEntry = True
-                shape.AnimationSettings.PlaySettings.HideWhileNotPlaying = True
-            except Exception:  # noqa: BLE001
-                pass
-
-            inserted.append(slide_num)
-
-        presentation.SaveAs(str(output_path))
-
-        return {
-            "output_path": str(output_path),
-            "inserted_slides": inserted,
-            "skipped_slides": skipped,
-        }
-    finally:
-        if presentation is not None:
-            try:
-                presentation.Close()
-            except Exception:  # noqa: BLE001 - best-effort cleanup
-                pass
-        if created_app and app is not None:
-            try:
-                app.Quit()
-            except Exception:  # noqa: BLE001 - best-effort cleanup
-                pass
+            return {
+                "output_path": str(output_path),
+                "inserted_slides": inserted,
+                "skipped_slides": skipped,
+            }
 
 
 # PpMediaTaskStatus enumeration (Microsoft PowerPoint COM/VBA reference).
@@ -278,9 +337,9 @@ def export_video(
             which is what this project's decks use (timing comes from
             embedded audio, not recorded rehearsal timings).
         timeout_seconds: Give up waiting after this many seconds and raise
-            ``TimeoutError``. Export time scales with slide count and
-            resolution; the default (3600s / 1hr) may need to be raised for
-            long decks.
+            ``VideoExportTimeoutError``. Export time scales with slide count
+            and resolution; the default (3600s / 1hr) may need to be raised
+            for long decks.
         poll_interval_seconds: How often to check ``CreateVideoStatus``.
         visible: Whether the PowerPoint window should be shown while working.
         powerpoint_app: Optional pre-existing PowerPoint COM Application
@@ -294,12 +353,16 @@ def export_video(
         A summary dict: ``{"output_path", "elapsed_seconds"}``.
 
     Raises:
-        RuntimeError: if PowerPoint reports the export failed
+        PowerPointLaunchError: if PowerPoint can't be started or the
+            presentation can't be opened.
+        VideoExportError: if PowerPoint reports the export failed
             (``CreateVideoStatus`` == failed), or if the output file is
             missing/empty after a reported "done" status (a safety net in
             case the status enum values behave differently than documented
             on a given PowerPoint version).
-        TimeoutError: if the export does not finish within ``timeout_seconds``.
+        VideoExportTimeoutError: if the export does not finish within
+            ``timeout_seconds``. Also catchable as ``TimeoutError``.
+        FileNotFoundError: if ``pptx_path`` doesn't exist.
     """
     _require_windows()
 
@@ -310,83 +373,58 @@ def export_video(
     if not pptx_path.exists():
         raise FileNotFoundError(f"PPTX file not found: {pptx_path}")
 
-    app = powerpoint_app
-    created_app = False
-    presentation = None
-
-    try:
-        if app is None:
-            import win32com.client  # Imported lazily: only available on Windows
-
-            app = win32com.client.Dispatch("PowerPoint.Application")
-            created_app = True
-            app.Visible = True
-
-        presentation = app.Presentations.Open(
-            str(pptx_path),
-            WithWindow=visible,
-        )
-
-        presentation.CreateVideo(
-            FileName=str(output_path),
-            UseTimingsAndNarrations=use_timings_and_narrations,
-            DefaultSlideDuration=default_slide_duration,
-            VertResolution=resolution_height,
-            FramesPerSecond=frames_per_second,
-            Quality=quality,
-        )
-
-        start_time = time.monotonic()
-        last_status = None
-
-        while True:
-            status = presentation.CreateVideoStatus
-            status_name = _STATUS_NAMES.get(status, f"unknown({status})")
-
-            if progress_callback is not None and status != last_status:
-                progress_callback(status_name)
-                last_status = status
-
-            if status == PP_MEDIA_TASK_STATUS_DONE:
-                break
-            if status == PP_MEDIA_TASK_STATUS_FAILED:
-                raise RuntimeError(
-                    "PowerPoint reported the video export failed "
-                    "(CreateVideoStatus = failed)."
-                )
-
-            elapsed = time.monotonic() - start_time
-            if elapsed > timeout_seconds:
-                raise TimeoutError(
-                    f"Timed out after {timeout_seconds}s waiting for PowerPoint "
-                    f"to finish exporting the video (last status: {status_name})."
-                )
-
-            time.sleep(poll_interval_seconds)
-
-        # Safety net: don't just trust the reported "done" status (the
-        # status enum's exact numeric values are documented but unverified
-        # against every PowerPoint COM version in practice) - confirm the
-        # output file actually exists and isn't empty before declaring
-        # success.
-        if not output_path.exists() or output_path.stat().st_size == 0:
-            raise RuntimeError(
-                "PowerPoint reported the video export as done, but no "
-                f"non-empty output file was found at {output_path}."
+    with _powerpoint_session(powerpoint_app, visible) as (app, _created_app):
+        with _open_presentation(app, pptx_path, visible) as presentation:
+            presentation.CreateVideo(
+                FileName=str(output_path),
+                UseTimingsAndNarrations=use_timings_and_narrations,
+                DefaultSlideDuration=default_slide_duration,
+                VertResolution=resolution_height,
+                FramesPerSecond=frames_per_second,
+                Quality=quality,
             )
 
-        return {
-            "output_path": str(output_path),
-            "elapsed_seconds": time.monotonic() - start_time,
-        }
-    finally:
-        if presentation is not None:
-            try:
-                presentation.Close()
-            except Exception:  # noqa: BLE001 - best-effort cleanup
-                pass
-        if created_app and app is not None:
-            try:
-                app.Quit()
-            except Exception:  # noqa: BLE001 - best-effort cleanup
-                pass
+            start_time = time.monotonic()
+            last_status = None
+
+            while True:
+                status = presentation.CreateVideoStatus
+                status_name = _STATUS_NAMES.get(status, f"unknown({status})")
+
+                if progress_callback is not None and status != last_status:
+                    progress_callback(status_name)
+                    last_status = status
+
+                if status == PP_MEDIA_TASK_STATUS_DONE:
+                    break
+                if status == PP_MEDIA_TASK_STATUS_FAILED:
+                    raise VideoExportError(
+                        "PowerPoint reported the video export failed "
+                        "(CreateVideoStatus = failed)."
+                    )
+
+                elapsed = time.monotonic() - start_time
+                if elapsed > timeout_seconds:
+                    raise VideoExportTimeoutError(
+                        f"Timed out after {timeout_seconds}s waiting for PowerPoint "
+                        f"to finish exporting {output_path.name} "
+                        f"(last status: {status_name})."
+                    )
+
+                time.sleep(poll_interval_seconds)
+
+            # Safety net: don't just trust the reported "done" status (the
+            # status enum's exact numeric values are documented but
+            # unverified against every PowerPoint COM version in practice) -
+            # confirm the output file actually exists and isn't empty before
+            # declaring success.
+            if not output_path.exists() or output_path.stat().st_size == 0:
+                raise VideoExportError(
+                    "PowerPoint reported the video export as done, but no "
+                    f"non-empty output file was found at {output_path}."
+                )
+
+            return {
+                "output_path": str(output_path),
+                "elapsed_seconds": time.monotonic() - start_time,
+            }
