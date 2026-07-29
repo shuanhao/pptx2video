@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pptx import Presentation
 
+from src.exceptions import PptParseError
 from src.main import build_parser
 from src.pptx_parser import extract_notes
 
@@ -76,6 +77,18 @@ class PptxParserTests(unittest.TestCase):
         self.assertTrue(args.verbose)
         self.assertTrue(args.strict)
         self.assertEqual(args.output, "out.json")
+
+    def test_extract_notes_raises_pptparseerror_for_corrupt_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            corrupt_path = Path(temp_dir) / "corrupt.pptx"
+            # A .pptx is really a zip archive - this is neither.
+            corrupt_path.write_bytes(b"this is not a valid pptx file")
+
+            with self.assertRaises(PptParseError) as ctx:
+                extract_notes(str(corrupt_path))
+
+            self.assertIn("Failed to load PowerPoint file", str(ctx.exception))
+            self.assertIsNotNone(ctx.exception.__cause__)
 
 
 if __name__ == "__main__":

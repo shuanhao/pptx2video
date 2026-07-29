@@ -1,12 +1,16 @@
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import ppt_automation
+from src.exceptions import Pptx2VideoError, PptParseError, TTSGenerationError
+from src.logging_config import setup_logging
 from src.pptx_parser import extract_notes
 from src.subtitle_generator import write_srt
 from src.tts import generate_audio_files
@@ -50,6 +54,17 @@ def write_subtitle_output(payload, output_path, audio_dir=None):
     slides = payload.get("slides", [])
     output_path = Path(output_path)
     return write_srt(slides, output_path, audio_dir=audio_dir)
+
+
+def _fail(parser: argparse.ArgumentParser, logger: logging.Logger, message: str) -> NoReturn:
+    """Log an error (so it's captured in the log file too) and exit via argparse.
+
+    ``parser.error()`` prints the message to stderr and exits with status 2 -
+    it never returns, but doesn't itself go through the logger, which is why
+    this wrapper logs first.
+    """
+    logger.error(message)
+    parser.error(message)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -202,6 +217,19 @@ def build_parser() -> argparse.ArgumentParser:
             "many seconds. Increase for longer decks or higher resolutions."
         ),
     )
+    parser.add_argument(
+        "--log-dir",
+        default="logs",
+        help=(
+            "Directory to write a dated log file into (e.g. logs/2026-07-28.log). "
+            "The file always captures full DEBUG-level detail, regardless of --verbose."
+        ),
+    )
+    parser.add_argument(
+        "--no-file-log",
+        action="store_true",
+        help="Disable writing a log file; only print to the console.",
+    )
     return parser
 
 
@@ -209,48 +237,54 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    logger = setup_logging(
+        verbose=args.verbose,
+        log_dir=None if args.no_file_log else args.log_dir,
+    )
+
     pptx_path = args.pptx_path
     output_path = Path(args.output) if args.output else None
 
-    if args.verbose:
-        print(f"Parsing PowerPoint file: {pptx_path}")
+    logger.debug(f"Parsing PowerPoint file: {pptx_path}")
 
     try:
         slides = extract_notes(pptx_path)
     except FileNotFoundError as exc:
-        parser.error(str(exc))
+        _fail(parser, logger, str(exc))
     except ValueError as exc:
-        parser.error(str(exc))
-    except RuntimeError as exc:
-        parser.error(str(exc))
+        _fail(parser, logger, str(exc))
+    except PptParseError as exc:
+        _fail(parser, logger, str(exc))
     except Exception as exc:
-        parser.error(f"Unexpected error: {exc}")
+        _fail(parser, logger, f"Unexpected error while parsing {pptx_path}: {exc}")
 
-    if args.verbose:
-        print(f"Loaded {len(slides)} slide(s)")
+    logger.debug(f"Loaded {len(slides)} slide(s)")
 
     if args.strict:
         for slide in slides:
             if slide.get("notes") is None:
-                parser.error(f"Strict mode: slide {slide['slide_num']} has no notes")
+                _fail(parser, logger, f"Strict mode: slide {slide['slide_num']} has no notes")
 
     audio_manifest = None
     if args.generate_audio:
         def _print_audio_progress(current: int, total: int, slide_num: int) -> None:
-            print(f"Generating audio {current}/{total} (slide {slide_num})...")
+            logger.info(f"Generating audio {current}/{total} (slide {slide_num})...")
 
-        audio_manifest = generate_audio_files(
-            slides,
-            args.audio_output_dir,
-            voice=args.voice,
-            manifest_path=Path(args.audio_output_dir) / "manifest.json",
-            rate=args.rate,
-            pitch=args.pitch,
-            progress_callback=_print_audio_progress,
-        )
-        if args.verbose:
-            print(json.dumps(audio_manifest, ensure_ascii=False, indent=args.indent))
-        print(f"Generated {len(audio_manifest['slides'])} audio file(s) in {args.audio_output_dir}")
+        try:
+            audio_manifest = generate_audio_files(
+                slides,
+                args.audio_output_dir,
+                voice=args.voice,
+                manifest_path=Path(args.audio_output_dir) / "manifest.json",
+                rate=args.rate,
+                pitch=args.pitch,
+                progress_callback=_print_audio_progress,
+            )
+        except TTSGenerationError as exc:
+            _fail(parser, logger, str(exc))
+
+        logger.debug(json.dumps(audio_manifest, ensure_ascii=False, indent=args.indent))
+        logger.info(f"Generated {len(audio_manifest['slides'])} audio file(s) in {args.audio_output_dir}")
 
     payload = build_payload(
         slides,
@@ -265,7 +299,7 @@ def main() -> None:
             json.dumps(payload, ensure_ascii=False, indent=args.indent),
             encoding="utf-8",
         )
-        print(f"Saved JSON to {output_path}")
+        logger.info(f"Saved JSON to {output_path}")
 
     subtitle_output_path = Path(args.subtitles_output)
     if subtitle_output_path:
@@ -274,7 +308,7 @@ def main() -> None:
             subtitle_output_path,
             audio_dir=args.audio_output_dir,
         )
-        print(f"Saved subtitles to {subtitle_output_path}")
+        logger.info(f"Saved subtitles to {subtitle_output_path}")
 
     # Shared by --insert-audio and --export-video: the PPTX path that
     # downstream steps should operate on. If --insert-audio ran, this is
@@ -289,9 +323,11 @@ def main() -> None:
             try:
                 manifest_for_insert = ppt_automation.load_audio_manifest(manifest_path)
             except FileNotFoundError:
-                parser.error(
+                _fail(
+                    parser,
+                    logger,
                     "--insert-audio requires an audio manifest. Run with "
-                    f"--generate-audio first, or ensure {manifest_path} exists."
+                    f"--generate-audio first, or ensure {manifest_path} exists.",
                 )
 
         try:
@@ -301,16 +337,20 @@ def main() -> None:
                 args.audio_output_dir,
                 output_path=pptx_output_path,
             )
-        except (RuntimeError, FileNotFoundError) as exc:
-            parser.error(str(exc))
+        except (Pptx2VideoError, FileNotFoundError) as exc:
+            _fail(parser, logger, str(exc))
 
-        if args.verbose:
-            print(json.dumps(insert_result, ensure_ascii=False, indent=args.indent))
-        print(
+        logger.debug(json.dumps(insert_result, ensure_ascii=False, indent=args.indent))
+        logger.info(
             f"Inserted audio into {len(insert_result['inserted_slides'])} slide(s); "
             f"skipped {len(insert_result['skipped_slides'])}. "
             f"Saved to {insert_result['output_path']}"
         )
+        if insert_result["skipped_slides"]:
+            for skipped in insert_result["skipped_slides"]:
+                logger.warning(
+                    f"Skipped slide {skipped['slide_num']}: {skipped['reason']}"
+                )
 
     if args.export_video:
         video_source_pptx = Path(pptx_output_path)
@@ -321,7 +361,7 @@ def main() -> None:
         )
 
         def _print_video_progress(status_name: str) -> None:
-            print(f"Exporting video... status: {status_name}")
+            logger.info(f"Exporting video... status: {status_name}")
 
         try:
             export_result = ppt_automation.export_video(
@@ -335,12 +375,11 @@ def main() -> None:
                 timeout_seconds=args.video_timeout,
                 progress_callback=_print_video_progress,
             )
-        except (RuntimeError, FileNotFoundError, TimeoutError) as exc:
-            parser.error(str(exc))
+        except (Pptx2VideoError, FileNotFoundError) as exc:
+            _fail(parser, logger, str(exc))
 
-        if args.verbose:
-            print(json.dumps(export_result, ensure_ascii=False, indent=args.indent))
-        print(
+        logger.debug(json.dumps(export_result, ensure_ascii=False, indent=args.indent))
+        logger.info(
             f"Exported video to {export_result['output_path']} "
             f"({export_result['elapsed_seconds']:.1f}s)"
         )

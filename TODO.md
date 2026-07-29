@@ -9,9 +9,21 @@
 - MP4 匯出
   - [x] 透過 COM 自動觸發 PowerPoint「建立視訊」（`ppt_automation.py: export_video`）。已在真實 Windows + PowerPoint 環境完整驗證：影片正確產生，每頁時長對齊音訊長度。
 
-## 可以做但不急
+## 穩定性改善計劃（Robustness）
 
+依 v0.3.0 之後的穩定性提升規劃，正在 `robustness-improvements` 分支上進行，尚未合併回 `main`：
+
+- [x] Exception 分類（`src/exceptions.py`）：`PptParseError`、`TTSGenerationError`、`PowerPointLaunchError`、`AudioInsertionError`、`VideoExportError`、`VideoExportTimeoutError`，取代原本泛用的 `RuntimeError`
+- [x] 正式 Logging（`src/logging_config.py`）：終端機維持原本簡潔輸出，同時永遠把完整 DEBUG 細節記錄到 `logs/YYYY-MM-DD.log`，不受 `--verbose` 影響；新增 `--log-dir`、`--no-file-log` 兩個 CLI 參數
+- [x] `--generate-audio` 補上錯誤處理（原本完全沒有，`--insert-audio`/`--export-video` 有但這個沒有）
+- [x] COM 開關邏輯重構去重複（`insert_audio()` 與 `export_video()` 共用 `_powerpoint_session()` / `_open_presentation()`，與 Exception 分類一起做，因為兩者都要動到同一段程式碼）
+- [ ] Recoverable Error Policy 文件化：把現在程式裡已經隱含的規則（沒 notes 跳過、音檔缺失跳過、pptx 不存在中止…）整理成明確表格
+- [ ] Retry 機制：**僅限 TTS 網路請求**（失敗重試最多 3 次、間隔 2 秒）。COM 操作暫不做重試，因為失敗重試前若沒有先確保舊的 PowerPoint 物件已關閉，反而可能製造殭屍程序，風險大於效益
 - [ ] `--insert-audio` 的進度顯示（`--generate-audio` 和 `--export-video` 都已經有即時進度回報，插入音訊的迴圈還沒有）
+- [ ] Output Validation 強化（目前只驗證檔案存在且非空，更進階的檢查如「能否開啟」「影片長度是否合理」先不做，等有實際需求再考慮）
+
+已評估、決定不做：
+- Temporary File Cleanup（自動清除 `output/audio`、`manifest.json` 等）——會打斷分階段執行的工作流程（例如今天先 `--generate-audio`，明天才 `--insert-audio`），刻意保留現狀
 
 ## 已知限制（目前不打算修）
 

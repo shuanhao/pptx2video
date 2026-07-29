@@ -6,6 +6,8 @@ from typing import Callable, Dict, List, Optional, Any
 
 import edge_tts
 
+from src.exceptions import TTSGenerationError
+
 
 def _build_output_path(output_dir: Path, slide_num: int) -> Path:
     return output_dir / f"slide_{slide_num:03d}.mp3"
@@ -20,14 +22,7 @@ async def _save_edge_tts_audio(
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     communicate = edge_tts.Communicate(text=text, voice=voice, rate=rate, pitch=pitch)
-    try:
-        await communicate.save(str(output_path))
-    except FileNotFoundError as exc:
-        raise RuntimeError(
-            "ffmpeg is required to save MP3 files. Install ffmpeg and ensure it is on PATH."
-        ) from exc
-    except Exception as exc:
-        raise RuntimeError(f"Failed to generate audio with edge-tts: {exc}") from exc
+    await communicate.save(str(output_path))
 
 
 def _default_generator(text: str, output_path: Path, voice: str, rate: str = "-10%", pitch: str = "+0Hz") -> None:
@@ -83,7 +78,16 @@ def generate_audio_files(
         slide_num = int(slide["slide_num"])
         output_file = _build_output_path(output_path, slide_num)
 
-        _invoke_generator(generator_func, str(slide["notes"]), output_file, voice, rate, pitch)
+        try:
+            _invoke_generator(generator_func, str(slide["notes"]), output_file, voice, rate, pitch)
+        except Exception as exc:
+            hint = ""
+            if isinstance(exc, FileNotFoundError):
+                hint = " (this often means ffmpeg is missing - install it and ensure it's on PATH)"
+            raise TTSGenerationError(
+                f"Failed to generate audio for slide {slide_num}{hint}: {exc}"
+            ) from exc
+
         manifest_entries.append({
             "slide_num": slide_num,
             "title": slide.get("title"),

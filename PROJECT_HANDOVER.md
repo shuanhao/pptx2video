@@ -110,11 +110,17 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 > 備註：原本規劃的「設定投影片自動播放與切換時間」已確認不需要額外處理——PowerPoint 的「建立視訊」匯出功能在沒有手動錄製時間的情況下，本來就會自動依嵌入媒體的時長決定該頁停留多久。
 
 ### Phase 4：穩定性與產品化
+已完成（v0.3.0 之後，於 `robustness-improvements` 分支進行，尚未合併回 `main`）：
+- 自訂例外階層（`src/exceptions.py`），取代泛用的 `RuntimeError`
+- 正式 Logging（`src/logging_config.py`），終端機維持簡潔輸出，log 檔案永遠記錄完整 DEBUG 細節
+- `--generate-audio` 補上原本缺失的錯誤處理
+- COM 開關邏輯重構去重複（與例外分類一起做）
+
 待補強項目：
-- 更完整的錯誤處理
-- 更清楚的日誌輸出
-- 暫存檔與輸出資料夾管理
-- 進一步的 CLI 擴充
+- Recoverable Error Policy 文件化（把隱含規則整理成明確表格）
+- Retry 機制（僅限 TTS 網路請求，COM 操作暫不做，風險考量見 TODO.md）
+- `--insert-audio` 的進度顯示
+- 暫存檔與輸出資料夾管理（已評估，決定維持現狀不自動清除，見 TODO.md）
 
 ---
 
@@ -126,6 +132,7 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 - 取得投影片數量
 - 取得每頁備忘稿文字
 - 處理空白頁或無 notes 的情況
+- 解析失敗時拋出 `PptParseError`
 
 ### 5.2 tts_engine.py
 負責：
@@ -133,12 +140,14 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 - 使用 edge-tts 逐頁生成音檔
 - 取得每段語音的時長
 - 將音檔存於 temp_audios/
+- 生成失敗時拋出 `TTSGenerationError`，訊息會標明是第幾頁失敗，並保留原始例外鏈
 
 ### 5.3 ppt_automation.py
 負責：
 - **`insert_audio()`**：啟動 PowerPoint（COM，`pywin32`）、開啟簡報檔、插入音訊（縮小圖示、移到投影片右上角、盡量在非播放狀態隱藏 `HideWhileNotPlaying`）、設定 `PlayOnEntry = True`（實測發現匯出 MP4 是否正確依賴這個舊版旗標，即使編輯 UI 看不出效果）
 - **`export_video()`**：呼叫 `Presentation.CreateVideo()` 觸發匯出（非同步 API），輪詢 `CreateVideoStatus` 直到完成/失敗/逾時，並在回報「完成」後額外檢查輸出檔案是否存在且非空（安全網，避免狀態列舉值與實際版本行為不一致時誤判成功）
-- 兩個函式都確保 COM 物件正常釋放（`Presentation.Close()` / `Application.Quit()`，皆包在 `finally` 區塊）
+- 兩個函式共用 `_powerpoint_session()` / `_open_presentation()` 這兩個 context manager 處理開啟/關閉 PowerPoint 的邏輯，避免重複程式碼；PowerPoint 無法啟動或開啟簡報時拋出 `PowerPointLaunchError`，插入完成後存檔失敗拋出 `AudioInsertionError`，匯出失敗/逾時拋出 `VideoExportError` / `VideoExportTimeoutError`
+- 確保 COM 物件正常釋放（`Presentation.Close()` / `Application.Quit()`，皆包在 `finally` 區塊）
 
 尚未負責（規劃中，優先度較低）：
 - 投影片自動播放（現場放映模式）：目前刻意不處理，因為已確認不影響 MP4 匯出結果
@@ -149,12 +158,26 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 - 進行時間累加
 - 輸出 .srt 檔
 
-### 5.5 main.py
+### 5.5 exceptions.py
+負責：
+- 定義專案自訂例外階層，共同基底 `Pptx2VideoError`
+- `PptParseError`、`TTSGenerationError`、`PowerPointLaunchError`、`AudioInsertionError`、`VideoExportError`、`VideoExportTimeoutError`（同時也是內建 `TimeoutError` 的子類別，向下相容只認得 `TimeoutError` 的呼叫端）
+- `FileNotFoundError`、`ValueError` 等語意已經明確的 Python 內建例外故意不重新包裝
+
+### 5.6 logging_config.py
+負責：
+- 提供 `setup_logging()` 統一設定 Logging：終端機維持原本簡潔風格（無時間戳記），log 檔案（`logs/YYYY-MM-DD.log`）永遠記錄完整 DEBUG 細節、不受 `--verbose` 影響
+- 重複呼叫時具備冪等性：`log_dir` 沒變就不重建 handler（避免重複輸出），`log_dir` 改變則正確關閉舊 handler 並重建
+- log 資料夾無法寫入時優雅降級成只輸出到終端機，不會讓程式崩潰
+- 提供 `shutdown_logging()` 供測試或需要主動釋放 log 檔案控制權的情境使用
+
+### 5.7 main.py
 負責：
 - 串接上面所有模組
 - 提供 CLI 入口
 - 決定輸入與輸出路徑
 - 讓使用者只需執行一個命令即可完成流程
+- 統一在 `_fail()` 這個 helper 裡處理錯誤：先寫進 log（`logger.error()`），再透過 `parser.error()` 印給使用者看並結束程式
 
 ---
 

@@ -4,6 +4,12 @@ from pathlib import Path
 from unittest import mock
 
 from src import ppt_automation
+from src.exceptions import (
+    AudioInsertionError,
+    PowerPointLaunchError,
+    VideoExportError,
+    VideoExportTimeoutError,
+)
 
 
 class FakePlaySettings:
@@ -65,11 +71,13 @@ class FakePresentation:
         slide_width=960,
         video_status_sequence=None,
         write_output_on_create_video=True,
+        fail_save_as=False,
     ):
         self.Slides = FakeSlides(slide_nums)
         self.PageSetup = FakePageSetup(slide_width)
         self.saved_to = None
         self.closed = False
+        self._fail_save_as = fail_save_as
 
         # --- export_video / CreateVideo simulation ---
         # Each read of CreateVideoStatus advances through this sequence,
@@ -85,6 +93,8 @@ class FakePresentation:
         self.create_video_calls = []
 
     def SaveAs(self, path):
+        if self._fail_save_as:
+            raise Exception("simulated disk full error")
         self.saved_to = path
 
     def Close(self):
@@ -123,25 +133,28 @@ class FakePresentation:
 
 
 class FakePresentations:
-    def __init__(self, presentation):
+    def __init__(self, presentation, fail_open=False):
         self._presentation = presentation
         self.opened_with = None
+        self._fail_open = fail_open
 
     def Open(self, path, WithWindow=True):
+        if self._fail_open:
+            raise Exception("simulated COM error: presentation is corrupt")
         self.opened_with = (path, WithWindow)
         return self._presentation
 
 
 class FakeApplication:
-    def __init__(self, presentation):
-        self.Presentations = FakePresentations(presentation)
+    def __init__(self, presentation, fail_open=False):
+        self.Presentations = FakePresentations(presentation, fail_open=fail_open)
         self.Visible = False
 
 
 class PptAutomationTests(unittest.TestCase):
     def test_require_windows_raises_on_non_windows(self):
         with mock.patch("sys.platform", "linux"):
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(PowerPointLaunchError):
                 ppt_automation._require_windows()
 
     def test_build_slide_audio_map_skips_entries_without_audio(self):
@@ -186,7 +199,7 @@ class PptAutomationTests(unittest.TestCase):
 
             self.assertEqual(sorted(result["inserted_slides"]), [2, 3])
             self.assertEqual(result["skipped_slides"], [])
-            self.assertEqual(presentation.saved_to, str(pptx_path))
+            self.assertEqual(Path(presentation.saved_to).resolve(), pptx_path.resolve())
             self.assertTrue(presentation.closed)
 
             # Slides without audio were never touched.
@@ -365,7 +378,7 @@ class PptAutomationTests(unittest.TestCase):
             app = FakeApplication(presentation)
 
             with mock.patch("sys.platform", "win32"):
-                with self.assertRaises(RuntimeError):
+                with self.assertRaises(VideoExportError):
                     ppt_automation.export_video(
                         pptx_path,
                         video_path,
@@ -388,7 +401,7 @@ class PptAutomationTests(unittest.TestCase):
             app = FakeApplication(presentation)
 
             with mock.patch("sys.platform", "win32"):
-                with self.assertRaises(TimeoutError):
+                with self.assertRaises(VideoExportTimeoutError) as ctx:
                     ppt_automation.export_video(
                         pptx_path,
                         video_path,
@@ -396,6 +409,11 @@ class PptAutomationTests(unittest.TestCase):
                         timeout_seconds=0.05,
                         poll_interval_seconds=0.01,
                     )
+
+            # VideoExportTimeoutError must also be catchable as the builtin
+            # TimeoutError, so code that only knows to catch TimeoutError
+            # generically keeps working.
+            self.assertIsInstance(ctx.exception, TimeoutError)
 
     def test_export_video_raises_when_output_file_missing_despite_done_status(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -414,7 +432,7 @@ class PptAutomationTests(unittest.TestCase):
             app = FakeApplication(presentation)
 
             with mock.patch("sys.platform", "win32"):
-                with self.assertRaises(RuntimeError):
+                with self.assertRaises(VideoExportError):
                     ppt_automation.export_video(
                         pptx_path,
                         video_path,
@@ -433,6 +451,75 @@ class PptAutomationTests(unittest.TestCase):
                 with self.assertRaises(FileNotFoundError):
                     ppt_automation.export_video(
                         missing_path,
+                        video_path,
+                        powerpoint_app=app,
+                        poll_interval_seconds=0,
+                    )
+
+    def test_insert_audio_raises_audioinsertionerror_when_save_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+
+            audio_dir = tmp_path / "audio"
+            audio_dir.mkdir()
+            (audio_dir / "slide_002.mp3").write_bytes(b"fake-audio")
+
+            manifest = {"slides": [{"slide_num": 2, "audio_file": "slide_002.mp3"}]}
+
+            presentation = FakePresentation(slide_nums=[1, 2, 3], fail_save_as=True)
+            app = FakeApplication(presentation)
+
+            with mock.patch("sys.platform", "win32"):
+                with self.assertRaises(AudioInsertionError):
+                    ppt_automation.insert_audio(
+                        pptx_path,
+                        manifest,
+                        audio_dir,
+                        powerpoint_app=app,
+                    )
+
+            # Even though saving failed, the presentation must still have
+            # been closed - the cleanup context manager doesn't skip Close()
+            # just because the code inside raised.
+            self.assertTrue(presentation.closed)
+
+    def test_insert_audio_raises_powerpointlauncherror_when_open_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+            audio_dir = tmp_path / "audio"
+            audio_dir.mkdir()
+
+            manifest = {"slides": []}
+            presentation = FakePresentation(slide_nums=[])
+            app = FakeApplication(presentation, fail_open=True)
+
+            with mock.patch("sys.platform", "win32"):
+                with self.assertRaises(PowerPointLaunchError):
+                    ppt_automation.insert_audio(
+                        pptx_path,
+                        manifest,
+                        audio_dir,
+                        powerpoint_app=app,
+                    )
+
+    def test_export_video_raises_powerpointlauncherror_when_open_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+            video_path = tmp_path / "deck.mp4"
+
+            presentation = FakePresentation(slide_nums=[])
+            app = FakeApplication(presentation, fail_open=True)
+
+            with mock.patch("sys.platform", "win32"):
+                with self.assertRaises(PowerPointLaunchError):
+                    ppt_automation.export_video(
+                        pptx_path,
                         video_path,
                         powerpoint_app=app,
                         poll_interval_seconds=0,

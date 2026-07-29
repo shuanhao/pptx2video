@@ -207,6 +207,8 @@ python -m pptx2video <pptx_path> [選項...]
 | `--video-default-duration` | `5.0` | 沒有錄製時間、也沒有自動播放音訊的頁面（例如封面頁）要停留幾秒，對應 PowerPoint 匯出視窗的「每張投影片所用秒數」 |
 | `--video-use-recorded-timings` | `False`（flag） | 是否改用簡報錄製的時間/旁白，而不是 `--video-default-duration` / 音訊時長驅動的時間。預設關閉，對應 PowerPoint「不使用錄製的時間和旁白」選項 |
 | `--video-timeout` | `3600`（秒） | 等待 PowerPoint 匯出完成的逾時秒數，投影片數量多或解析度高時建議調大 |
+| `--log-dir` | `logs` | 存放帶日期檔名 log 檔的資料夾（例如 `logs/2026-07-28.log`）。這個檔案**永遠記錄完整 DEBUG 細節，不受 `--verbose` 影響**，方便事後除錯 |
+| `--no-file-log` | `False`（flag） | 停用寫入 log 檔案，只印到終端機 |
 
 > ⚠️ **關於 `--rate` 負值的一個 Python argparse 陷阱**：像 `--rate "-10%"` 這種用空格分隔、值又以 `-` 開頭的寫法，會被 `argparse` 誤判成另一個選項旗標而報錯 `expected one argument`（`--pitch` 因為預設是 `+0Hz`，以 `+` 開頭，不受影響）。**負值請一律用等號寫法**，例如：`--rate=-20%`（等號連在一起、不要空格）。加速（正值）用空格或等號都可以，例如 `--rate "+10%"` 或 `--rate=+10%` 皆正常。
 
@@ -277,20 +279,59 @@ pptx2video/
 │   ├── pptx_parser.py       # 解析 .pptx 與 notes
 │   ├── tts.py                # edge-tts 音訊生成
 │   ├── subtitle_generator.py # 字幕生成（PoC）
-│   ├── ppt_automation.py     # PowerPoint COM 自動化：插入音訊
+│   ├── ppt_automation.py     # PowerPoint COM 自動化：插入音訊、匯出 MP4
+│   ├── exceptions.py         # 自訂例外階層
+│   ├── logging_config.py     # 統一 Logging 設定
 │   └── __init__.py
 ├── tests/              # 測試檔案
 │   ├── test_pptx_parser.py
 │   ├── test_tts_generator.py
 │   ├── test_subtitle_generator.py
 │   ├── test_ppt_automation.py
+│   ├── test_logging_config.py
 │   └── test_main_payload.py
 ├── examples/           # 範例腳本與範例簡報
 ├── output/             # 輸出檔案（已加入 .gitignore，不進版控）
+├── logs/               # 帶日期的 log 檔案（已加入 .gitignore，不進版控）
 ├── temp/               # 暫存資料夾
 ├── requirements.txt    # Python 相依套件
 ├── pyproject.toml      # 專案設定
 └── README.md           # 專案說明
+```
+
+---
+
+## 🪵 錯誤處理與 Logging
+
+從 v0.3.0 之後，專案加入了自訂例外階層與正式 Logging，取代原本單純依賴 `print()` 跟通用 `RuntimeError` 的做法。
+
+### 自訂例外階層（`src/exceptions.py`）
+
+所有 pptx2video 自己拋出的例外都繼承自 `Pptx2VideoError`，方便統一捕捉，也能依情境個別處理：
+
+| 例外類別 | 觸發情境 |
+|---|---|
+| `PptParseError` | `.pptx` 檔案損毀、格式不支援，或其他解析失敗 |
+| `TTSGenerationError` | edge-tts 生成語音失敗（網路問題、服務錯誤、缺少 ffmpeg 等），訊息會標明是第幾頁失敗 |
+| `PowerPointLaunchError` | PowerPoint 無法啟動，或簡報檔無法開啟（非 Windows 環境、pywin32 缺失、COM 呼叫失敗等） |
+| `AudioInsertionError` | 插入音訊後無法儲存 PPTX（單一頁面的插入失敗會記錄成 `skipped_slides`，不會拋出這個例外） |
+| `VideoExportError` | PowerPoint 回報匯出失敗，或回報完成但找不到輸出檔案 |
+| `VideoExportTimeoutError` | 匯出等待超過 `--video-timeout` 設定的秒數（同時也是 Python 內建 `TimeoutError` 的子類別） |
+
+`FileNotFoundError`、`ValueError` 這類 Python 內建例外在語意上已經很清楚（例如「找不到輸入檔案」），故意保留不重新包裝。
+
+### Logging（`src/logging_config.py`）
+
+- **終端機輸出維持原本簡潔風格**（沒有時間戳記，`--verbose` 才會顯示更細節的訊息），使用體驗跟改版前一樣
+- **log 檔案（`logs/YYYY-MM-DD.log`）永遠記錄完整 DEBUG 等級細節，不受 `--verbose` 影響**——就算你這次沒加 `--verbose`，log 檔案還是會完整記下所有過程，方便事後除錯或回報問題時附上
+- 如果 log 資料夾無法建立或寫入（例如唯讀檔案系統），會在終端機印出警告並自動降級成只在終端機輸出，不會讓整個程式當掉
+- 可用 `--log-dir` 指定其他資料夾，或用 `--no-file-log` 完全停用檔案記錄
+
+範例：跑完一次指令後，檢查發生了什麼事
+
+```powershell
+python src/main.py examples/sample_test.pptx --generate-audio
+type logs\2026-07-28.log
 ```
 
 ---
@@ -315,6 +356,7 @@ python -m unittest tests.test_pptx_parser -v
 python -m unittest tests.test_tts_generator -v
 python -m unittest tests.test_subtitle_generator -v
 python -m unittest tests.test_ppt_automation -v
+python -m unittest tests.test_logging_config -v
 python -m unittest tests.test_main_payload -v
 ```
 
@@ -332,6 +374,8 @@ python -m unittest tests.test_main_payload -v
 * **字幕生成（PoC）**：可依 notes 與（若可用）實際音檔時長輸出 `.srt`，作為架構驗證，尚未進入正式管線。
 * **PowerPoint 音訊插入**：透過 `pywin32` COM 自動化，把生成的 MP3 插入對應投影片，圖示縮小並移到右上角、盡量隱藏，且已驗證搭配 PowerPoint「建立視訊」匯出 MP4 時能正確自動播放並依音檔長度切換頁面。沒有音檔的頁面完全不受影響。
 * **MP4 匯出自動化**：透過 `Presentation.CreateVideo()` COM API 自動觸發 PowerPoint「建立視訊」，輪詢非同步匯出狀態直到完成，並在回報完成後額外檢查輸出檔案確實存在。**已在真實 Windows + PowerPoint 環境驗證：影片正確產生，語音與每頁時長皆正確對齊。** 解析度、FPS、畫質、逾時秒數等皆可透過 CLI 參數調整。
+* **自訂例外階層**：取代原本泛用的 `RuntimeError`，依失敗情境分類（解析失敗、TTS 失敗、PowerPoint 啟動失敗、音訊插入失敗、影片匯出失敗/逾時），詳見下方「錯誤處理與 Logging」。
+* **正式 Logging**：終端機輸出維持原本簡潔風格，同時永遠把完整 DEBUG 細節記錄到帶日期的 log 檔案，不受 `--verbose` 影響。
 * **提供 CLI 介面**：支援本文件列出的所有參數。
 * **提供範例與測試**：內建範例簡報生成腳本與單元測試。
 
@@ -343,10 +387,22 @@ python -m unittest tests.test_main_payload -v
 
 ## 🚧 後續發展方向
 
+目前正在進行一輪穩定性（Robustness）改善，範圍與進度：
+
+| 項目 | 狀態 |
+|---|---|
+| Exception 分類 + Logging | ✅ 已完成 |
+| COM 開關邏輯重構去重複 | ✅ 已完成（與上一項一起做） |
+| Recoverable Error Policy 文件化 | ⏳ 待進行 |
+| Retry 機制（僅限 TTS 網路請求） | ⏳ 待進行 |
+| `--insert-audio` 匯出進度提示 | ⏳ 待進行 |
+| Output Validation 強化 | 暫緩，等有實際需求再做 |
+| Temporary File Cleanup | 已評估，決定維持現狀不自動清除 |
+
+其他方向：
 * **現場放映自動播放**：解決上面「已知限制」提到的點擊問題，如果未來有現場簡報（非僅匯出影片）的需求。
 * **字幕生成正式化**：將目前的 PoC 字幕邏輯整合進正式影片輸出管線，並與音檔時長精確對齊。
 * **批次處理與輸出整理**：支援多檔輸入與更完整的輸出目錄管理。
-* **`--insert-audio` 匯出進度提示**：目前只有 `--generate-audio` 和 `--export-video` 有即時進度顯示，插入音訊的迴圈還沒有（投影片數量多時，中途無法得知進度）。
 
 ---
 
