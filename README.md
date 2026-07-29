@@ -334,6 +334,27 @@ python src/main.py examples/sample_test.pptx --generate-audio
 type logs\2026-07-28.log
 ```
 
+### 錯誤處理策略（Skip vs Abort）
+
+程式對每一種失敗情境，都明確分成兩類處理方式：
+
+- **Skip（跳過）**：只影響單一投影片，不影響其他頁的處理結果。記錄下來（`skipped_slides` 或 log 裡的 `WARNING`），流程繼續跑完。
+- **Abort（中止）**：影響整個操作能不能繼續進行下去，直接停止並回報錯誤。
+
+判斷原則：**如果失敗只跟某一頁投影片的內容/資源有關，且不影響其他頁的處理，用 Skip；如果失敗會讓後續步驟根本無法進行（缺少必要的輸入、外部程式無法啟動、結果無法儲存），用 Abort。**
+
+| 情境 | 行為 | 說明 |
+|---|---|---|
+| 投影片沒有 notes | Skip | 正常情況（例如封面/結尾頁），`has_notes: false`，不生成音訊 |
+| `--strict` 模式下有頁面沒有 notes | Abort | 使用者主動選擇的嚴格模式，用來檢查簡報是否漏寫備忘稿 |
+| TTS 生成失敗（任一頁） | **Abort**（fail fast） | 曾評估改成「單頁失敗記錄下來、繼續處理其他頁」，但決定維持現狀：TTS 失敗很多時候是系統性問題（服務掛掉、網路整個斷線），fail fast 能立刻讓使用者知道，而不是等所有頁面都跑過一輪失敗才發現 |
+| `--insert-audio` 時某頁音檔缺失 | Skip | 記錄進 `skipped_slides`，其他頁繼續插入 |
+| `--insert-audio` 時某投影片編號不存在 | Skip | 記錄進 `skipped_slides` |
+| PPTX 檔案不存在 | Abort | 沒有輸入檔案，後續步驟無法進行 |
+| PowerPoint 無法啟動 / 無法開啟簡報 | Abort | 後續所有 COM 操作都建立在這一步成功的前提上 |
+| `--insert-audio` 存檔失敗 | Abort | 已完成的插入工作無法保存，繼續也沒有意義 |
+| MP4 匯出失敗 / 逾時 | Abort | PowerPoint 的匯出是全有或全無，沒有「匯出一半」的中間狀態 |
+
 ---
 
 ## 🧪 執行測試
@@ -393,7 +414,7 @@ python -m unittest tests.test_main_payload -v
 |---|---|
 | Exception 分類 + Logging | ✅ 已完成 |
 | COM 開關邏輯重構去重複 | ✅ 已完成（與上一項一起做） |
-| Recoverable Error Policy 文件化 | ⏳ 待進行 |
+| Recoverable Error Policy 文件化 | ✅ 已完成 |
 | Retry 機制（僅限 TTS 網路請求） | ⏳ 待進行 |
 | `--insert-audio` 匯出進度提示 | ⏳ 待進行 |
 | Output Validation 強化 | 暫緩，等有實際需求再做 |

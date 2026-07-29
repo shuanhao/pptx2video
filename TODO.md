@@ -17,7 +17,7 @@
 - [x] 正式 Logging（`src/logging_config.py`）：終端機維持原本簡潔輸出，同時永遠把完整 DEBUG 細節記錄到 `logs/YYYY-MM-DD.log`，不受 `--verbose` 影響；新增 `--log-dir`、`--no-file-log` 兩個 CLI 參數
 - [x] `--generate-audio` 補上錯誤處理（原本完全沒有，`--insert-audio`/`--export-video` 有但這個沒有）
 - [x] COM 開關邏輯重構去重複（`insert_audio()` 與 `export_video()` 共用 `_powerpoint_session()` / `_open_presentation()`，與 Exception 分類一起做，因為兩者都要動到同一段程式碼）
-- [ ] Recoverable Error Policy 文件化：把現在程式裡已經隱含的規則（沒 notes 跳過、音檔缺失跳過、pptx 不存在中止…）整理成明確表格
+- [x] Recoverable Error Policy 文件化：整理成 README.md 的「錯誤處理策略（Skip vs Abort）」表格。過程中討論過是否把 TTS 生成失敗改成「單頁失敗記錄、繼續處理其他頁」，**決定維持現狀（fail fast）**——TTS 失敗常是系統性問題（服務掛掉、網路斷線），fail fast 能立刻讓使用者知道，不用等所有頁面都跑過一輪才發現全部失敗
 - [ ] Retry 機制：**僅限 TTS 網路請求**（失敗重試最多 3 次、間隔 2 秒）。COM 操作暫不做重試，因為失敗重試前若沒有先確保舊的 PowerPoint 物件已關閉，反而可能製造殭屍程序，風險大於效益
 - [ ] `--insert-audio` 的進度顯示（`--generate-audio` 和 `--export-video` 都已經有即時進度回報，插入音訊的迴圈還沒有）
 - [ ] Output Validation 強化（目前只驗證檔案存在且非空，更進階的檢查如「能否開啟」「影片長度是否合理」先不做，等有實際需求再考慮）
