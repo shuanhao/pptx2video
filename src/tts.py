@@ -53,6 +53,142 @@ def _build_output_path(output_dir: Path, slide_num: int) -> Path:
     return output_dir / f"slide_{slide_num:03d}.mp3"
 
 
+# edge-tts reports WordBoundary/SentenceBoundary "Offset"/"Duration" in
+# 100-nanosecond ticks (the classic Windows FILETIME-style unit used by
+# Azure Speech) - confirmed by reading edge_tts.communicate's
+# __parse_metadata, NOT from the library's public docs, which don't state
+# the unit. The TypedDict type hint for these fields says ``float``, which
+# is easy to misread as "already in seconds" - it isn't. Divide by this
+# constant to convert to seconds.
+WORD_BOUNDARY_TICKS_PER_SECOND = 10_000_000
+
+
+async def _stream_edge_tts_audio_with_word_boundaries(
+    text: str,
+    output_path: Path,
+    voice: str,
+    rate: str = "-10%",
+    pitch: str = "+0Hz",
+    communicate_factory: Optional[Callable[..., Any]] = None,
+) -> List[Dict[str, Any]]:
+    """Synthesize speech via edge-tts's streaming API, capturing per-word
+    timing (``WordBoundary``) events alongside the MP3 output.
+
+    Unlike ``_save_edge_tts_audio`` (which just calls ``communicate.save()``
+    and discards all timing metadata), this uses ``communicate.stream()``
+    and separates the two chunk types it yields: ``"audio"`` chunks are
+    written straight to ``output_path`` exactly as before, and
+    ``"WordBoundary"`` chunks are collected and returned as a list of
+    plain dicts (matching this project's style elsewhere - manifest
+    entries, CLI payloads - of using plain dicts rather than introducing a
+    dataclass for a single small structure).
+
+    ``boundary="WordBoundary"`` is passed explicitly because edge-tts
+    >=7.2.0 defaults ``Communicate``'s ``boundary`` parameter to the
+    coarser ``"SentenceBoundary"`` - the whole point of this function is
+    per-word timing precise enough to align subtitle segment boundaries
+    against, so that default would silently defeat the purpose.
+
+    That parameter itself was only added in edge-tts 7.2.0 (confirmed by
+    installing older releases and inspecting ``Communicate.__init__``'s
+    signature directly - it isn't called out in the library's changelog).
+    Versions before that don't accept a ``boundary`` keyword at all and
+    raise ``TypeError`` if given one; 6.x versions hardcode ``"WordBoundary"``
+    as the only type they ever emit (confirmed the same way, by reading
+    ``__parse_metadata``'s source), so simply omitting the keyword on those
+    versions produces the same result anyway. If the call with
+    ``boundary=`` raises ``TypeError``, this retries once without it - this
+    project pins ``edge-tts>=7.2.0`` in requirements.txt specifically so
+    this fallback is a defensive backstop (e.g. a stale environment that
+    didn't pick up the pin bump) rather than the expected path.
+
+    Args:
+        communicate_factory: Optional factory for the
+            ``edge_tts.Communicate``-like object to use, defaulting to
+            ``edge_tts.Communicate`` itself. Exists so tests can inject a
+            fake that yields canned chunks without a real network call -
+            the same dependency-injection approach ``generate_audio_files``
+            uses for its ``generator`` parameter, and ``ppt_automation.py``
+            uses for its ``powerpoint_app`` parameter.
+
+    Returns:
+        A list of ``{"text": str, "offset_seconds": float,
+        "duration_seconds": float}`` dicts, one per ``WordBoundary`` event,
+        in the order edge-tts emitted them (which is text order). Empty if
+        edge-tts reported no boundary events for this text (e.g. an empty
+        or whitespace-only string).
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    factory = communicate_factory or edge_tts.Communicate
+    try:
+        communicate = factory(text=text, voice=voice, rate=rate, pitch=pitch, boundary="WordBoundary")
+    except TypeError:
+        # edge-tts < 7.2.0 (or any other Communicate-like factory that
+        # doesn't understand this project's default) doesn't accept a
+        # ``boundary`` keyword at all - retry once without it rather than
+        # failing outright. On real edge-tts 6.x this produces the same
+        # result anyway (WordBoundary is the only type those versions ever
+        # emit); see the docstring above for the full version history this
+        # was confirmed against.
+        communicate = factory(text=text, voice=voice, rate=rate, pitch=pitch)
+
+    word_boundaries: List[Dict[str, Any]] = []
+    with open(output_path, "wb") as audio_file:
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_file.write(chunk["data"])
+            elif chunk["type"] == "WordBoundary":
+                word_boundaries.append({
+                    "text": chunk["text"],
+                    "offset_seconds": chunk["offset"] / WORD_BOUNDARY_TICKS_PER_SECOND,
+                    "duration_seconds": chunk["duration"] / WORD_BOUNDARY_TICKS_PER_SECOND,
+                })
+
+    return word_boundaries
+
+
+def synthesize_with_word_boundaries(
+    text: str,
+    output_path: Path | str,
+    voice: str,
+    rate: str = "-10%",
+    pitch: str = "+0Hz",
+    communicate_factory: Optional[Callable[..., Any]] = None,
+) -> List[Dict[str, Any]]:
+    """Synchronous wrapper around ``_stream_edge_tts_audio_with_word_boundaries``.
+
+    This is Phase 1 of the SRT subtitle segmentation work (see project
+    discussion): it only adds the *capability* to get per-word timing data
+    out of edge-tts. It is deliberately NOT wired into
+    ``generate_audio_files()`` or the ``--generate-audio`` CLI flow yet -
+    that integration (deciding how this data flows through ``main.py`` and
+    ``manifest.json``, and what happens when it isn't available) is later
+    work. Calling this function today has no effect on any existing
+    behavior.
+
+    Does not retry on failure (unlike ``generate_audio_files``) - this is a
+    standalone building block, not yet part of the retry-aware pipeline;
+    retry behavior should be decided when this gets wired into that
+    pipeline, not assumed here.
+
+    Returns:
+        The MP3 is written to ``output_path`` exactly as
+        ``generate_audio_files`` would; the return value is the list of
+        word-boundary events described in
+        ``_stream_edge_tts_audio_with_word_boundaries``.
+    """
+    return asyncio.run(
+        _stream_edge_tts_audio_with_word_boundaries(
+            text,
+            Path(output_path),
+            voice,
+            rate=rate,
+            pitch=pitch,
+            communicate_factory=communicate_factory,
+        )
+    )
+
+
 async def _save_edge_tts_audio(
     text: str,
     output_path: Path,
