@@ -2,7 +2,22 @@
 
 一個基於 Python 的自動化工具，可將 PowerPoint 簡報檔（`.pptx`）自動轉換成帶旁白配音的 MP4 影片：解析每頁的標題與備忘稿內容 → 透過 **Edge-TTS** 生成語音 → 把音訊插入對應投影片 → 自動呼叫 PowerPoint 匯出 MP4。**核心流程（pptx → 配音 MP4）已完整打通，並在真實 Windows + PowerPoint 環境驗證過**。另外也附帶 SRT 字幕生成功能，目前為實驗性 PoC，尚未整合進正式管線。
 
-版本歷史請見 [CHANGELOG.md](CHANGELOG.md)；還沒完成的工作與已知限制請見 [TODO.md](TODO.md)。
+- 版本歷史：[CHANGELOG.md](CHANGELOG.md)
+- 還沒完成的工作與已知限制：[TODO.md](TODO.md)
+- 架構設計、模組職責、PowerPoint COM 細節等開發者向內容：[PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)
+
+---
+
+## ✨ 功能特色
+
+- **解析 `.pptx` 投影片內容**：讀取投影片編號、標題與備忘稿，支援多頁簡報、長段落、換行與空白行，也能正確處理沒有備忘稿的頁面（例如封面/結尾頁）。
+- **語音生成**：透過 `edge-tts` 把備忘稿轉成 MP3，依頁碼命名，支援語速/音高調整，失敗時有可設定次數的自動重試。
+- **PowerPoint 音訊插入**：透過 `pywin32` COM 自動化把生成的 MP3 插入對應投影片，圖示縮小並移到右上角、盡量隱藏。
+- **MP4 匯出自動化**：呼叫 PowerPoint「建立視訊」功能匯出 MP4，解析度/FPS/畫質/逾時秒數皆可透過 CLI 調整。
+- **字幕生成（PoC）**：依備忘稿與（若可用）實際音檔時長輸出 `.srt`，目前為實驗性功能，尚未整合進正式管線。
+- **完整例外分類與 Logging**：失敗情境依類型拋出對應例外，並區分「單頁跳過」與「整體中止」兩種處理策略；終端機維持簡潔輸出，log 檔案永遠保留完整 DEBUG 細節。
+
+版本歷史與各功能導入的時間點請見 [CHANGELOG.md](CHANGELOG.md)。
 
 ---
 
@@ -92,7 +107,7 @@ python src/main.py examples/sample_test.pptx --insert-audio --audio-output-dir o
 
 這會透過 `pywin32` 開啟 PowerPoint，把每頁對應的 MP3 插入該投影片，圖示縮小並移到右上角，且盡量在非播放狀態隱藏。沒有音檔的頁面（例如封面/結尾頁）完全不會被更動。
 
-> ⚠️ **重要（實測結論）**：插入後在 PowerPoint 編輯畫面裡，音訊的 Start 設定仍會顯示「按一下時」，用「投影片放映」現場播放時需要多點一下音符圖示才會出聲——這是已知限制，目前尚未解決（詳見下方「已知限制」）。**但這不影響用 PowerPoint「建立視訊」匯出 MP4**：匯出時每頁會自動依照音檔實際長度撥放並切換頁面，不需要額外設定轉場秒數。這個行為依賴 `AnimationSettings.PlaySettings.PlayOnEntry` 這個舊版旗標必須設為 `True`（雖然它在編輯 UI 上看不出效果，但拿掉它會讓匯出的影片完全沒聲音、且每頁變回固定 5 秒）。
+> ⚠️ **重要（實測結論）**：插入後在 PowerPoint 編輯畫面裡，音訊的 Start 設定仍會顯示「按一下時」，用「投影片放映」現場播放時需要多點一下音符圖示才會出聲——這是已知限制，目前尚未解決（詳見下方「已知限制」）。**但這不影響用 PowerPoint「建立視訊」匯出 MP4**：匯出時每頁會自動依照音檔實際長度撥放並切換頁面，不需要額外設定轉場秒數（技術原因見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的 PowerPoint COM 特性說明）。
 
 ### 10. 匯出 MP4（已自動化，需要 Windows + PowerPoint）
 
@@ -198,12 +213,12 @@ python -m pptx2video <pptx_path> [選項...]
 | `--voice` | `Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)` | edge-tts 使用的語音。也可用簡短格式如 `zh-TW-YunJheNeural`，若完整格式在你的環境報錯可改用簡短格式 |
 | `--rate` | `-10%` | 語速調整，語音會比原始語速慢 10%；正值加快、負值放慢，例如 `+10%`、`-20%`。⚠️ **負值務必用 `--rate=-20%` 等號寫法**，不要用空格分隔的 `--rate "-20%"`（見下方說明） |
 | `--pitch` | `+0Hz` | 音高調整，預設不改變音高 |
-| `--tts-max-retries` | `3` | edge-tts 生成失敗後（僅限判斷為暫時性的網路/服務錯誤）最多重試幾次，設為 `0` 停用重試。**必須是 0 或正整數**，帶負值會直接被 CLI 拒絕並提示錯誤（舊版曾允許負值，會讓對應頁面完全沒實際呼叫 TTS 卻仍被記錄成生成成功，是已修復的錯誤） |
+| `--tts-max-retries` | `3` | edge-tts 生成失敗後（僅限判斷為暫時性的網路/服務錯誤）最多重試幾次，設為 `0` 停用重試。**必須是 0 或正整數**，帶負值會直接被 CLI 拒絕並提示錯誤 |
 | `--tts-retry-delay` | `2.0`（秒） | 兩次重試之間的等待秒數 |
 | `--subtitles-output` | `output/captions.srt` | 字幕輸出路徑（PoC 功能，每次執行都會自動產生） |
 | `--insert-audio` | `False`（flag） | 把已生成的音訊插入 PPTX 對應投影片，圖示縮小移到右上角並盡量隱藏。需要 Windows + PowerPoint + pywin32，且需已用 `--generate-audio` 產生過音檔（或指定的 `--audio-output-dir` 底下已有 `manifest.json`） |
 | `--pptx-output` | 覆蓋輸入檔 | 搭配 `--insert-audio` 使用，指定插入音訊後另存的 PPTX 路徑；未指定則直接覆蓋原始輸入檔 |
-| `--insert-audio-timeout` | `1800`（秒） | `--insert-audio` 等待整個插入+存檔流程完成的逾時秒數。若 PowerPoint 卡住（例如被信任設定/修復對話框擋住），超過這個時間會拋出 `AudioInsertionTimeoutError` 並讓程式回報錯誤，而不是無限期卡住。設為 `0` 可恢復成無限期等待。**注意：這只是停止「等待」，無法強制關閉卡住的 PowerPoint**，逾時後背景可能仍有殘留的 PowerPoint 行程 |
+| `--insert-audio-timeout` | `1800`（秒） | `--insert-audio` 等待整個插入+存檔流程完成的逾時秒數。若 PowerPoint 卡住，超過這個時間會拋出錯誤，而不是無限期卡住。設為 `0` 可恢復成無限期等待 |
 | `--export-video` | `False`（flag） | 用 PowerPoint「建立視訊」功能匯出 MP4。需要 Windows + PowerPoint + pywin32。若同時有 `--insert-audio`，會匯出剛插入音訊的那份；否則直接匯出 `pptx_path`（或 `--pptx-output` 指定的檔案） |
 | `--video-output` | PPTX 路徑改副檔名為 `.mp4` | 搭配 `--export-video` 使用，指定匯出的 MP4 路徑 |
 | `--video-resolution` | `720` | 匯出解析度（垂直像素），對應 PowerPoint 預設選項：`480`（標準）、`720`（HD）、`1080`（Full HD）、`2160`（4K）；寬度會依投影片比例自動計算 |
@@ -301,14 +316,19 @@ pptx2video/
 ├── temp/               # 暫存資料夾
 ├── requirements.txt    # Python 相依套件
 ├── pyproject.toml      # 專案設定
-└── README.md           # 專案說明
+├── CHANGELOG.md        # 版本歷史
+├── TODO.md             # 待辦事項與已知限制
+├── PROJECT_HANDOVER.md # 架構與開發者交接文件
+└── README.md           # 本文件
 ```
+
+模組職責的詳細說明（每個檔案負責什麼、彼此如何協作）請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「每個模組的責任範圍」章節。
 
 ---
 
 ## 🪵 錯誤處理與 Logging
 
-從 v0.4.0 開始，專案加入了自訂例外階層與正式 Logging，取代原本單純依賴 `print()` 跟通用 `RuntimeError` 的做法。
+專案有自訂例外階層與正式 Logging，取代單純依賴 `print()` 跟通用 `RuntimeError` 的做法。
 
 ### 自訂例外階層（`src/exceptions.py`）
 
@@ -320,15 +340,16 @@ pptx2video/
 | `TTSGenerationError` | edge-tts 生成語音失敗（網路問題、服務錯誤、缺少 ffmpeg 等），訊息會標明是第幾頁失敗 |
 | `PowerPointLaunchError` | PowerPoint 無法啟動，或簡報檔無法開啟（非 Windows 環境、pywin32 缺失、COM 呼叫失敗等） |
 | `AudioInsertionError` | 插入音訊後無法儲存 PPTX（單一頁面的插入失敗會記錄成 `skipped_slides`，不會拋出這個例外） |
+| `AudioInsertionTimeoutError` | `--insert-audio-timeout` 等待逾時（同時也是 `AudioInsertionError` 與內建 `TimeoutError` 的子類別） |
 | `VideoExportError` | PowerPoint 回報匯出失敗，或回報完成但找不到輸出檔案 |
-| `VideoExportTimeoutError` | 匯出等待超過 `--video-timeout` 設定的秒數（同時也是 Python 內建 `TimeoutError` 的子類別） |
+| `VideoExportTimeoutError` | 匯出等待超過 `--video-timeout` 設定的秒數（同時也是內建 `TimeoutError` 的子類別） |
 
 `FileNotFoundError`、`ValueError` 這類 Python 內建例外在語意上已經很清楚（例如「找不到輸入檔案」），故意保留不重新包裝。
 
 ### Logging（`src/logging_config.py`）
 
-- **終端機輸出維持原本簡潔風格**（沒有時間戳記，`--verbose` 才會顯示更細節的訊息），使用體驗跟改版前一樣
-- **log 檔案（`logs/YYYY-MM-DD.log`）永遠記錄完整 DEBUG 等級細節，不受 `--verbose` 影響**——就算你這次沒加 `--verbose`，log 檔案還是會完整記下所有過程，方便事後除錯或回報問題時附上
+- **終端機輸出維持簡潔風格**（沒有時間戳記，`--verbose` 才會顯示更細節的訊息）
+- **log 檔案（`logs/YYYY-MM-DD.log`）永遠記錄完整 DEBUG 等級細節，不受 `--verbose` 影響**——就算這次沒加 `--verbose`，log 檔案還是會完整記下所有過程，方便事後除錯或回報問題時附上
 - 如果 log 資料夾無法建立或寫入（例如唯讀檔案系統），會在終端機印出警告並自動降級成只在終端機輸出，不會讓整個程式當掉
 - 可用 `--log-dir` 指定其他資料夾，或用 `--no-file-log` 完全停用檔案記錄
 
@@ -352,13 +373,15 @@ type logs\2026-07-28.log
 |---|---|---|
 | 投影片沒有 notes | Skip | 正常情況（例如封面/結尾頁），`has_notes: false`，不生成音訊 |
 | `--strict` 模式下有頁面沒有 notes | Abort | 使用者主動選擇的嚴格模式，用來檢查簡報是否漏寫備忘稿 |
-| TTS 生成失敗（任一頁） | **Abort**（fail fast） | 曾評估改成「單頁失敗記錄下來、繼續處理其他頁」，但決定維持現狀：TTS 失敗很多時候是系統性問題（服務掛掉、網路整個斷線），fail fast 能立刻讓使用者知道，而不是等所有頁面都跑過一輪失敗才發現 |
+| TTS 生成失敗（任一頁） | **Abort**（fail fast） | TTS 失敗很多時候是系統性問題（服務掛掉、網路整個斷線），fail fast 能立刻讓使用者知道，而不是等所有頁面都跑過一輪失敗才發現 |
 | `--insert-audio` 時某頁音檔缺失 | Skip | 記錄進 `skipped_slides`，其他頁繼續插入 |
 | `--insert-audio` 時某投影片編號不存在 | Skip | 記錄進 `skipped_slides` |
 | PPTX 檔案不存在 | Abort | 沒有輸入檔案，後續步驟無法進行 |
 | PowerPoint 無法啟動 / 無法開啟簡報 | Abort | 後續所有 COM 操作都建立在這一步成功的前提上 |
-| `--insert-audio` 存檔失敗 | Abort | 已完成的插入工作無法保存，繼續也沒有意義 |
+| `--insert-audio` 存檔失敗 / 逾時 | Abort | 已完成的插入工作無法保存，或 PowerPoint 卡住太久，繼續等待也沒有意義 |
 | MP4 匯出失敗 / 逾時 | Abort | PowerPoint 的匯出是全有或全無，沒有「匯出一半」的中間狀態 |
+
+這些決策背後的取捨（例如為何 TTS 失敗選擇 fail fast、為何 COM 操作不做自動重試）記錄在 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)。
 
 ---
 
@@ -390,47 +413,14 @@ python -m unittest tests.test_main_payload -v
 
 ---
 
-## ✅ 目前已完成的功能
+## ⚠️ 已知限制（摘要）
 
-* **解析 `.pptx` 投影片內容**：可讀取投影片編號、標題與 notes。
-* **支援長篇備忘稿**：可處理多段落、換行與空白行。
-* **支援沒有 notes 的頁面**：封面頁與結束頁也能正常處理，並自動跳過生成音訊。
-* **輸出 JSON**：可將解析結果輸出為結構化 JSON，並提供 `subtitle_text`、`has_notes`、`audio_file` 等字幕流程所需欄位。
-* **語音生成**：已接入 `edge-tts`，可將 notes 轉成 MP3，並依頁碼命名，執行時會即時顯示生成進度（第幾個/共幾個）。
-* **字幕生成（PoC）**：可依 notes 與（若可用）實際音檔時長輸出 `.srt`，作為架構驗證，尚未進入正式管線。
-* **PowerPoint 音訊插入**：透過 `pywin32` COM 自動化，把生成的 MP3 插入對應投影片，圖示縮小並移到右上角、盡量隱藏，且已驗證搭配 PowerPoint「建立視訊」匯出 MP4 時能正確自動播放並依音檔長度切換頁面。沒有音檔的頁面完全不受影響。
-* **MP4 匯出自動化**：透過 `Presentation.CreateVideo()` COM API 自動觸發 PowerPoint「建立視訊」，輪詢非同步匯出狀態直到完成，並在回報完成後額外檢查輸出檔案確實存在。**已在真實 Windows + PowerPoint 環境驗證：影片正確產生，語音與每頁時長皆正確對齊。** 解析度、FPS、畫質、逾時秒數等皆可透過 CLI 參數調整。
-* **自訂例外階層**：取代原本泛用的 `RuntimeError`，依失敗情境分類（解析失敗、TTS 失敗、PowerPoint 啟動失敗、音訊插入失敗、影片匯出失敗/逾時），詳見下方「錯誤處理與 Logging」。
-* **正式 Logging**：終端機輸出維持原本簡潔風格，同時永遠把完整 DEBUG 細節記錄到帶日期的 log 檔案，不受 `--verbose` 影響。
-* **提供 CLI 介面**：支援本文件列出的所有參數。
-* **提供範例與測試**：內建範例簡報生成腳本與單元測試。
+* **PowerPoint 編輯畫面 / 現場放映模式仍需點擊音符圖示才會播放**：插入音訊後，PowerPoint 編輯 UI 顯示的 Start 設定固定是「按一下時」，用「投影片放映」模式現場簡報時需要多點一下才會出聲。**已確認不影響匯出的 MP4 影片**，目前刻意不處理這個情境，優先確保匯出正確。
+* **`PlayOnEntry` 旗標的必要性尚未完全理解原理，僅為實測結論**：拿掉這個舊版旗標會讓匯出的 MP4 完全沒聲音、且每頁變回固定 5 秒，即使編輯 UI 上完全看不出差異。
+* **`CreateVideoStatus` 的狀態列舉值是依 Microsoft 官方文件假設，未逐一比對所有 PowerPoint 版本**：程式碼已加安全網（回報完成後仍會檢查輸出檔案是否存在、非空）降低風險。
+* **`insert_audio()` 的逾時（`--insert-audio-timeout`）只能停止等待，無法強制關閉卡住的 PowerPoint 行程**。
 
-## ⚠️ 已知限制
-
-* **PowerPoint 編輯畫面 / 現場放映模式仍需點擊音符圖示才會播放**：目前插入音訊後，PowerPoint 編輯 UI 顯示的 Start 設定固定是「按一下時」，用「投影片放映」模式現場簡報時，需要多點一下音符圖示音檔才會出聲。這是透過 COM 的 `AddMediaObject2` 插入媒體時的行為，跟手動用 UI 插入不同；曾嘗試透過 `slide.TimeLine.MainSequence` 修改動畫觸發方式，但在實測環境中不穩定（找不到對應效果），因此**目前刻意不處理這個情境**，優先確保 MP4 匯出正確無誤。若之後有現場放映（非匯出影片）的需求，需要再回來解決。
-* **`PlayOnEntry` 旗標的必要性尚未完全理解原理，僅為實測結論**：拿掉這個舊版旗標會讓匯出的 MP4 完全沒聲音、且每頁變回固定 5 秒，即使編輯 UI 上完全看不出差異。目前程式碼會固定設定這個旗標，但底層原理（為何匯出引擎依賴一個 UI 不可見的旗標）尚未查證，如果之後 PowerPoint 版本更新導致行為改變，這裡可能需要重新測試。
-* **`CreateVideoStatus` 的狀態列舉值是依 Microsoft 官方文件假設，未逐一比對所有 PowerPoint 版本**：程式碼加了安全網（回報完成後仍會檢查輸出檔案是否存在、非空）來降低這個風險，但如果之後在不同 PowerPoint 版本上遇到匯出邏輯誤判，這是優先排查的地方。
-
-## 🚧 後續發展方向
-
-目前正在進行一輪穩定性（Robustness）改善，範圍與進度：
-
-| 項目 | 狀態 |
-|---|---|
-| Exception 分類 + Logging | ✅ 已完成 |
-| COM 開關邏輯重構去重複 | ✅ 已完成（與上一項一起做） |
-| Recoverable Error Policy 文件化 | ✅ 已完成 |
-| Retry 機制（僅限 TTS 網路請求） | ✅ 已完成（v0.4.0） |
-| `--insert-audio` 逾時保護 | ✅ 已完成（v0.4.1） |
-| `--tts-max-retries` 負值防呆 | ✅ 已完成（v0.4.1） |
-| `--insert-audio` 匯出進度提示 | ⏳ 待進行 |
-| Output Validation 強化 | 暫緩，等有實際需求再做 |
-| Temporary File Cleanup | 已評估，決定維持現狀不自動清除 |
-
-其他方向：
-* **現場放映自動播放**：解決上面「已知限制」提到的點擊問題，如果未來有現場簡報（非僅匯出影片）的需求。
-* **字幕生成正式化**：將目前的 PoC 字幕邏輯整合進正式影片輸出管線，並與音檔時長精確對齊。
-* **批次處理與輸出整理**：支援多檔輸入與更完整的輸出目錄管理。
+以上限制的技術背景、實測過程與底層原理，請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「PowerPoint COM 特性」章節。完整待辦與已知限制清單請見 [TODO.md](TODO.md)。
 
 ---
 
@@ -457,3 +447,18 @@ graph TD
     G --> I[輸出 output.mp4]
     F --> H[輸出 output/captions.srt]
 ```
+
+技術選型的原因（為何選 edge-tts、為何用 win32com 而非其他方案）請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)。
+
+---
+
+## 🗺️ Roadmap
+
+近期規劃的完整待辦清單（含優先順序、已評估決定不做的項目）維護在 [TODO.md](TODO.md)，這裡只列大方向：
+
+* **`--insert-audio` 的進度顯示**：`--generate-audio` 和 `--export-video` 都已經有即時進度回報，插入音訊的迴圈還沒有。
+* **現場放映自動播放**：解決「已知限制」提到的點擊問題，如果未來有現場簡報（非僅匯出影片）的需求才會處理。
+* **字幕生成正式化**：將目前的 PoC 字幕邏輯整合進正式影片輸出管線，並與音檔時長精確對齊。
+* **批次處理與輸出整理**：支援多檔輸入與更完整的輸出目錄管理。
+
+已完成的項目與各版本詳情請見 [CHANGELOG.md](CHANGELOG.md)。
