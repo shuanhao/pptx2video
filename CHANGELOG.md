@@ -6,7 +6,9 @@
 
 ## [未發布]
 
-目前沒有尚未發布的變更。
+### Added
+
+- 新增 `tests/test_cli_end_to_end.py`：直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫，不需要真的連網）、`--tts-max-retries` 負值拒絕、`--strict`、`--pretty`、找不到檔案等錯誤處理的完整流程。補足先前測試都只測個別函式（`extract_notes`、`build_payload`、`generate_audio_files`…）、沒有任何測試真正跑過 `main()` 本身的缺口。`--insert-audio`/`--export-video` 仍需要真實 Windows + PowerPoint，不在這個模組的涵蓋範圍內。測試總數由 52 個增加到 58 個。
 
 ## [0.4.1] - 2026-07-30
 
