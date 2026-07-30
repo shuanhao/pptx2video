@@ -2,6 +2,8 @@
 
 一個基於 Python 的自動化工具，可將 PowerPoint 簡報檔（`.pptx`）自動轉換成帶旁白配音的 MP4 影片：解析每頁的標題與備忘稿內容 → 透過 **Edge-TTS** 生成語音 → 把音訊插入對應投影片 → 自動呼叫 PowerPoint 匯出 MP4。**核心流程（pptx → 配音 MP4）已完整打通，並在真實 Windows + PowerPoint 環境驗證過**。另外也附帶 SRT 字幕生成功能，目前為實驗性 PoC，尚未整合進正式管線。
 
+版本歷史請見 [CHANGELOG.md](CHANGELOG.md)；還沒完成的工作與已知限制請見 [TODO.md](TODO.md)。
+
 ---
 
 ## 🚀 快速開始（Windows）
@@ -418,7 +420,9 @@ python -m unittest tests.test_main_payload -v
 | Exception 分類 + Logging | ✅ 已完成 |
 | COM 開關邏輯重構去重複 | ✅ 已完成（與上一項一起做） |
 | Recoverable Error Policy 文件化 | ✅ 已完成 |
-| Retry 機制（僅限 TTS 網路請求） | ⏳ 待進行 |
+| Retry 機制（僅限 TTS 網路請求） | ✅ 已完成（v0.4.0） |
+| `--insert-audio` 逾時保護 | ✅ 已完成（v0.4.1） |
+| `--tts-max-retries` 負值防呆 | ✅ 已完成（v0.4.1） |
 | `--insert-audio` 匯出進度提示 | ⏳ 待進行 |
 | Output Validation 強化 | 暫緩，等有實際需求再做 |
 | Temporary File Cleanup | 已評估，決定維持現狀不自動清除 |
