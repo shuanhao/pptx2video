@@ -21,6 +21,8 @@
 - [ ] Retry 機制：**僅限 TTS 網路請求**（失敗重試最多 3 次、間隔 2 秒）。COM 操作暫不做重試，因為失敗重試前若沒有先確保舊的 PowerPoint 物件已關閉，反而可能製造殭屍程序，風險大於效益
 - [ ] `--insert-audio` 的進度顯示（`--generate-audio` 和 `--export-video` 都已經有即時進度回報，插入音訊的迴圈還沒有）
 - [ ] Output Validation 強化（目前只驗證檔案存在且非空，更進階的檢查如「能否開啟」「影片長度是否合理」先不做，等有實際需求再考慮）
+- [x] `insert_audio()` 補上逾時保護：新增 `--insert-audio-timeout`（預設 1800 秒），透過背景執行緒 + `concurrent.futures` 的 `future.result(timeout=...)` 包住整個插入+存檔流程，逾時會拋出新的 `AudioInsertionTimeoutError`（同時也是 `TimeoutError` 子類別，用法與 `VideoExportTimeoutError` 一致）。**注意此逾時只是停止等待，無法強制關閉卡住的 PowerPoint 行程**，這點與專案既有「COM 操作不做自動重試」的風險考量一致
+- [x] 修正 `--tts-max-retries` 負值的靜默錯誤：`range(1, max_retries + 2)` 在 `max_retries` 為負值時會是空迴圈，導致 TTS 生成函式從未被實際呼叫，卻仍把該頁記錄成生成成功寫進 `manifest.json`。已在 `tts.generate_audio_files()` 內部把負值 clamp 成 0 作為防呆，並在 CLI 層用 `type=_non_negative_int` 直接拒絕負值、給出明確錯誤訊息
 
 已評估、決定不做：
 - Temporary File Cleanup（自動清除 `output/audio`、`manifest.json` 等）——會打斷分階段執行的工作流程（例如今天先 `--generate-audio`，明天才 `--insert-audio`），刻意保留現狀

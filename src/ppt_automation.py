@@ -39,6 +39,7 @@ exception wrapping around it) is shared via the ``_powerpoint_session`` and
 in each function.
 """
 
+import concurrent.futures
 import sys
 import time
 from contextlib import contextmanager
@@ -47,6 +48,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from src.exceptions import (
     AudioInsertionError,
+    AudioInsertionTimeoutError,
     PowerPointLaunchError,
     VideoExportError,
     VideoExportTimeoutError,
@@ -124,6 +126,65 @@ def _open_presentation(app: Any, pptx_path: Path, visible: bool) -> Iterator[Any
             pass
 
 
+def _run_in_com_thread(func: Callable[[], Any]) -> Any:
+    """Run ``func`` in the current thread with COM initialized, if available.
+
+    Only meaningful on Windows (``pythoncom`` doesn't exist elsewhere, and
+    ``_require_windows`` already guards callers before this is reached in
+    real use). Guarded with a plain ``try/except ImportError`` rather than
+    an unconditional import so this stays importable - and callable with
+    fake COM objects in tests - on non-Windows platforms too.
+    """
+    try:
+        import pythoncom
+    except ImportError:
+        pythoncom = None
+
+    if pythoncom is not None:
+        pythoncom.CoInitialize()
+    try:
+        return func()
+    finally:
+        if pythoncom is not None:
+            pythoncom.CoUninitialize()
+
+
+def _run_with_optional_timeout(func: Callable[[], Any], timeout_seconds: Optional[float]) -> Any:
+    """Run ``func()`` directly, or under a wait-timeout if one is given.
+
+    ``func`` wraps a series of blocking COM calls (open PowerPoint, open the
+    presentation, insert audio, save) with no timeout of their own - a stuck
+    PowerPoint (e.g. a blocking trust/repair dialog) would otherwise hang
+    forever. When ``timeout_seconds`` is given, ``func`` is run on a worker
+    thread (with COM initialized there via ``_run_in_com_thread``) and this
+    only waits up to ``timeout_seconds`` for it to finish.
+
+    Important limitation: this stops *waiting*, it does not stop PowerPoint.
+    ``ThreadPoolExecutor`` has no way to forcibly kill a thread stuck in a
+    blocking COM call, so on timeout the worker thread (and whatever COM
+    call it's stuck in) may keep running in the background indefinitely.
+    This mirrors the project's existing stance on COM operations (see
+    ``tts.py``'s note on why retries aren't applied to COM calls): a timeout
+    here is about not leaving the *caller* hanging forever and about
+    surfacing a clear error, not about guaranteeing PowerPoint is cleaned up.
+    """
+    if timeout_seconds is None:
+        return func()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_run_in_com_thread, func)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError as exc:
+            raise AudioInsertionTimeoutError(
+                f"Timed out after {timeout_seconds}s waiting for PowerPoint to "
+                "finish inserting audio. PowerPoint may be stuck (e.g. behind "
+                "a blocking dialog); this only stops waiting for it, it does "
+                "not forcibly close PowerPoint, so the process may still be "
+                "running in the background."
+            ) from exc
+
+
 def load_audio_manifest(manifest_path: Path | str) -> Dict[str, Any]:
     """Load the manifest.json produced by tts.generate_audio_files."""
     import json
@@ -154,6 +215,7 @@ def insert_audio(
     visible: bool = True,
     powerpoint_app: Optional[Any] = None,
     progress_callback: Optional[Callable[[int, int, int, str], None]] = None,
+    timeout_seconds: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Insert each slide's audio file into its matching slide.
 
@@ -181,6 +243,18 @@ def insert_audio(
             ``"skipped"``. Slides can take a while to process one at a time
             over COM, so this is worth surfacing instead of leaving the
             caller waiting with no feedback until the whole deck is done.
+        timeout_seconds: Give up *waiting* for the whole insert-and-save
+            operation after this many seconds and raise
+            ``AudioInsertionTimeoutError``. ``None`` (the default) waits
+            indefinitely, matching the previous behavior. Every COM call
+            this function makes (opening PowerPoint, opening the
+            presentation, inserting each slide's audio, saving) is
+            synchronous with no timeout of its own, so a stuck PowerPoint
+            (e.g. behind a blocking trust/repair dialog) would otherwise
+            hang the caller forever. Note this only stops waiting - it
+            cannot forcibly kill a stuck PowerPoint, so the process may
+            keep running in the background after the timeout fires; see
+            ``_run_with_optional_timeout`` for details.
 
     Returns:
         A summary dict: ``{"output_path", "inserted_slides", "skipped_slides"}``.
@@ -195,6 +269,9 @@ def insert_audio(
         PowerPointLaunchError: if PowerPoint can't be started or the
             presentation can't be opened.
         AudioInsertionError: if the resulting .pptx can't be saved.
+        AudioInsertionTimeoutError: if ``timeout_seconds`` is given and the
+            operation doesn't finish in time. Also catchable as
+            ``TimeoutError``.
         FileNotFoundError: if ``pptx_path`` doesn't exist.
     """
     _require_windows()
@@ -209,84 +286,87 @@ def insert_audio(
     slide_audio_map = _build_slide_audio_map(manifest, audio_dir)
     total = len(slide_audio_map)
 
-    with _powerpoint_session(powerpoint_app, visible) as (app, _created_app):
-        with _open_presentation(app, pptx_path, visible) as presentation:
-            inserted: List[int] = []
-            skipped: List[Dict[str, Any]] = []
+    def _do_insert() -> Dict[str, Any]:
+        with _powerpoint_session(powerpoint_app, visible) as (app, _created_app):
+            with _open_presentation(app, pptx_path, visible) as presentation:
+                inserted: List[int] = []
+                skipped: List[Dict[str, Any]] = []
 
-            # Compute a top-right position for the (shrunk) audio icon so it
-            # stays out of the way of slide content, without moving it off
-            # the visible slide area (the deck may be reused/edited
-            # standalone).
-            slide_width = presentation.PageSetup.SlideWidth
-            icon_left = slide_width - ICON_SIZE_PT - ICON_MARGIN_PT
-            icon_top = ICON_MARGIN_PT
+                # Compute a top-right position for the (shrunk) audio icon so
+                # it stays out of the way of slide content, without moving it
+                # off the visible slide area (the deck may be reused/edited
+                # standalone).
+                slide_width = presentation.PageSetup.SlideWidth
+                icon_left = slide_width - ICON_SIZE_PT - ICON_MARGIN_PT
+                icon_top = ICON_MARGIN_PT
 
-            for index, (slide_num, audio_path) in enumerate(slide_audio_map.items(), start=1):
-                if not audio_path.exists():
-                    skipped.append(
-                        {"slide_num": slide_num, "reason": f"audio file not found: {audio_path}"}
-                    )
+                for index, (slide_num, audio_path) in enumerate(slide_audio_map.items(), start=1):
+                    if not audio_path.exists():
+                        skipped.append(
+                            {"slide_num": slide_num, "reason": f"audio file not found: {audio_path}"}
+                        )
+                        if progress_callback is not None:
+                            progress_callback(index, total, slide_num, "skipped")
+                        continue
+
+                    try:
+                        slide = presentation.Slides(slide_num)
+                    except Exception as exc:  # noqa: BLE001 - surface as a skip, not a crash
+                        skipped.append({"slide_num": slide_num, "reason": f"slide not found: {exc}"})
+                        if progress_callback is not None:
+                            progress_callback(index, total, slide_num, "skipped")
+                        continue
+
+                    try:
+                        shape = slide.Shapes.AddMediaObject2(
+                            FileName=str(audio_path),
+                            LinkToFile=False,
+                            SaveWithDocument=True,
+                            Left=icon_left,
+                            Top=icon_top,
+                            Width=ICON_SIZE_PT,
+                            Height=ICON_SIZE_PT,
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        skipped.append(
+                            {"slide_num": slide_num, "reason": f"failed to insert audio: {exc}"}
+                        )
+                        if progress_callback is not None:
+                            progress_callback(index, total, slide_num, "skipped")
+                        continue
+
+                    # Best-effort: hide the icon except while it's actually
+                    # playing, and mark it to play on entry. NOTE:
+                    # empirically, PlayOnEntry is NOT just cosmetic - even
+                    # though it doesn't change what the editor UI shows
+                    # (still "On Click"), leaving it unset caused
+                    # PowerPoint's "Create a Video" export to ignore the
+                    # audio entirely and fall back to a fixed 5-second slide
+                    # duration with no sound. Keep both flags set together.
+                    try:
+                        shape.AnimationSettings.PlaySettings.PlayOnEntry = True
+                        shape.AnimationSettings.PlaySettings.HideWhileNotPlaying = True
+                    except Exception:  # noqa: BLE001
+                        pass
+
+                    inserted.append(slide_num)
                     if progress_callback is not None:
-                        progress_callback(index, total, slide_num, "skipped")
-                    continue
+                        progress_callback(index, total, slide_num, "inserted")
 
                 try:
-                    slide = presentation.Slides(slide_num)
-                except Exception as exc:  # noqa: BLE001 - surface as a skip, not a crash
-                    skipped.append({"slide_num": slide_num, "reason": f"slide not found: {exc}"})
-                    if progress_callback is not None:
-                        progress_callback(index, total, slide_num, "skipped")
-                    continue
+                    presentation.SaveAs(str(output_path))
+                except Exception as exc:
+                    raise AudioInsertionError(
+                        f"Failed to save PPTX with inserted audio to {output_path}: {exc}"
+                    ) from exc
 
-                try:
-                    shape = slide.Shapes.AddMediaObject2(
-                        FileName=str(audio_path),
-                        LinkToFile=False,
-                        SaveWithDocument=True,
-                        Left=icon_left,
-                        Top=icon_top,
-                        Width=ICON_SIZE_PT,
-                        Height=ICON_SIZE_PT,
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    skipped.append(
-                        {"slide_num": slide_num, "reason": f"failed to insert audio: {exc}"}
-                    )
-                    if progress_callback is not None:
-                        progress_callback(index, total, slide_num, "skipped")
-                    continue
+                return {
+                    "output_path": str(output_path),
+                    "inserted_slides": inserted,
+                    "skipped_slides": skipped,
+                }
 
-                # Best-effort: hide the icon except while it's actually
-                # playing, and mark it to play on entry. NOTE: empirically,
-                # PlayOnEntry is NOT just cosmetic - even though it doesn't
-                # change what the editor UI shows (still "On Click"), leaving
-                # it unset caused PowerPoint's "Create a Video" export to
-                # ignore the audio entirely and fall back to a fixed
-                # 5-second slide duration with no sound. Keep both flags set
-                # together.
-                try:
-                    shape.AnimationSettings.PlaySettings.PlayOnEntry = True
-                    shape.AnimationSettings.PlaySettings.HideWhileNotPlaying = True
-                except Exception:  # noqa: BLE001
-                    pass
-
-                inserted.append(slide_num)
-                if progress_callback is not None:
-                    progress_callback(index, total, slide_num, "inserted")
-
-            try:
-                presentation.SaveAs(str(output_path))
-            except Exception as exc:
-                raise AudioInsertionError(
-                    f"Failed to save PPTX with inserted audio to {output_path}: {exc}"
-                ) from exc
-
-            return {
-                "output_path": str(output_path),
-                "inserted_slides": inserted,
-                "skipped_slides": skipped,
-            }
+    return _run_with_optional_timeout(_do_insert, timeout_seconds)
 
 
 # PpMediaTaskStatus enumeration (Microsoft PowerPoint COM/VBA reference).

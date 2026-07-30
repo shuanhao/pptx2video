@@ -132,7 +132,8 @@ def generate_audio_files(
         max_retries: How many extra attempts to make after an initial
             failure that looks transient (see ``_is_retryable``), before
             giving up and raising ``TTSGenerationError``. 0 disables
-            retrying entirely.
+            retrying entirely. Negative values are clamped to 0 rather than
+            silently skipping generation altogether (see note below).
         retry_delay_seconds: How long to wait between retry attempts.
         on_retry: Optional callback invoked as
             ``on_retry(attempt, max_retries, slide_num, exception)`` right
@@ -140,6 +141,16 @@ def generate_audio_files(
             attempt that just failed). Use this to log/print retry activity
             instead of it happening silently.
     """
+    # A negative max_retries would make range(1, max_retries + 2) empty,
+    # meaning the loop below never runs the generator even once, yet
+    # last_exc would stay None the whole time - which the code below reads
+    # as "succeeded". That used to silently fabricate a manifest entry for
+    # audio that was never actually generated. Clamp instead of trusting
+    # the caller, so the only way to skip generation is the documented
+    # code path (a slide with no notes), never an off-by-one on this value.
+    if max_retries < 0:
+        max_retries = 0
+
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 

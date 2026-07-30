@@ -36,6 +36,37 @@ class TtsGeneratorTests(unittest.TestCase):
             self.assertTrue((output_dir / "slide_003.mp3").exists())
             self.assertFalse((output_dir / "slide_002.mp3").exists())
 
+    def test_generate_audio_files_clamps_negative_max_retries_instead_of_skipping(self):
+        # Regression test: range(1, max_retries + 2) is empty when
+        # max_retries is negative (e.g. -1 -> range(1, 1)), which used to
+        # mean the generator was never called at all, yet the slide was
+        # still recorded in the manifest as if audio had been generated for
+        # it. max_retries must be clamped to 0 so the generator always runs
+        # at least once.
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+        calls = []
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def fake_generator(text, output_path, voice):
+                calls.append(output_path)
+                output_path.write_bytes(b"fake-audio")
+
+            manifest = generate_audio_files(
+                slides,
+                output_dir,
+                voice="en-US-AriaNeural",
+                generator=fake_generator,
+                max_retries=-1,
+            )
+
+            self.assertEqual(len(calls), 1)
+            self.assertTrue((output_dir / "slide_001.mp3").exists())
+            self.assertEqual(
+                [entry["audio_file"] for entry in manifest["slides"]],
+                ["slide_001.mp3"],
+            )
 
     def test_generate_audio_files_reports_progress(self):
         slides = [

@@ -1,4 +1,5 @@
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -6,6 +7,7 @@ from unittest import mock
 from src import ppt_automation
 from src.exceptions import (
     AudioInsertionError,
+    AudioInsertionTimeoutError,
     PowerPointLaunchError,
     VideoExportError,
     VideoExportTimeoutError,
@@ -72,12 +74,14 @@ class FakePresentation:
         video_status_sequence=None,
         write_output_on_create_video=True,
         fail_save_as=False,
+        slow_save_as_seconds=0,
     ):
         self.Slides = FakeSlides(slide_nums)
         self.PageSetup = FakePageSetup(slide_width)
         self.saved_to = None
         self.closed = False
         self._fail_save_as = fail_save_as
+        self._slow_save_as_seconds = slow_save_as_seconds
 
         # --- export_video / CreateVideo simulation ---
         # Each read of CreateVideoStatus advances through this sequence,
@@ -93,6 +97,8 @@ class FakePresentation:
         self.create_video_calls = []
 
     def SaveAs(self, path):
+        if self._slow_save_as_seconds:
+            time.sleep(self._slow_save_as_seconds)
         if self._fail_save_as:
             raise Exception("simulated disk full error")
         self.saved_to = path
@@ -551,6 +557,68 @@ class PptAutomationTests(unittest.TestCase):
             # been closed - the cleanup context manager doesn't skip Close()
             # just because the code inside raised.
             self.assertTrue(presentation.closed)
+
+    def test_insert_audio_raises_timeout_error_when_operation_hangs(self):
+        # Regression test: insert_audio's COM calls have no timeout of their
+        # own, so a stuck PowerPoint used to hang the caller forever. With
+        # timeout_seconds set, a slow SaveAs() (simulating PowerPoint stuck
+        # behind e.g. a blocking dialog) must be given up on instead.
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+
+            audio_dir = tmp_path / "audio"
+            audio_dir.mkdir()
+            (audio_dir / "slide_002.mp3").write_bytes(b"fake-audio")
+
+            manifest = {"slides": [{"slide_num": 2, "audio_file": "slide_002.mp3"}]}
+
+            presentation = FakePresentation(
+                slide_nums=[1, 2, 3], slow_save_as_seconds=1.0
+            )
+            app = FakeApplication(presentation)
+
+            with mock.patch("sys.platform", "win32"):
+                with self.assertRaises(AudioInsertionTimeoutError) as ctx:
+                    ppt_automation.insert_audio(
+                        pptx_path,
+                        manifest,
+                        audio_dir,
+                        powerpoint_app=app,
+                        timeout_seconds=0.1,
+                    )
+
+            # AudioInsertionTimeoutError must also be catchable as the
+            # builtin TimeoutError, mirroring VideoExportTimeoutError.
+            self.assertIsInstance(ctx.exception, TimeoutError)
+
+    def test_insert_audio_succeeds_within_timeout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+
+            audio_dir = tmp_path / "audio"
+            audio_dir.mkdir()
+            (audio_dir / "slide_002.mp3").write_bytes(b"fake-audio")
+
+            manifest = {"slides": [{"slide_num": 2, "audio_file": "slide_002.mp3"}]}
+
+            presentation = FakePresentation(slide_nums=[1, 2, 3])
+            app = FakeApplication(presentation)
+
+            with mock.patch("sys.platform", "win32"):
+                result = ppt_automation.insert_audio(
+                    pptx_path,
+                    manifest,
+                    audio_dir,
+                    powerpoint_app=app,
+                    timeout_seconds=30,
+                )
+
+            self.assertEqual(result["inserted_slides"], [2])
+            self.assertIsNotNone(presentation.saved_to)
 
     def test_insert_audio_raises_powerpointlauncherror_when_open_fails(self):
         with tempfile.TemporaryDirectory() as tmp:

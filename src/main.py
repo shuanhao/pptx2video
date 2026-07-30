@@ -16,6 +16,20 @@ from src.subtitle_generator import write_srt
 from src.tts import generate_audio_files
 
 
+def _non_negative_int(value: str) -> int:
+    """argparse ``type=`` for options where a negative int would be a silent
+    footgun rather than a validation error - see ``--tts-max-retries``: a
+    negative value used to make the retry loop never run at all, which
+    ``tts.generate_audio_files`` now defends against too, but rejecting it
+    here gives the user an immediate, clear error instead of the value being
+    quietly clamped somewhere downstream.
+    """
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError(f"must be 0 or greater, got {parsed}")
+    return parsed
+
+
 def build_payload(slides, pptx_path, audio_manifest=None, audio_output_dir=None):
     enriched_slides = []
     for slide in slides:
@@ -127,7 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--tts-max-retries",
-        type=int,
+        type=_non_negative_int,
         default=3,
         help=(
             "How many times to retry generating a slide's audio after a "
@@ -163,6 +177,18 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Path to save the PPTX with inserted audio (used with "
             "--insert-audio). Defaults to overwriting the input file."
+        ),
+    )
+    parser.add_argument(
+        "--insert-audio-timeout",
+        type=float,
+        default=1800.0,
+        help=(
+            "Give up waiting for --insert-audio to finish after this many "
+            "seconds (e.g. if PowerPoint is stuck behind a blocking "
+            "dialog). Set to 0 to wait indefinitely (the previous, "
+            "unbounded behavior). Note this only stops waiting - it cannot "
+            "force-close a stuck PowerPoint."
         ),
     )
     parser.add_argument(
@@ -264,6 +290,12 @@ def main() -> None:
 
     logger.debug(f"Parsing PowerPoint file: {pptx_path}")
 
+    # Every except branch below calls _fail(), which is annotated -> NoReturn
+    # and always exits via parser.error() (SystemExit) - so `slides` is
+    # guaranteed to be assigned by the time execution reaches past this
+    # block. Assigning it inside try and reading it in `else` (rather than
+    # right after the try/except) makes that guarantee explicit instead of
+    # relying on the reader already knowing what _fail() does.
     try:
         slides = extract_notes(pptx_path)
     except FileNotFoundError as exc:
@@ -274,8 +306,8 @@ def main() -> None:
         _fail(parser, logger, str(exc))
     except Exception as exc:
         _fail(parser, logger, f"Unexpected error while parsing {pptx_path}: {exc}")
-
-    logger.debug(f"Loaded {len(slides)} slide(s)")
+    else:
+        logger.debug(f"Loaded {len(slides)} slide(s)")
 
     if args.strict:
         for slide in slides:
@@ -366,6 +398,9 @@ def main() -> None:
                 args.audio_output_dir,
                 output_path=pptx_output_path,
                 progress_callback=_print_insert_progress,
+                timeout_seconds=(
+                    args.insert_audio_timeout if args.insert_audio_timeout > 0 else None
+                ),
             )
         except (Pptx2VideoError, FileNotFoundError) as exc:
             _fail(parser, logger, str(exc))

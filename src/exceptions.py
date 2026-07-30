@@ -60,6 +60,24 @@ class AudioInsertionError(Pptx2VideoError):
     """
 
 
+class AudioInsertionTimeoutError(AudioInsertionError, TimeoutError):
+    """Raised when waiting for PowerPoint's audio insertion exceeds the timeout.
+
+    Insertion runs a series of blocking COM calls (open PowerPoint, open the
+    presentation, insert each slide's audio, save). None of those calls have
+    a built-in timeout, so a stuck PowerPoint (e.g. a blocking trust/repair
+    dialog) would otherwise hang the whole run forever. This error means the
+    wait was given up on after the configured timeout - it does NOT mean
+    PowerPoint itself was forcibly stopped; the underlying COM call may
+    still be running in the background.
+
+    Inherits from both ``AudioInsertionError`` (so it's catchable alongside
+    other pptx2video errors via ``Pptx2VideoError``) and the builtin
+    ``TimeoutError`` (so code that only knows to catch ``TimeoutError``
+    generically still works unchanged), mirroring ``VideoExportTimeoutError``.
+    """
+
+
 class VideoExportError(Pptx2VideoError):
     """Raised when PowerPoint's video export fails or produces no output.
 

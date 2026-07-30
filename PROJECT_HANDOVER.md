@@ -4,13 +4,13 @@
 pptx2video (PPTX Auto Presenter)
 
 ## 文件版本
-v0.4.0 (Robustness Improvements)
+v0.4.1 (Robustness Improvements + Bug Fixes)
 
 ## 目標對象
 接手開發者、AI 協作 Agent
 
 ## 撰寫日期
-2026-07-28（v0.4.0 更新）
+2026-07-30（v0.4.1 更新）
 
 ---
 
@@ -67,6 +67,15 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 
 這表示目前專案已經完成從「pptx → 帶配音的 MP4」的完整核心流程，並在真實環境驗證通過。剩下的主要缺口是次要體驗優化（現場放映點擊問題、部分步驟的進度顯示），以及原本就定調為非必要路徑的字幕正式化。
 
+### v0.4.1 修正的問題
+
+v0.4.0 上線後 code review 又抓出兩個非字幕相關的問題，已在 v0.4.1 修好：
+
+- **`--tts-max-retries` 傳負值會靜默產生錯誤資料**：`tts.py` 重試迴圈原本寫成 `range(1, max_retries + 2)`，當 `max_retries` 是負值時（例如 `-1`）這個 range 會是空的，導致 TTS 生成函式從未被實際呼叫過一次，卻仍把該頁記錄成生成成功寫進 `manifest.json`——後續 `--insert-audio` 只會把它當「音檔缺失」跳過，不會報錯，使用者完全不會發現。已在 `tts.generate_audio_files()` 內把負值 clamp 成 0 作為防呆，並在 CLI 層（`main.py` 的 `_non_negative_int`）直接擋掉負值、給出明確錯誤訊息。
+- **`insert_audio()` 沒有逾時保護**：`export_video()` 一直都有 `timeout_seconds` 輪詢逾時，但 `insert_audio()` 內的 COM 呼叫（開啟簡報、插入音訊、存檔）全部同步阻塞、沒有任何逾時，PowerPoint 卡住（例如被信任設定/修復對話框擋住）會讓整個流程無限期掛住。已補上 `timeout_seconds` 參數：用背景執行緒 + `concurrent.futures` 的 `future.result(timeout=...)` 包住整段流程，逾時會拋出新的 `AudioInsertionTimeoutError`（也是 `TimeoutError` 子類別，用法比照 `VideoExportTimeoutError`）。CLI 對應新增 `--insert-audio-timeout`（預設 1800 秒，設 `0` 恢復無限等待）。**限制：這只是停止「等待」，無法強制關閉卡住的 PowerPoint 行程**，跟專案既有「COM 操作不做自動重試」的風險考量一致（見 `tts.py` 開頭的說明）。
+
+兩者都補了對應的單元測試（`tests/test_tts_generator.py`、`tests/test_pptx_parser.py`、`tests/test_ppt_automation.py`），目前完整測試共 52 個全數通過。
+
 ### 重要實測發現：`PlayOnEntry` 旗標
 
 在開發過程中發現一個不直觀但重要的行為：`shape.AnimationSettings.PlaySettings.PlayOnEntry` 這個舊版 API，雖然在 PowerPoint 編輯 UI 上完全看不出任何效果（Start 設定依然顯示「按一下時」），但**拿掉這個設定會讓 PowerPoint「建立視訊」匯出的 MP4 完全沒有聲音、且每頁變回固定 5 秒**，設定它之後匯出就正確無誤。目前程式碼固定會設定這個旗標，但底層原理尚未查證清楚，如果之後 PowerPoint 版本行為改變，需要重新測試這個結論是否仍然成立。
@@ -116,6 +125,10 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 - `--generate-audio` 補上原本缺失的錯誤處理
 - COM 開關邏輯重構去重複（與例外分類一起做）
 
+已完成（v0.4.1）：
+- `insert_audio()` 逾時保護（`--insert-audio-timeout`，見上方「v0.4.1 修正的問題」）
+- `--tts-max-retries` 負值防呆（CLI 層擋掉 + `tts.py` 內部 clamp）
+
 待補強項目：
 - Recoverable Error Policy 文件化（把隱含規則整理成明確表格）
 - Retry 機制（僅限 TTS 網路請求，COM 操作暫不做，風險考量見 TODO.md）
@@ -141,12 +154,13 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 - 取得每段語音的時長
 - 將音檔存於 temp_audios/
 - 生成失敗時拋出 `TTSGenerationError`，訊息會標明是第幾頁失敗，並保留原始例外鏈
+- （v0.4.1）`max_retries` 若傳負值會被 clamp 成 0，確保重試迴圈至少執行一次，不會出現「從未呼叫生成、卻仍記錄成功」的情況
 
 ### 5.3 ppt_automation.py
 負責：
-- **`insert_audio()`**：啟動 PowerPoint（COM，`pywin32`）、開啟簡報檔、插入音訊（縮小圖示、移到投影片右上角、盡量在非播放狀態隱藏 `HideWhileNotPlaying`）、設定 `PlayOnEntry = True`（實測發現匯出 MP4 是否正確依賴這個舊版旗標，即使編輯 UI 看不出效果）
+- **`insert_audio()`**：啟動 PowerPoint（COM，`pywin32`）、開啟簡報檔、插入音訊（縮小圖示、移到投影片右上角、盡量在非播放狀態隱藏 `HideWhileNotPlaying`）、設定 `PlayOnEntry = True`（實測發現匯出 MP4 是否正確依賴這個舊版旗標，即使編輯 UI 看不出效果）；（v0.4.1）新增可選的 `timeout_seconds` 參數，用背景執行緒包住整段流程並用 `future.result(timeout=...)` 限時等待，逾時拋出 `AudioInsertionTimeoutError`
 - **`export_video()`**：呼叫 `Presentation.CreateVideo()` 觸發匯出（非同步 API），輪詢 `CreateVideoStatus` 直到完成/失敗/逾時，並在回報「完成」後額外檢查輸出檔案是否存在且非空（安全網，避免狀態列舉值與實際版本行為不一致時誤判成功）
-- 兩個函式共用 `_powerpoint_session()` / `_open_presentation()` 這兩個 context manager 處理開啟/關閉 PowerPoint 的邏輯，避免重複程式碼；PowerPoint 無法啟動或開啟簡報時拋出 `PowerPointLaunchError`，插入完成後存檔失敗拋出 `AudioInsertionError`，匯出失敗/逾時拋出 `VideoExportError` / `VideoExportTimeoutError`
+- 兩個函式共用 `_powerpoint_session()` / `_open_presentation()` 這兩個 context manager 處理開啟/關閉 PowerPoint 的邏輯，避免重複程式碼；PowerPoint 無法啟動或開啟簡報時拋出 `PowerPointLaunchError`，插入完成後存檔失敗拋出 `AudioInsertionError`，逾時拋出 `AudioInsertionTimeoutError`，匯出失敗/逾時拋出 `VideoExportError` / `VideoExportTimeoutError`
 - 確保 COM 物件正常釋放（`Presentation.Close()` / `Application.Quit()`，皆包在 `finally` 區塊）
 
 尚未負責（規劃中，優先度較低）：
@@ -162,6 +176,7 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 負責：
 - 定義專案自訂例外階層，共同基底 `Pptx2VideoError`
 - `PptParseError`、`TTSGenerationError`、`PowerPointLaunchError`、`AudioInsertionError`、`VideoExportError`、`VideoExportTimeoutError`（同時也是內建 `TimeoutError` 的子類別，向下相容只認得 `TimeoutError` 的呼叫端）
+- （v0.4.1）新增 `AudioInsertionTimeoutError`，繼承自 `AudioInsertionError` 與 `TimeoutError`，用法比照 `VideoExportTimeoutError`，代表 `insert_audio()` 等待逾時
 - `FileNotFoundError`、`ValueError` 等語意已經明確的 Python 內建例外故意不重新包裝
 
 ### 5.6 logging_config.py

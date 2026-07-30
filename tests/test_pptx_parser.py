@@ -78,6 +78,20 @@ class PptxParserTests(unittest.TestCase):
         self.assertTrue(args.strict)
         self.assertEqual(args.output, "out.json")
 
+    def test_build_parser_rejects_negative_tts_max_retries(self):
+        # Regression test: a negative --tts-max-retries used to be accepted
+        # and silently made tts.generate_audio_files skip generation
+        # entirely while still reporting success. It should now be rejected
+        # up front with a clear CLI error instead.
+        parser = build_parser()
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["demo.pptx", "--tts-max-retries", "-1"])
+
+    def test_build_parser_accepts_zero_tts_max_retries(self):
+        parser = build_parser()
+        args = parser.parse_args(["demo.pptx", "--tts-max-retries", "0"])
+        self.assertEqual(args.tts_max_retries, 0)
+
     def test_extract_notes_raises_pptparseerror_for_corrupt_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             corrupt_path = Path(temp_dir) / "corrupt.pptx"
