@@ -179,7 +179,7 @@ Exported video to ...\deck.mp4 (42.3s)
 **注意事項：**
 - 生成語音需要能連上 Edge-TTS 服務（`speech.platform.bing.com`）
 - 插入音訊與匯出 MP4 都需要 Windows + 已安裝 PowerPoint + `pywin32`
-- 這一行指令裡 PowerPoint 實際上會被開關兩次：`--insert-audio` 用一次、`--export-video` 又用一次（各自獨立完成後就關閉），不是同一個 PowerPoint session 做完兩件事。這不影響結果，只是會多花一點點時間；如果之後有大量批次處理、在意這個開銷，可以再優化成同一個 session 共用（目前尚未實作）。
+- 這一行指令裡 PowerPoint 實際上會被開關兩次：`--insert-audio` 用一次、`--export-video` 又用一次，不是同一個 PowerPoint session 做完兩件事。不影響結果，只是多花一點點時間（優化方向見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「未來擴充方向」）。
 
 ---
 
@@ -454,11 +454,9 @@ graph TD
 
 ## 🗺️ Roadmap
 
-近期規劃的完整待辦清單（含優先順序、已評估決定不做的項目）維護在 [TODO.md](TODO.md)，這裡只列大方向：
+規劃分兩份文件維護，避免同一件事重複列兩份清單：
 
-* **`--insert-audio` 的進度顯示**：`--generate-audio` 和 `--export-video` 都已經有即時進度回報，插入音訊的迴圈還沒有。
-* **現場放映自動播放**：解決「已知限制」提到的點擊問題，如果未來有現場簡報（非僅匯出影片）的需求才會處理。
-* **字幕生成正式化**：將目前的 PoC 字幕邏輯整合進正式影片輸出管線，並與音檔時長精確對齊。
-* **批次處理與輸出整理**：支援多檔輸入與更完整的輸出目錄管理。
+* **近期、可直接排進待辦的項目**（含已評估決定不做/暫緩的項目）：[TODO.md](TODO.md)，目前包含 `--insert-audio` 的進度顯示等。
+* **需要架構層級思考、還沒到可直接執行程度的長期方向**（例如現場放映自動播放、字幕生成正式化、批次處理與輸出目錄管理）：[PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「未來擴充方向」章節。
 
 已完成的項目與各版本詳情請見 [CHANGELOG.md](CHANGELOG.md)。

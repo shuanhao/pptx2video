@@ -80,7 +80,7 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 
 ### v0.4.1 修的兩個問題背後的原因
 
-v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防呆，技術細節與程式碼變更請見 [CHANGELOG.md](CHANGELOG.md) 的對應條目。這裡只補充一個設計取捨：`insert_audio()` 的逾時是用背景執行緒 + `future.result(timeout=...)` 包住整段流程，而不是對個別 COM 呼叫個別加 timeout——因為 COM 呼叫本身沒有原生的逾時參數，唯一能做的是「限制等待這整段同步流程的總時間」，逾時後也**無法強制關閉卡住的 PowerPoint**，只能讓呼叫端不再繼續等待。這跟下面第 6 節「COM 操作不做自動重試」是同一個風險考量的兩種展現方式。
+v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防呆，技術細節與程式碼變更請見 [CHANGELOG.md](CHANGELOG.md) 的對應條目。這裡只補充一個設計取捨：`insert_audio()` 的逾時是用背景執行緒 + `future.result(timeout=...)` 包住整段流程，而不是對個別 COM 呼叫個別加 timeout——因為 COM 呼叫本身沒有原生的逾時參數，唯一能做的是「限制等待這整段同步流程的總時間」，逾時後也**無法強制關閉卡住的 PowerPoint**，只能讓呼叫端不再繼續等待。這跟下面 5.5 節「COM 操作為何不做自動重試」是同一個風險考量的兩種展現方式。
 
 ---
 
@@ -169,7 +169,7 @@ TTS 網路請求有自動重試機制（見 4.2），但 `insert_audio()` / `exp
 ## 6. 維護建議
 
 - **修改 `insert_audio()` / `export_video()` 前，先讀完第 3 節**：這兩個函式的行為高度依賴實測發現的 COM 特性（`PlayOnEntry`、`CreateVideoStatus`），單看程式碼容易誤以為某些設定是多餘的而砍掉。
-- **版本相容性尚未正式驗證**：目前沒有明確記錄專案在哪些 Python 版本（`pyproject.toml` 只寫 `>=3.9`）、哪些 PowerPoint 版本上實測過。如果之後要支援更多環境，建議先補上這份相容性矩陣，尤其是 `CreateVideoStatus` 列舉值这種「文件說的跟實測不一定一致」的地方。
+- **版本相容性尚未正式驗證**：目前沒有明確記錄專案在哪些 Python 版本（`pyproject.toml` 只寫 `>=3.9`）、哪些 PowerPoint 版本上實測過。如果之後要支援更多環境，建議先補上這份相容性矩陣，尤其是 `CreateVideoStatus` 列舉值這種「文件說的跟實測不一定一致」的地方。
 - **輸出資料夾規劃還很粗略**：目前只有 `output/`、`logs/`、`temp/` 幾個目錄，沒有正式規範哪些檔案該放哪裡、要保留多久。專案目前刻意不自動清理暫存檔（見 [TODO.md](TODO.md)），但如果之後要做批次處理，這塊需要重新設計。
 - **新增功能前，先確認 CHANGELOG.md / TODO.md 是否需要同步更新**：Round 1 文件整理時發現過「TODO 裡某項目其實已經實作完成，但checkbox 沒打勾」這種文件落後於程式碼的情況，之後每次合併新功能都建議順手檢查這兩份文件有沒有跟上。
 
