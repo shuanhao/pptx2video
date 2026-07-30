@@ -407,9 +407,12 @@ python -m unittest tests.test_subtitle_generator -v
 python -m unittest tests.test_ppt_automation -v
 python -m unittest tests.test_logging_config -v
 python -m unittest tests.test_main_payload -v
+python -m unittest tests.test_cli_end_to_end -v
 ```
 
 > `test_ppt_automation.py` 用假的 COM 物件模擬 PowerPoint，不需要真的安裝 PowerPoint 也能在任何作業系統跑，但這不能取代在真實 Windows + PowerPoint 環境的實測。
+>
+> `test_cli_end_to_end.py` 直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫）、`--strict`、`--pretty`、錯誤處理等完整流程，補足其他測試模組只測個別函式、沒有測過 `main()` 本身的缺口。同樣因為需要真的 Windows + PowerPoint，`--insert-audio`/`--export-video` 不在這個模組的涵蓋範圍內。
 
 ---
 
