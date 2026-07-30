@@ -356,12 +356,16 @@ def main() -> None:
                     f"--generate-audio first, or ensure {manifest_path} exists.",
                 )
 
+        def _print_insert_progress(current: int, total: int, slide_num: int, status: str) -> None:
+            logger.info(f"Inserting audio {current}/{total} (slide {slide_num})... {status}")
+
         try:
             insert_result = ppt_automation.insert_audio(
                 pptx_path,
                 manifest_for_insert,
                 args.audio_output_dir,
                 output_path=pptx_output_path,
+                progress_callback=_print_insert_progress,
             )
         except (Pptx2VideoError, FileNotFoundError) as exc:
             _fail(parser, logger, str(exc))

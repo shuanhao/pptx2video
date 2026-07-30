@@ -153,6 +153,7 @@ def insert_audio(
     output_path: Optional[Path | str] = None,
     visible: bool = True,
     powerpoint_app: Optional[Any] = None,
+    progress_callback: Optional[Callable[[int, int, int, str], None]] = None,
 ) -> Dict[str, Any]:
     """Insert each slide's audio file into its matching slide.
 
@@ -172,6 +173,14 @@ def insert_audio(
         powerpoint_app: Optional pre-existing PowerPoint COM Application
             object. Mainly used for testing (inject a fake) or to reuse an
             already-running instance instead of starting a new one.
+        progress_callback: Optional callback invoked as
+            ``progress_callback(current, total, slide_num, status)`` right
+            after each slide referenced by the manifest is processed -
+            ``current`` is 1-based, ``total`` is how many slides the
+            manifest references, and ``status`` is either ``"inserted"`` or
+            ``"skipped"``. Slides can take a while to process one at a time
+            over COM, so this is worth surfacing instead of leaving the
+            caller waiting with no feedback until the whole deck is done.
 
     Returns:
         A summary dict: ``{"output_path", "inserted_slides", "skipped_slides"}``.
@@ -198,6 +207,7 @@ def insert_audio(
         raise FileNotFoundError(f"PPTX file not found: {pptx_path}")
 
     slide_audio_map = _build_slide_audio_map(manifest, audio_dir)
+    total = len(slide_audio_map)
 
     with _powerpoint_session(powerpoint_app, visible) as (app, _created_app):
         with _open_presentation(app, pptx_path, visible) as presentation:
@@ -212,17 +222,21 @@ def insert_audio(
             icon_left = slide_width - ICON_SIZE_PT - ICON_MARGIN_PT
             icon_top = ICON_MARGIN_PT
 
-            for slide_num, audio_path in slide_audio_map.items():
+            for index, (slide_num, audio_path) in enumerate(slide_audio_map.items(), start=1):
                 if not audio_path.exists():
                     skipped.append(
                         {"slide_num": slide_num, "reason": f"audio file not found: {audio_path}"}
                     )
+                    if progress_callback is not None:
+                        progress_callback(index, total, slide_num, "skipped")
                     continue
 
                 try:
                     slide = presentation.Slides(slide_num)
                 except Exception as exc:  # noqa: BLE001 - surface as a skip, not a crash
                     skipped.append({"slide_num": slide_num, "reason": f"slide not found: {exc}"})
+                    if progress_callback is not None:
+                        progress_callback(index, total, slide_num, "skipped")
                     continue
 
                 try:
@@ -239,6 +253,8 @@ def insert_audio(
                     skipped.append(
                         {"slide_num": slide_num, "reason": f"failed to insert audio: {exc}"}
                     )
+                    if progress_callback is not None:
+                        progress_callback(index, total, slide_num, "skipped")
                     continue
 
                 # Best-effort: hide the icon except while it's actually
@@ -256,6 +272,8 @@ def insert_audio(
                     pass
 
                 inserted.append(slide_num)
+                if progress_callback is not None:
+                    progress_callback(index, total, slide_num, "inserted")
 
             try:
                 presentation.SaveAs(str(output_path))

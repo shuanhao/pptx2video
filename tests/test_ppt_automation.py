@@ -168,6 +168,73 @@ class PptAutomationTests(unittest.TestCase):
         self.assertEqual(list(result.keys()), [1])
         self.assertEqual(result[1], Path("/tmp/audio/slide_001.mp3"))
 
+    def test_insert_audio_reports_progress_for_inserted_and_skipped_slides(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+
+            audio_dir = tmp_path / "audio"
+            audio_dir.mkdir()
+            (audio_dir / "slide_002.mp3").write_bytes(b"fake-audio")
+            # slide_003.mp3 deliberately not created, to trigger a "skipped"
+            # progress event (missing audio file).
+
+            manifest = {
+                "slides": [
+                    {"slide_num": 2, "audio_file": "slide_002.mp3"},
+                    {"slide_num": 3, "audio_file": "slide_003.mp3"},
+                ]
+            }
+
+            presentation = FakePresentation(slide_nums=[1, 2, 3], slide_width=960)
+            app = FakeApplication(presentation)
+
+            progress_events = []
+
+            def track_progress(current, total, slide_num, status):
+                progress_events.append((current, total, slide_num, status))
+
+            with mock.patch("sys.platform", "win32"):
+                ppt_automation.insert_audio(
+                    pptx_path,
+                    manifest,
+                    audio_dir,
+                    powerpoint_app=app,
+                    progress_callback=track_progress,
+                )
+
+            # One callback per slide referenced in the manifest (2 total),
+            # in order, each correctly labeled inserted vs skipped.
+            self.assertEqual(
+                progress_events,
+                [(1, 2, 2, "inserted"), (2, 2, 3, "skipped")],
+            )
+
+    def test_insert_audio_works_without_progress_callback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pptx_path = tmp_path / "deck.pptx"
+            pptx_path.write_bytes(b"fake-pptx")
+
+            audio_dir = tmp_path / "audio"
+            audio_dir.mkdir()
+            (audio_dir / "slide_002.mp3").write_bytes(b"fake-audio")
+
+            manifest = {"slides": [{"slide_num": 2, "audio_file": "slide_002.mp3"}]}
+            presentation = FakePresentation(slide_nums=[1, 2, 3], slide_width=960)
+            app = FakeApplication(presentation)
+
+            # Should not raise even though no progress_callback is passed.
+            with mock.patch("sys.platform", "win32"):
+                result = ppt_automation.insert_audio(
+                    pptx_path,
+                    manifest,
+                    audio_dir,
+                    powerpoint_app=app,
+                )
+            self.assertEqual(result["inserted_slides"], [2])
+
     def test_insert_audio_inserts_only_matching_slides(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
