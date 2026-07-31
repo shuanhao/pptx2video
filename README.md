@@ -1,6 +1,6 @@
 # PPTX Auto Presenter (`pptx2video`)
 
-一個基於 Python 的自動化工具，可將 PowerPoint 簡報檔（`.pptx`）自動轉換成帶旁白配音的 MP4 影片：解析每頁的標題與備忘稿內容 → 透過 **Edge-TTS** 生成語音 → 把音訊插入對應投影片 → 自動呼叫 PowerPoint 匯出 MP4。**核心流程（pptx → 配音 MP4）已完整打通，並在真實 Windows + PowerPoint 環境驗證過**。另外也附帶 SRT 字幕生成功能，目前為實驗性 PoC，尚未整合進正式管線。
+一個基於 Python 的自動化工具，可將 PowerPoint 簡報檔（`.pptx`）自動轉換成帶旁白配音、帶字幕的 MP4 影片：解析每頁的標題與備忘稿內容 → 透過 **Edge-TTS** 生成語音（同時取得逐字時間資料）→ 把音訊插入對應投影片 → 自動呼叫 PowerPoint 匯出 MP4；備忘稿同時也會被拆成適合當字幕的短句、對齊到實際語音時間，輸出一份完整的 SRT 字幕檔。**已完成 pptx → 配音 MP4 → 字幕生成流程，並在真實 Windows + PowerPoint 環境驗證過；字幕排版仍有已知的取捨情境（極短獨立段落、純英文行寬），詳見 [TODO.md](TODO.md)**。
 
 - 版本歷史：[CHANGELOG.md](CHANGELOG.md)
 - 還沒完成的工作與已知限制：[TODO.md](TODO.md)
@@ -14,7 +14,7 @@
 - **語音生成**：透過 `edge-tts` 把備忘稿轉成 MP3，依頁碼命名，支援語速/音高調整，失敗時有可設定次數的自動重試。
 - **PowerPoint 音訊插入**：透過 `pywin32` COM 自動化把生成的 MP3 插入對應投影片，圖示縮小並移到右上角、盡量隱藏。
 - **MP4 匯出自動化**：呼叫 PowerPoint「建立視訊」功能匯出 MP4，解析度/FPS/畫質/逾時秒數皆可透過 CLI 調整。
-- **字幕生成（PoC）**：依備忘稿與（若可用）實際音檔時長輸出 `.srt`，目前為實驗性功能，尚未整合進正式管線。
+- **SRT 字幕生成**：把備忘稿依顯示寬度智慧斷行（中文用 `jieba` 斷詞避免切壞詞語，中英混排、標點、空白都有對應規則），對齊到 edge-tts 實際回報的逐字語音時間（不是估算），並依照每張投影片在最終影片裡的實際時長，合併成一份時間軸正確的完整 SRT 字幕檔。
 - **完整例外分類與 Logging**：失敗情境依類型拋出對應例外，並區分「單頁跳過」與「整體中止」兩種處理策略；終端機維持簡潔輸出，log 檔案永遠保留完整 DEBUG 細節。
 
 版本歷史與各功能導入的時間點請見 [CHANGELOG.md](CHANGELOG.md)。
@@ -87,17 +87,21 @@ python -m pptx2video examples/sample_test.pptx --generate-audio --audio-output-d
 
 這會把有 notes 的投影片轉成 MP3，並在 `output/audio/manifest.json` 建立對應的音訊清單。
 
-> `edge-tts` 直接把語音服務回傳的 MP3 位元組寫入檔案，**這個階段不需要安裝 ffmpeg**。ffmpeg 只有在使用 `subtitle_generator.py` 讀取實際音檔時長（PoC 功能）時才會用到。
+> `edge-tts` 直接把語音服務回傳的 MP3 位元組寫入檔案，**這個階段本身不需要安裝 ffmpeg**。ffmpeg 是在下一步「產生字幕」量測每張投影片實際音檔時長時才會用到（見下方需求說明）。
 
-### 8. 產生字幕（目前為 PoC / 實驗性功能）
+### 8. 產生字幕（SRT）
 
-不需要額外參數，只要有執行主流程就會自動輸出：
+只要有跑過 `--generate-audio`（這一步會順便把每張投影片的逐字語音時間存成 `slide_XXX.wordboundaries.json`），`--subtitles-output` 就會自動用這份時間資料產生對齊過的字幕，不需要額外參數：
 
 ```powershell
-python src/main.py examples/sample_test.pptx --subtitles-output output/captions.srt
+python src/main.py examples/sample_test.pptx --generate-audio --audio-output-dir output/audio --subtitles-output output/captions.srt
 ```
 
-> ⚠️ 字幕生成邏輯目前仍是 Proof of Concept，尚未整合進正式的影片輸出管線，時間軸估算方式未來可能會調整。
+如果只有 `--subtitles-output`、沒有 `--generate-audio`，也沒有既有的 `manifest.json` 可以讀（例如只想先解析 JSON，還沒生成語音），會寫出一個合法但空白的 `.srt` 檔案，不會報錯。
+
+> `pydub` 需要透過 `ffmpeg` 解碼 mp3 才能量測每張投影片實際的音檔時長（用來排出每張投影片在最終影片時間軸上的位置），所以這一步需要安裝 `ffmpeg` 並加入 PATH，見下方「需求與環境」。
+>
+> 字幕行的斷行/合併邏輯與時間對齊的設計細節，見 `src/subtitle_segmenter.py`、`src/subtitle_alignment.py`、`src/subtitle_pipeline.py` 的模組說明；已知的取捨（極短獨立段落、純英文行寬）記錄在 [TODO.md](TODO.md)。
 
 ### 9. 把音訊插入 PPTX（需要 Windows + PowerPoint）
 
@@ -215,7 +219,7 @@ python -m pptx2video <pptx_path> [選項...]
 | `--pitch` | `+0Hz` | 音高調整，預設不改變音高 |
 | `--tts-max-retries` | `3` | edge-tts 生成失敗後（僅限判斷為暫時性的網路/服務錯誤）最多重試幾次，設為 `0` 停用重試。**必須是 0 或正整數**，帶負值會直接被 CLI 拒絕並提示錯誤 |
 | `--tts-retry-delay` | `2.0`（秒） | 兩次重試之間的等待秒數 |
-| `--subtitles-output` | `output/captions.srt` | 字幕輸出路徑（PoC 功能，每次執行都會自動產生） |
+| `--subtitles-output` | `output/captions.srt` | 字幕輸出路徑，每次執行都會自動產生；需要 `--generate-audio`（或既有的 `manifest.json`）提供的逐字語音時間才能產出有內容的字幕，否則會寫出空白 `.srt` |
 | `--insert-audio` | `False`（flag） | 把已生成的音訊插入 PPTX 對應投影片，圖示縮小移到右上角並盡量隱藏。需要 Windows + PowerPoint + pywin32，且需已用 `--generate-audio` 產生過音檔（或指定的 `--audio-output-dir` 底下已有 `manifest.json`） |
 | `--pptx-output` | 覆蓋輸入檔 | 搭配 `--insert-audio` 使用，指定插入音訊後另存的 PPTX 路徑；未指定則直接覆蓋原始輸入檔 |
 | `--insert-audio-timeout` | `1800`（秒） | `--insert-audio` 等待整個插入+存檔流程完成的逾時秒數。若 PowerPoint 卡住，超過這個時間會拋出錯誤，而不是無限期卡住。設為 `0` 可恢復成無限期等待 |
@@ -294,22 +298,32 @@ python src/main.py examples/sample_test.pptx `
 
 ```text
 pptx2video/
-├── src/                # 主要程式碼
-│   ├── main.py              # CLI 入口與 JSON 輸出
-│   ├── pptx_parser.py       # 解析 .pptx 與 notes
-│   ├── tts.py                # edge-tts 音訊生成
-│   ├── subtitle_generator.py # 字幕生成（PoC）
-│   ├── ppt_automation.py     # PowerPoint COM 自動化：插入音訊、匯出 MP4
-│   ├── exceptions.py         # 自訂例外階層
-│   ├── logging_config.py     # 統一 Logging 設定
+├── src/                     # 主要程式碼
+│   ├── main.py                   # CLI 入口與 JSON 輸出
+│   ├── pptx_parser.py            # 解析 .pptx 與 notes
+│   ├── tts.py                    # edge-tts 音訊生成，含逐字時間（WordBoundary）擷取
+│   ├── subtitle_segmenter.py     # 字幕斷句：備忘稿 → 適合當一行字幕的片段（純文字，不涉及時間）
+│   ├── subtitle_alignment.py     # 字幕對齊：把斷好的片段對齊到實際語音時間，輸出 SRT 文字
+│   ├── subtitle_pipeline.py      # 字幕合併：多投影片依實際時間軸合併成一份完整 SRT
+│   ├── ppt_automation.py         # PowerPoint COM 自動化：插入音訊、匯出 MP4
+│   ├── exceptions.py             # 自訂例外階層
+│   ├── logging_config.py         # 統一 Logging 設定
 │   └── __init__.py
 ├── tests/              # 測試檔案
 │   ├── test_pptx_parser.py
 │   ├── test_tts_generator.py
-│   ├── test_subtitle_generator.py
+│   ├── test_tts_word_boundaries.py
+│   ├── test_subtitle_segmenter.py
+│   ├── test_subtitle_alignment.py
+│   ├── test_subtitle_pipeline.py
 │   ├── test_ppt_automation.py
 │   ├── test_logging_config.py
-│   └── test_main_payload.py
+│   ├── test_main_payload.py
+│   └── test_cli_end_to_end.py
+├── scripts/            # 手動驗證腳本（需要真實網路/Windows+PowerPoint，不在自動化測試涵蓋範圍內）
+│   ├── smoke_test_word_boundaries.py
+│   ├── smoke_test_alignment.py
+│   └── verify_slide_timing.py
 ├── examples/           # 範例腳本與範例簡報
 ├── output/             # 輸出檔案（已加入 .gitignore，不進版控）
 ├── logs/               # 帶日期的 log 檔案（已加入 .gitignore，不進版控）
@@ -403,7 +417,10 @@ python -m unittest tests.test_pptx_parser -v
 
 ```powershell
 python -m unittest tests.test_tts_generator -v
-python -m unittest tests.test_subtitle_generator -v
+python -m unittest tests.test_tts_word_boundaries -v
+python -m unittest tests.test_subtitle_segmenter -v
+python -m unittest tests.test_subtitle_alignment -v
+python -m unittest tests.test_subtitle_pipeline -v
 python -m unittest tests.test_ppt_automation -v
 python -m unittest tests.test_logging_config -v
 python -m unittest tests.test_main_payload -v
@@ -412,7 +429,9 @@ python -m unittest tests.test_cli_end_to_end -v
 
 > `test_ppt_automation.py` 用假的 COM 物件模擬 PowerPoint，不需要真的安裝 PowerPoint 也能在任何作業系統跑，但這不能取代在真實 Windows + PowerPoint 環境的實測。
 >
-> `test_cli_end_to_end.py` 直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫）、`--strict`、`--pretty`、錯誤處理等完整流程，補足其他測試模組只測個別函式、沒有測過 `main()` 本身的缺口。同樣因為需要真的 Windows + PowerPoint，`--insert-audio`/`--export-video` 不在這個模組的涵蓋範圍內。
+> `test_cli_end_to_end.py` 直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫）、字幕產生、`--strict`、`--pretty`、錯誤處理等完整流程，補足其他測試模組只測個別函式、沒有測過 `main()` 本身的缺口。同樣因為需要真的 Windows + PowerPoint，`--insert-audio`/`--export-video` 不在這個模組的涵蓋範圍內。
+>
+> `test_tts_word_boundaries.py`、`test_subtitle_segmenter.py`、`test_subtitle_alignment.py`、`test_subtitle_pipeline.py` 涵蓋的是逐字時間擷取、字幕斷句、時間對齊、多投影片合併這幾個各自獨立的環節，都用假資料（不需要真的連網或裝 PowerPoint）；實際對真實 edge-tts/PowerPoint 輸出的驗證見上方 `scripts/` 底下的手動驗證腳本。
 
 ---
 
@@ -433,22 +452,27 @@ python -m unittest tests.test_cli_end_to_end -v
 - Windows 作業系統（音訊插入與 MP4 匯出功能需要）
 - 已安裝 Microsoft PowerPoint（供 `ppt_automation.py` 使用 Windows COM 自動化插入音訊、匯出 MP4）
 - 若要生成語音，需可連線到 Edge-TTS 服務（`speech.platform.bing.com`）
-- 若要用 PoC 字幕功能讀取實際音檔時長，需安裝 `ffmpeg` 並加入 PATH（供 `pydub` 解碼 MP3 使用）；純粹生成語音本身不需要 ffmpeg
+- 若要產生字幕，需安裝 `ffmpeg` 並加入 PATH（供 `pydub` 量測每張投影片實際音檔時長使用）；純粹生成語音本身不需要 ffmpeg
+- `jieba`（`requirements.txt` 已包含）：中文字幕斷句時避免從詞語中間硬切，第一次呼叫時會建立內部字典，稍微增加起始延遲，屬正常現象
 
 ## 🏗️ 系統架構與資料流
 
 ```mermaid
 graph TD
     A[輸入 .pptx 簡報檔] --> B[pptx_parser.py<br>提取頁數與備忘稿]
-    B --> C[tts.py<br>呼叫 Edge-TTS 生成音檔]
-    C --> D[(輸出 output/audio/)]
+    B --> C[tts.py<br>呼叫 Edge-TTS 生成音檔 + 逐字時間]
+    C --> D[(輸出 output/audio/<br>mp3 + wordboundaries.json + manifest.json)]
 
     D --> E[ppt_automation.py insert_audio<br>win32com 插入音訊<br>已完成]
-    D --> F[subtitle_generator.py<br>計算時間戳 - PoC]
+    B --> F1[subtitle_segmenter.py<br>備忘稿斷句]
+    F1 --> F2[subtitle_alignment.py<br>對齊逐字語音時間]
+    D --> F2
+    F2 --> F3[subtitle_pipeline.py<br>依實際投影片時長合併]
+    D --> F3
 
     E --> G[ppt_automation.py export_video<br>win32com 建立視訊<br>已完成]
     G --> I[輸出 output.mp4]
-    F --> H[輸出 output/captions.srt]
+    F3 --> H[輸出 output/captions.srt]
 ```
 
 技術選型的原因（為何選 edge-tts、為何用 win32com 而非其他方案）請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)。
@@ -460,6 +484,6 @@ graph TD
 規劃分兩份文件維護，避免同一件事重複列兩份清單：
 
 * **近期、可直接排進待辦的項目**（含已評估決定不做/暫緩的項目）：[TODO.md](TODO.md)，目前包含 `--insert-audio` 的進度顯示等。
-* **需要架構層級思考、還沒到可直接執行程度的長期方向**（例如現場放映自動播放、字幕生成正式化、批次處理與輸出目錄管理）：[PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「未來擴充方向」章節。
+* **需要架構層級思考、還沒到可直接執行程度的長期方向**（例如現場放映自動播放、批次處理與輸出目錄管理）：[PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「未來擴充方向」章節。
 
 已完成的項目與各版本詳情請見 [CHANGELOG.md](CHANGELOG.md)。

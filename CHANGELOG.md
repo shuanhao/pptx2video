@@ -6,9 +6,36 @@
 
 ## [未發布]
 
+## [0.5.0] - 2026-07-31
+
+字幕功能從實驗性 PoC 正式畢業：原本 `subtitle_generator.py` 用「音檔總長度平均分配」估算每句字幕時間的做法，換成真正依照 edge-tts 回報的逐字/逐詞語音時間對齊，並整合進 `main.py` 的正式管線。分五個階段完成，設計討論與真實內容驗證過程詳見專案討論記錄。
+
 ### Added
 
-- 新增 `tests/test_cli_end_to_end.py`：直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫，不需要真的連網）、`--tts-max-retries` 負值拒絕、`--strict`、`--pretty`、找不到檔案等錯誤處理的完整流程。補足先前測試都只測個別函式（`extract_notes`、`build_payload`、`generate_audio_files`…）、沒有任何測試真正跑過 `main()` 本身的缺口。`--insert-audio`/`--export-video` 仍需要真實 Windows + PowerPoint，不在這個模組的涵蓋範圍內。測試總數由 52 個增加到 58 個。
+- **`src/tts.py`**：新增 `synthesize_with_word_boundaries()` / `_stream_edge_tts_audio_with_word_boundaries()`，透過 edge-tts 的 streaming API（`boundary="WordBoundary"`）取得每個語音片段的文字與時間（`offset_seconds`/`duration_seconds`），而不只是純音檔。`boundary` 參數是 edge-tts 7.2.0 才加入的，若偵測到 `TypeError`（舊版函式庫）會自動退回不帶這個參數的呼叫方式。
+- **`src/subtitle_segmenter.py`**（新模組）：把備忘稿文字切成適合當一行字幕的片段，純文字運算、不涉及語音或時間。依顯示寬度（預設 16 全形字／32 半形，區分全形/半形字元）斷行，用 `jieba` 做中文斷詞避免從詞語中間硬切，去除句尾多餘標點（保留？！），正規化中英文交界的空白，段落永遠是硬邊界不跨段合併，多行需要時用動態規劃讓每行寬度盡量平均（而非貪婪塞滿導致零碎孤兒行）。
+- **`src/subtitle_alignment.py`**（新模組）：把 Phase 2 切好的字幕片段對齊到 Phase 1 的 WordBoundary 時間資料，算出每行的起訖秒數，並提供 `format_srt()` 轉成標準 SRT 文字。核心是逐一比對 WordBoundary 事件的文字在原文中的位置（因為 edge-tts 本身不回傳字元位置），比對失敗時採寬鬆策略（模糊比對、必要時內插猜測），不會讓單一比對失誤中斷整段字幕產生，所有比對失誤都會記錄在回傳的 `warnings` 清單。每行字幕的結束時間會延伸到下一行開始前留一小段緩衝（預設 0.15 秒），涵蓋語句間的自然停頓。
+- **`src/subtitle_pipeline.py`**（新模組）：把多張投影片各自對齊好的字幕，依照它們在最終匯出影片裡的實際時間軸（每張投影片的時長 = 音訊檔案實際長度，或沒有備忘稿時的 `default_slide_duration`）平移、串接成一份完整的 SRT。這個時間軸假設有實際用 `scripts/verify_slide_timing.py`（音訊互相關比對）在真實匯出的 MP4 上驗證過，避免誤踩其他使用者回報過的 PowerPoint 匯出「死寂空白」問題。
+- `tts.generate_audio_files()` 現在預設（沒有自訂 `generator` 時）會用 `synthesize_with_word_boundaries()` 當底層實作，同一次 TTS 呼叫就順便把每張投影片的 WordBoundary 時間存成旁路檔案 `slide_XXX.wordboundaries.json`，並在 `manifest.json` 記錄檔名（欄位 `word_boundaries_file`），不需要為了字幕另外重打一次 TTS。新增 `communicate_factory` 參數方便測試注入假的 edge-tts 回應。
+- `main.py` 的 `--subtitles-output` 改接上述整條鏈路：有可用的 WordBoundary 資料時產生真正對齊過的字幕；沒有時（沒跑 `--generate-audio` 也找不到既有 manifest）寫出合法但空白的 `.srt`，而不是報錯或退回舊的粗略估算。
+- 新增 `jieba>=0.42.1` 依賴（`requirements.txt` / `pyproject.toml`）。
+- `edge-tts` 版本需求提升為 `>=7.2.0`（`boundary` 參數是這個版本才加入的）。
+- 新增手動驗證腳本（因為 sandbox 開發環境連不上 edge-tts/沒有真實 Windows + PowerPoint，這些邏輯需要在真實環境驗證）：`scripts/smoke_test_word_boundaries.py`、`scripts/smoke_test_alignment.py`、`scripts/verify_slide_timing.py`，以及配套的 `scripts/sample_notes_for_smoke_test.txt`。
+- 新增 `tests/test_cli_end_to_end.py`：直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫，不需要真的連網）、`--tts-max-retries` 負值拒絕、`--strict`、`--pretty`、找不到檔案等錯誤處理的完整流程，以及本次新增的字幕產生流程。補足先前測試都只測個別函式（`extract_notes`、`build_payload`、`generate_audio_files`…）、沒有任何測試真正跑過 `main()` 本身的缺口。`--insert-audio`/`--export-video` 仍需要真實 Windows + PowerPoint，不在這個模組的涵蓋範圍內。
+- 新增 `tests/test_subtitle_segmenter.py`、`tests/test_subtitle_alignment.py`、`tests/test_subtitle_pipeline.py`，以及 `tests/test_tts_generator.py`/`tests/test_tts_word_boundaries.py`/`tests/test_main_payload.py` 的對應新測試。測試總數由 58 個增加到 114 個。
+
+### Changed
+
+- `main.py` 的 `write_subtitle_output()` 改為呼叫 `subtitle_pipeline.generate_srt_for_deck()`，回傳值也從單純的 `Path` 改成 `(Path, warnings)`，warnings 會透過 logger 印出（例如某張投影片沒有可用的 WordBoundary 資料時）。
+
+### Removed
+
+- **`src/subtitle_generator.py`（原本的字幕 PoC）與 `tests/test_subtitle_generator.py`**：功能已被上述新模組取代，`main.py` 也已經不再呼叫它，故從專案移除，避免兩套字幕邏輯同時存在造成混淆。舊邏輯用「音檔總長度平均分配」估算時間，不是真正對齊語音；新邏輯精確度高很多。
+
+### Known limitations（已記錄於 TODO.md，刻意暫緩）
+
+- 原文中「例如：」這類自成一段的極短段落，因為段落是硬邊界，會產生顯示時間很短的獨立字幕行。
+- 純英文內容在目前針對中文調校的行寬設定下，換行位置有時不夠自然（可能切在片語中間，但不會切在單字中間）。
 
 ## [0.4.1] - 2026-07-30
 

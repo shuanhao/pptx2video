@@ -4,13 +4,13 @@
 pptx2video (PPTX Auto Presenter)
 
 ## 文件版本
-對應程式版本 v0.4.1；本文件於 Round 2 文件重新分工時大幅改寫，移除與 README.md / CHANGELOG.md / TODO.md 重複的內容，只保留架構設計、設計原因、PowerPoint COM 特性、開發注意事項、維護建議與未來擴充方向。
+對應程式版本 v0.5.0；本文件已改寫，移除與 README.md / CHANGELOG.md / TODO.md 重複的內容，只保留架構設計、設計原因、PowerPoint COM 特性、開發注意事項、維護建議與未來擴充方向。v0.5.0 更新：字幕生成從 PoC 畢業，第 4.4 節與第 7 節對應項目已改寫。
 
 ## 目標對象
 接手開發者、AI 協作 Agent
 
 ## 撰寫日期
-2026-07-30
+2026-07-31
 
 ---
 
@@ -43,18 +43,21 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 本專案採用「資料流管線」與「PowerPoint 原生自動化」架構：
 
 1. 解析 .pptx 的頁數與備忘稿
-2. 使用 Edge-TTS 產生逐頁語音
+2. 使用 Edge-TTS 產生逐頁語音，同時取得逐字時間（WordBoundary）
 3. 透過 Windows COM 控制 PowerPoint 插入音訊並匯出 MP4
-4. 根據備忘稿與音檔時長產生 SRT 字幕（PoC，尚未整合進主流程）
+4. 把備忘稿斷句、對齊到逐字語音時間、依每張投影片實際時長合併，產生 SRT 字幕
 
 ### 主要技術選型與原因
 
 | 選型 | 原因 |
 |---|---|
-| TTS：`edge-tts` | 免費、免 API Key、語音自然 |
+| TTS：`edge-tts` | 免費、免 API Key、語音自然；`boundary="WordBoundary"`（7.2.0+）額外提供逐字時間，是字幕對齊的資料來源 |
 | PPT 自動化：`pywin32` / `win32com` | 可保留原生動畫與轉場，這是選擇 PowerPoint COM 而非其他影片合成方案（例如純粹用 ffmpeg 疊圖）的核心原因 |
 | PPT 內容解析：`python-pptx` | 可直接讀取投影片與備忘稿，不需要另外解析 XML |
-| 字幕輸出：自訂時間累加邏輯，而非 ASR/Whisper | 備忘稿文字本身就是逐字稿，用時間累加對齊可以得到零錯字字幕，不需要承擔語音辨識的辨識錯誤風險 |
+| 字幕斷句：`jieba` 中文斷詞 + 顯示寬度規則，而非 ASR/Whisper | 備忘稿文字本身就是逐字稿，不需要承擔語音辨識的辨識錯誤風險；斷句只需要決定「在哪裡換行」，`jieba` 用來避免從中文詞語中間硬切 |
+| 字幕時間：對齊 edge-tts 實際回報的 WordBoundary 時間，而非時間累加估算 | 早期版本（`subtitle_generator.py`，已移除）用音檔總長度平均分配時間，只是估算；`subtitle_alignment.py` 改用實際語音時間，精確度高很多，見第 4.5 節 |
+
+整體 Pipeline 的模組串接圖（哪個模組輸出餵給哪個模組）請見 [README.md](README.md#-功能特色) 附近的 Mermaid 架構圖，這裡不重畫一份；圖中沒畫出來的錯誤處理路徑（`_fail()` 統一收斂、單頁跳過 vs 整體中止）見第 4.9 節與第 5 節，COM session 的開關生命週期見第 3 節與第 4.3 節。
 
 ---
 
@@ -87,6 +90,11 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 ## 4. 每個模組的責任範圍
 
 ### 4.1 pptx_parser.py
+
+**Input**：`.pptx` 檔案路徑
+**Output**：結構化的 slides 資料（頁碼、標題、備忘稿文字）
+**主要依賴**：`python-pptx`
+
 負責：
 - 解析 .pptx
 - 取得投影片數量
@@ -95,13 +103,24 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - 解析失敗時拋出 `PptParseError`
 
 ### 4.2 tts.py
+
+**Input**：每頁備忘稿文字
+**Output**：MP3 音檔（依頁碼命名）、`manifest.json`、`slide_XXX.wordboundaries.json`（逐字時間資料）
+**主要依賴**：`edge-tts`
+
 負責：
 - 將文本轉為語音檔
 - 使用 edge-tts 逐頁生成音檔
 - 生成失敗時拋出 `TTSGenerationError`，訊息會標明是第幾頁失敗，並保留原始例外鏈
 - 僅對判斷為暫時性的網路/服務錯誤重試（見 `_is_retryable`），`max_retries` 若傳負值會被 clamp 成 0，確保重試迴圈至少執行一次，不會出現「從未呼叫生成、卻仍記錄成功」的情況（v0.4.1 修正）
+- `synthesize_with_word_boundaries()`：透過 edge-tts streaming API 額外取得每個語音片段的文字與時間（`offset_seconds`/`duration_seconds`）。`generate_audio_files()` 預設（沒有自訂 `generator` 時）就是用這個當底層實作，同一次 TTS 呼叫順便把結果存成 `slide_XXX.wordboundaries.json` 旁路檔案，並記錄進 `manifest.json` 的 `word_boundaries_file` 欄位（v0.5.0 新增）——自訂 `generator` 不保證支援這個介面，此時 `word_boundaries_file` 固定是 `None`，字幕生成會跳過該投影片並記錄警告，不是硬性錯誤
 
 ### 4.3 ppt_automation.py
+
+**Input**：`insert_audio()` — `.pptx` 檔案路徑 + 4.2 節生成的 MP3 音檔（依 `manifest.json` 對應頁碼）；`export_video()` — 已插入音訊的 `.pptx`
+**Output**：`insert_audio()` — 更新後、已插入音訊的 `.pptx`；`export_video()` — `output.mp4`
+**主要依賴**：`pywin32`（`win32com`）
+
 負責：
 - **`insert_audio()`**：啟動 PowerPoint（COM，`pywin32`）、開啟簡報檔、插入音訊（縮小圖示、移到投影片右上角、盡量在非播放狀態隱藏 `HideWhileNotPlaying`）、設定 `PlayOnEntry = True`（見第 3 節）。支援可選的 `timeout_seconds` 參數，逾時拋出 `AudioInsertionTimeoutError`（v0.4.1 新增）
 - **`export_video()`**：呼叫 `Presentation.CreateVideo()` 觸發匯出（非同步 API），輪詢 `CreateVideoStatus` 直到完成/失敗/逾時，並在回報「完成」後額外檢查輸出檔案是否存在且非空（安全網，見第 3 節）
@@ -111,26 +130,71 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 尚未負責（規劃中，優先度較低）：
 - 投影片自動播放（現場放映模式）：目前刻意不處理，因為已確認不影響 MP4 匯出結果
 
-### 4.4 subtitle_generator.py
-負責：
-- 接收文本與每頁時長
-- 進行時間累加
-- 輸出 .srt 檔
+### 4.4 subtitle_segmenter.py（v0.5.0 新增，取代原本的 subtitle_generator.py）
 
-### 4.5 exceptions.py
+**Input**：單頁備忘稿文字
+**Output**：字幕片段清單 `{"text", "source_start_offset", "source_end_offset"}`（後兩者是這段文字在原始備忘稿裡的字元位置，供 4.5 節的對齊邏輯使用）
+**主要依賴**：`jieba`
+
+負責：把備忘稿文字切成適合當一行字幕的片段，純文字運算、跟語音/時間完全無關。
+- 依「顯示寬度」斷行（區分全形/半形字元寬度，`DEFAULT_MAX_DISPLAY_WIDTH = 32` 對應「16 個全形字」——這是專案負責人確認過的實際需求單位，不是隨意選的數字）
+- 中文用 `jieba` 斷詞，只在詞語邊界切，不會從詞語中間硬切（有實測比對過：字元層級切法在真實內容上 15 次裡有 5 次切壞詞語，改用 `jieba` 後 16 次裡 0 次）
+- 段落（`\n` 分隔）永遠是硬邊界，不會跨段落合併——這個決定的取捨是：原文裡「例如：」這類自成一段的極短句子會變成很短的獨立字幕行，目前刻意先不處理（見 TODO.md）
+- 去除句尾多餘標點（`。，、；：`），保留 `？！`
+- 正規化空白：中文字之間的空白整個移除、其餘（英文之間、中英文交界）空白收斂成一個
+- 一句話需要拆成多行時，用動態規劃讓每行寬度盡量平均（minimize sum of squared widths），而不是貪婪塞滿導致零碎孤兒行——這是實測真實內容後修正的結果，貪婪塞滿或單純「限制最大寬度」的二分搜尋做法都會留下不平均的短行
+
+### 4.5 subtitle_alignment.py（v0.5.0 新增）
+
+**Input**：4.4 節輸出的字幕片段清單 + 4.2 節 `synthesize_with_word_boundaries()` 回傳的 WordBoundary 時間資料
+**Output**：每行字幕的 `start_seconds`/`end_seconds`（外加 `warnings` 清單），可透過 `format_srt()` 轉成標準 SRT 文字
+**主要依賴**：無外部套件（純比對邏輯）
+
+負責：把 4.4 節切好的片段，對齊到 4.2 節 `synthesize_with_word_boundaries()` 回傳的 WordBoundary 時間資料，算出每行的 `start_seconds`/`end_seconds`，並提供 `format_srt()` 轉成標準 SRT 文字。
+- 核心問題：WordBoundary 事件只有語音時間跟文字內容，**沒有**字元位置（確認過 edge-tts 原始碼 `Communicate.__parse_metadata`）。解法是拿一個游標依序在原文裡找每個事件的文字對應到哪個位置，因為 edge-tts 不會打亂文字順序
+- 比對策略是寬鬆、盡力而為：找不到完全相符的位置時會嘗試模糊比對，還是找不到就跳過該事件（不會讓單一比對失誤中斷整段字幕），所有跳過/內插都會記錄進回傳的 `warnings` 清單
+- 每行的結束時間會延伸到下一行開始前留一小段緩衝（預設 0.15 秒），涵蓋語句間的自然停頓，但不會延伸到下一張投影片（跨投影片邊界維持自然斷開，見 4.6 節）
+
+### 4.6 subtitle_pipeline.py（v0.5.0 新增）
+
+**Input**：多張投影片各自的 4.5 節對齊結果 + 各投影片音訊檔案的實際長度（`pydub` 量測）
+**Output**：合併後的完整 `output/captions.srt`
+**主要依賴**：`pydub`
+
+負責：把多張投影片各自對齊好的字幕（4.5 節的輸出），依照它們在最終匯出影片裡的實際時間軸合併成一份完整 SRT。
+- 每張投影片的時長 = 該投影片音訊檔案的**實際長度**（用 `pydub` 量測，不是估算），沒有備忘稿的投影片則用 `default_slide_duration`——這個假設已經用 `scripts/verify_slide_timing.py`（音訊互相關比對）在真實匯出的 MP4 上驗證過，量到的偏差在 0.2 秒內。之所以要特別驗證這件事，是因為網路上有其他使用者回報過 PowerPoint「建立視訊」匯出時，音訊驅動的投影片時長偶爾會多出 2～15 秒不等的死寂空白（原因不明，微軟未正式承認）；這個專案的 `insert_audio()` 有設定 `PlayOnEntry`/`HideWhileNotPlaying`，實測沒有踩到這個問題，但如果之後行為改變，第一個該重新驗證的地方就是這裡
+- 沒有備忘稿的投影片沒有字幕，但仍然佔用 `default_slide_duration` 秒，必須算進累加時間軸，否則後面所有投影片的字幕都會提早
+- 所有投影片的字幕行依序串接後只呼叫一次 `format_srt()`，編號連續，不分投影片重新編號
+- 遇到「有音訊但沒有 WordBoundary 資料」「音訊檔案讀不到」「WordBoundary 檔案壞掉」等情況，都是跳過該投影片、記錄警告、繼續處理後面的投影片，不會讓整個合併中斷
+
+### 4.7 exceptions.py
+
+**Input／Output**：不適用——這是共用的例外類別定義，不處理資料流，供其他模組拋出、`main.py` 統一捕捉
+**主要依賴**：無（僅依賴 Python 內建 `Exception`/`TimeoutError`）
+
 負責：
 - 定義專案自訂例外階層，共同基底 `Pptx2VideoError`
 - `PptParseError`、`TTSGenerationError`、`PowerPointLaunchError`、`AudioInsertionError`、`AudioInsertionTimeoutError`、`VideoExportError`、`VideoExportTimeoutError`——兩個 `*TimeoutError` 同時也是內建 `TimeoutError` 的子類別，向下相容只認得 `TimeoutError` 的呼叫端
 - `FileNotFoundError`、`ValueError` 等語意已經明確的 Python 內建例外故意不重新包裝
 
-### 4.6 logging_config.py
+### 4.8 logging_config.py
+
+**Input**：CLI 的 `--log-dir`／`--verbose`／`--no-file-log` 設定
+**Output**：終端機簡潔輸出 + `logs/YYYY-MM-DD.log`（完整 DEBUG 細節）
+**主要依賴**：Python 內建 `logging`
+
 負責：
 - 提供 `setup_logging()` 統一設定 Logging：終端機維持原本簡潔風格（無時間戳記），log 檔案（`logs/YYYY-MM-DD.log`）永遠記錄完整 DEBUG 細節、不受 `--verbose` 影響
 - 重複呼叫時具備冪等性：`log_dir` 沒變就不重建 handler（避免重複輸出），`log_dir` 改變則正確關閉舊 handler 並重建
 - log 資料夾無法寫入時優雅降級成只輸出到終端機，不會讓程式崩潰
 - 提供 `shutdown_logging()` 供測試或需要主動釋放 log 檔案控制權的情境使用
 
-### 4.7 main.py
+### 4.9 main.py
+
+**Input**：CLI 參數（`.pptx` 路徑 + 各項 flag，例如 `--generate-audio`/`--insert-audio`/`--export-video`/`--subtitles-output`）
+**Output**：依所給 flag 而定——`slides.json`、音檔＋`manifest.json`、插入音訊後的 `.pptx`、`output.mp4`、`output/captions.srt`
+**主要依賴**：上述 4.1–4.8 所有模組
+
 負責：
 - 串接上面所有模組
 - 提供 CLI 入口
@@ -156,9 +220,9 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 使用 win32com 時，務必在 try/finally 中關閉 PowerPoint，避免背景殘留執行緒或記憶體洩漏。`_powerpoint_session()` / `_open_presentation()` 已經封裝了這個邏輯，新增功能時應該重用這兩個 context manager，不要自己再開一套。
 
 ### 5.4 字幕與語音同步
-字幕與音檔時長必須一致，避免出現時間漂移。建議：
-- 以每頁音訊時長為基準
-- 用累加時間軸建立字幕
+字幕與音檔時長必須一致，避免出現時間漂移。目前的做法（v0.5.0）：
+- 每張投影片的字幕時間對齊 edge-tts 實際回報的 WordBoundary 時間（`subtitle_alignment.py`），不是估算
+- 多投影片合併時，以每頁音訊**實際量測**的長度為基準（`pydub`），累加成整支影片的時間軸（`subtitle_pipeline.py`），這個假設已用 `scripts/verify_slide_timing.py` 在真實匯出的 MP4 上驗證過，細節見第 4.6 節
 
 ### 5.5 COM 操作為何不做自動重試
 
@@ -171,7 +235,7 @@ TTS 網路請求有自動重試機制（見 4.2），但 `insert_audio()` / `exp
 - **修改 `insert_audio()` / `export_video()` 前，先讀完第 3 節**：這兩個函式的行為高度依賴實測發現的 COM 特性（`PlayOnEntry`、`CreateVideoStatus`），單看程式碼容易誤以為某些設定是多餘的而砍掉。
 - **版本相容性尚未正式驗證**：目前沒有明確記錄專案在哪些 Python 版本（`pyproject.toml` 只寫 `>=3.9`）、哪些 PowerPoint 版本上實測過。如果之後要支援更多環境，建議先補上這份相容性矩陣，尤其是 `CreateVideoStatus` 列舉值這種「文件說的跟實測不一定一致」的地方。
 - **輸出資料夾規劃還很粗略**：目前只有 `output/`、`logs/`、`temp/` 幾個目錄，沒有正式規範哪些檔案該放哪裡、要保留多久。專案目前刻意不自動清理暫存檔（見 [TODO.md](TODO.md)），但如果之後要做批次處理，這塊需要重新設計。
-- **新增功能前，先確認 CHANGELOG.md / TODO.md 是否需要同步更新**：Round 1 文件整理時發現過「TODO 裡某項目其實已經實作完成，但checkbox 沒打勾」這種文件落後於程式碼的情況，之後每次合併新功能都建議順手檢查這兩份文件有沒有跟上。
+- **新增功能前，先確認 CHANGELOG.md / TODO.md 是否需要同步更新**：之前曾發生過「TODO 裡某項目其實已經實作完成，但 checkbox 沒打勾」這種文件落後於程式碼的情況，之後每次合併新功能都建議順手檢查這兩份文件有沒有跟上。
 
 ---
 
@@ -180,7 +244,7 @@ TTS 網路請求有自動重試機制（見 4.2），但 `insert_audio()` / `exp
 近期、具體可執行的待辦事項維護在 [TODO.md](TODO.md)，這裡只記錄需要架構層級思考、還沒到可以直接排進待辦的方向：
 
 - **現場放映自動播放**：解決第 3 節提到的「插入音訊後現場放映仍需點擊」問題。目前判斷優先度低，因為已確認不影響 MP4 匯出這條主要路徑；如果之後有真的需要現場簡報（非僅匯出影片）的使用情境，才需要回來重新研究 `slide.TimeLine.MainSequence` 或其他 COM API。
-- **字幕生成正式化**：目前 `subtitle_generator.py` 是獨立的 PoC，尚未整合進 `main.py` 的主流程，也還沒對齊 README 描述的「零錯字字幕」精確度目標（智慧斷句、閱讀節奏優化、Tokenizer 等）。
+- **字幕排版的兩個已知取捨**（v0.5.0 刻意暫緩，詳見 TODO.md）：原文裡「例如：」這類自成一段的極短句子會產生顯示時間很短的獨立字幕行（段落硬邊界規則導致）；純英文內容在目前針對中文調校的行寬設定下換行不夠自然。兩者都是局部、獨立的改動（前者在 `subtitle_segmenter.py` 的段落合併邏輯或 `subtitle_pipeline.py` 的時間軸層級，後者在 `subtitle_segmenter.py` 的排版演算法 `_pack_units`），不會因為延後處理而增加複雜度，等看到更多真實內容、確認問題實際嚴重程度後再決定。
 - **批次處理與輸出目錄管理**：支援多檔輸入、更完整的輸出目錄規劃，跟第 6 節「輸出資料夾規劃還很粗略」是同一件事的兩個角度。
 - **同一個 PowerPoint session 共用**：目前 `--insert-audio` 跟 `--export-video` 在同一行指令裡執行時，PowerPoint 會被開關兩次（各自獨立完成後就關閉）。這不影響結果，只是多花一點時間；如果之後有大量批次處理、在意這個開銷，可以優化成同一個 session 共用，但需要重新設計 `_powerpoint_session()` 的生命週期管理。
 
