@@ -105,8 +105,13 @@ class CliEndToEndTests(unittest.TestCase):
             self.assertFalse(payload["slides"][1]["has_notes"])
             self.assertIsNone(payload["slides"][0]["audio_file"])
 
+            # No --generate-audio was passed and no manifest.json exists to
+            # load, so there's no WordBoundary timing data to build real
+            # subtitle lines from (see subtitle_pipeline.generate_srt_for_deck's
+            # docstring) - an empty .srt is written rather than failing the
+            # run or falling back to a lower-quality guess.
             self.assertTrue(srt_path.exists())
-            self.assertIn("Hello there", srt_path.read_text(encoding="utf-8"))
+            self.assertEqual(srt_path.read_text(encoding="utf-8"), "")
 
     def test_generate_audio_flag_wires_manifest_into_json_output(self):
         pptx_path = self._create_pptx([("Intro", "Hello there")])
