@@ -12,7 +12,7 @@ from src import ppt_automation
 from src.exceptions import Pptx2VideoError, PptParseError, TTSGenerationError
 from src.logging_config import setup_logging
 from src.pptx_parser import extract_notes
-from src.subtitle_generator import write_srt
+from src.subtitle_pipeline import generate_srt_for_deck
 from src.tts import generate_audio_files
 
 
@@ -64,10 +64,34 @@ def build_payload(slides, pptx_path, audio_manifest=None, audio_output_dir=None)
     return payload
 
 
-def write_subtitle_output(payload, output_path, audio_dir=None):
-    slides = payload.get("slides", [])
+def write_subtitle_output(payload, output_path, audio_dir=None, default_slide_duration=5.0):
+    """Build and write the deck-wide SRT file for ``payload`` (as built by
+    ``build_payload``), via ``subtitle_pipeline.generate_srt_for_deck()``.
+
+    Requires ``payload["audio"]`` (the audio manifest, as ``build_payload``
+    stores it) to have per-slide ``word_boundaries_file`` entries - i.e.
+    this only produces real subtitle lines for slides whose audio was
+    generated via ``generate_audio_files()``'s default (word-boundary-
+    capturing) path. If ``payload["audio"]`` is empty/missing (no
+    ``--generate-audio`` was run this invocation and no manifest was
+    loaded), the result is a valid but empty (zero-cue) SRT file rather
+    than an error - running without ``--generate-audio`` is a normal,
+    supported use of the CLI (e.g. just parsing notes to JSON).
+
+    Returns ``(output_path, warnings)`` - see
+    ``generate_srt_for_deck``'s docstring for what ends up in ``warnings``.
+    """
     output_path = Path(output_path)
-    return write_srt(slides, output_path, audio_dir=audio_dir)
+    slides = payload.get("slides", [])
+    manifest = payload.get("audio") or {}
+    resolved_audio_dir = audio_dir or payload.get("metadata", {}).get("audio_output_dir") or "."
+
+    srt_text, warnings = generate_srt_for_deck(
+        slides, manifest, resolved_audio_dir, default_slide_duration=default_slide_duration
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(srt_text, encoding="utf-8")
+    return output_path, warnings
 
 
 def _fail(parser: argparse.ArgumentParser, logger: logging.Logger, message: str) -> NoReturn:
@@ -159,7 +183,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--subtitles-output",
         default="output/captions.srt",
-        help="Path to write the generated subtitles .srt file",
+        help=(
+            "Path to write the generated subtitles .srt file. Real subtitle "
+            "lines require an audio manifest with word-boundary timing data "
+            "(from --generate-audio, or an existing manifest.json under "
+            "--audio-output-dir) - without one, an empty .srt is written "
+            "rather than failing the run."
+        ),
     )
     parser.add_argument(
         "--insert-audio",
@@ -238,7 +268,11 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Seconds to show a slide that has neither recorded timing nor "
             "auto-playing embedded audio (e.g. a cover slide). Matches "
-            "PowerPoint's 'Seconds spent on each slide' export field."
+            "PowerPoint's 'Seconds spent on each slide' export field. Also "
+            "used by subtitle generation to predict such a slide's place in "
+            "the timeline - keep this in sync with whatever value is "
+            "actually used for --export-video, or the subtitles will drift "
+            "out of sync with the exported MP4."
         ),
     )
     parser.add_argument(
@@ -361,12 +395,15 @@ def main() -> None:
 
     subtitle_output_path = Path(args.subtitles_output)
     if subtitle_output_path:
-        subtitle_output_path = write_subtitle_output(
+        subtitle_output_path, subtitle_warnings = write_subtitle_output(
             payload,
             subtitle_output_path,
             audio_dir=args.audio_output_dir,
+            default_slide_duration=args.video_default_duration,
         )
         logger.info(f"Saved subtitles to {subtitle_output_path}")
+        for warning in subtitle_warnings:
+            logger.warning(f"Subtitle generation: {warning}")
 
     # Shared by --insert-audio and --export-video: the PPTX path that
     # downstream steps should operate on. If --insert-audio ran, this is

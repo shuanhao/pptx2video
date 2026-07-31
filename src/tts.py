@@ -3,6 +3,7 @@ import inspect
 import json
 import ssl
 import time
+from functools import partial
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Any
 
@@ -157,19 +158,21 @@ def synthesize_with_word_boundaries(
 ) -> List[Dict[str, Any]]:
     """Synchronous wrapper around ``_stream_edge_tts_audio_with_word_boundaries``.
 
-    This is Phase 1 of the SRT subtitle segmentation work (see project
-    discussion): it only adds the *capability* to get per-word timing data
-    out of edge-tts. It is deliberately NOT wired into
-    ``generate_audio_files()`` or the ``--generate-audio`` CLI flow yet -
-    that integration (deciding how this data flows through ``main.py`` and
-    ``manifest.json``, and what happens when it isn't available) is later
-    work. Calling this function today has no effect on any existing
-    behavior.
+    This was originally Phase 1 of the SRT subtitle segmentation work,
+    added as a standalone building block before being wired into anything.
+    As of Phase 4, ``generate_audio_files()`` uses this (via
+    ``_default_generator_with_word_boundaries``) as its default generator
+    whenever the caller doesn't supply a custom ``generator`` - so a normal
+    ``--generate-audio`` run now captures WordBoundary timing data for
+    every slide as a side effect of the same TTS call that produces the
+    mp3, with no second network round-trip needed later just to get timing
+    data for subtitles. Calling this function directly still works exactly
+    as before for standalone use (e.g. the smoke test scripts).
 
     Does not retry on failure (unlike ``generate_audio_files``) - this is a
-    standalone building block, not yet part of the retry-aware pipeline;
-    retry behavior should be decided when this gets wired into that
-    pipeline, not assumed here.
+    standalone building block; retrying is handled one level up, by
+    ``generate_audio_files``'s own retry loop, when this is used as its
+    generator.
 
     Returns:
         The MP3 is written to ``output_path`` exactly as
@@ -205,8 +208,34 @@ def _default_generator(text: str, output_path: Path, voice: str, rate: str = "-1
     asyncio.run(_save_edge_tts_audio(text, output_path, voice, rate=rate, pitch=pitch))
 
 
-def _invoke_generator(generator_func: Callable[..., None], text: str, output_path: Path, voice: str, rate: str, pitch: str) -> None:
-    """Call ``generator_func`` with the calling convention it appears to support.
+def _default_generator_with_word_boundaries(
+    text: str,
+    output_path: Path,
+    voice: str,
+    rate: str = "-10%",
+    pitch: str = "+0Hz",
+    communicate_factory: Optional[Callable[..., Any]] = None,
+) -> List[Dict[str, Any]]:
+    """The generator ``generate_audio_files()`` uses by default (when the
+    caller doesn't supply a custom ``generator``): writes the mp3 exactly
+    as ``_default_generator`` did, and additionally returns the captured
+    WordBoundary events, via ``synthesize_with_word_boundaries``.
+
+    ``communicate_factory`` is threaded through for the same reason
+    ``synthesize_with_word_boundaries`` accepts it: so tests can inject a
+    fake edge-tts response instead of making a real network call, without
+    needing to bypass this default generator entirely via a custom
+    ``generator=`` (which would also - correctly - skip word-boundary
+    capture, since a custom generator isn't guaranteed to support it).
+    """
+    return synthesize_with_word_boundaries(
+        text, output_path, voice, rate=rate, pitch=pitch, communicate_factory=communicate_factory
+    )
+
+
+def _invoke_generator(generator_func: Callable[..., Any], text: str, output_path: Path, voice: str, rate: str, pitch: str) -> Any:
+    """Call ``generator_func`` with the calling convention it appears to support,
+    and return whatever it returns.
 
     Inspects the function's signature to decide whether to pass ``rate``/
     ``pitch`` as keyword arguments. If the signature check itself fails, or
@@ -224,6 +253,13 @@ def _invoke_generator(generator_func: Callable[..., None], text: str, output_pat
     ``ValueError`` would get invoked twice with byte-for-byte identical
     arguments, since the "fallback" call was indistinguishable from the one
     that just failed).
+
+    The return value matters as of Phase 4: ``_default_generator_with_word_boundaries``
+    returns the captured WordBoundary events, which ``generate_audio_files``
+    needs in order to persist them. Custom generators (most existing tests,
+    and any caller not using the default) typically return ``None``, which
+    is a perfectly valid "no word-boundary data available" signal - callers
+    must not assume a non-``None`` return.
     """
     try:
         signature = inspect.signature(generator_func)
@@ -233,19 +269,18 @@ def _invoke_generator(generator_func: Callable[..., None], text: str, output_pat
 
     if "rate" in parameter_names or "pitch" in parameter_names:
         try:
-            generator_func(text, output_path, voice, rate=rate, pitch=pitch)
-            return
+            return generator_func(text, output_path, voice, rate=rate, pitch=pitch)
         except TypeError:
             pass  # Fall through to the plain call below.
 
-    generator_func(text, output_path, voice)
+    return generator_func(text, output_path, voice)
 
 
 def generate_audio_files(
     slides: List[Dict[str, Any]],
     output_dir: Path | str,
     voice: str = "Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)",
-    generator: Optional[Callable[..., None]] = None,
+    generator: Optional[Callable[..., Any]] = None,
     manifest_path: Optional[Path | str] = None,
     rate: str = "-10%",
     pitch: str = "+0Hz",
@@ -253,10 +288,16 @@ def generate_audio_files(
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay_seconds: float = DEFAULT_RETRY_DELAY_SECONDS,
     on_retry: Optional[Callable[[int, int, int, Exception], None]] = None,
+    communicate_factory: Optional[Callable[..., Any]] = None,
 ) -> Dict[str, Any]:
     """Generate MP3 files for slides that have notes.
 
     Slides without notes are skipped and omitted from the manifest.
+
+    As of Phase 4 of the SRT subtitle work, this also captures WordBoundary
+    timing data as a side effect of the same TTS call, whenever the caller
+    doesn't override ``generator`` - see ``communicate_factory`` and the
+    "Word-boundary capture" note below.
 
     Args:
         progress_callback: Optional callback invoked as
@@ -276,6 +317,25 @@ def generate_audio_files(
             before each retry sleep/attempt - ``attempt`` is 1-based (the
             attempt that just failed). Use this to log/print retry activity
             instead of it happening silently.
+        communicate_factory: Only used when ``generator`` is NOT supplied
+            (i.e. the real default edge-tts path is in effect). Passed
+            through to ``synthesize_with_word_boundaries`` - exists so tests
+            can inject a fake edge-tts response and exercise the real
+            word-boundary-capturing default generator without a network
+            call, instead of having to bypass it entirely with a custom
+            ``generator`` (which would also, correctly, skip word-boundary
+            capture). Ignored if ``generator`` is supplied.
+
+    Word-boundary capture: when the default generator is used (``generator``
+    left as ``None``), each slide's WordBoundary events (see
+    ``synthesize_with_word_boundaries``) are written alongside its mp3 as
+    ``slide_XXX.wordboundaries.json``, and that filename is recorded in the
+    slide's manifest entry as ``"word_boundaries_file"``. When a custom
+    ``generator`` is supplied, ``"word_boundaries_file"`` is always ``None``
+    in the manifest - a custom generator isn't guaranteed to produce timing
+    data, so no file is written and downstream code (e.g. SRT generation)
+    must treat a ``None`` here as "not available for this slide" rather than
+    an error.
     """
     # A negative max_retries would make range(1, max_retries + 2) empty,
     # meaning the loop below never runs the generator even once, yet
@@ -290,7 +350,10 @@ def generate_audio_files(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    generator_func = generator or _default_generator
+    using_default_generator = generator is None
+    generator_func = generator or partial(
+        _default_generator_with_word_boundaries, communicate_factory=communicate_factory
+    )
 
     slides_with_notes = [
         slide for slide in slides if slide.get("notes") and str(slide.get("notes")).strip()
@@ -303,9 +366,10 @@ def generate_audio_files(
         output_file = _build_output_path(output_path, slide_num)
 
         last_exc: Optional[Exception] = None
+        generator_result: Any = None
         for attempt in range(1, max_retries + 2):  # 1 initial attempt + max_retries retries
             try:
-                _invoke_generator(generator_func, str(slide["notes"]), output_file, voice, rate, pitch)
+                generator_result = _invoke_generator(generator_func, str(slide["notes"]), output_file, voice, rate, pitch)
                 last_exc = None
                 break
             except Exception as exc:
@@ -325,10 +389,26 @@ def generate_audio_files(
                 f"Failed to generate audio for slide {slide_num}{hint}: {last_exc}"
             ) from last_exc
 
+        word_boundaries_file = None
+        if using_default_generator:
+            # generator_result is the list of WordBoundary events returned
+            # by _default_generator_with_word_boundaries (possibly empty,
+            # e.g. edge-tts reported none - but never None here, since that
+            # function always returns a list). Persisted as a sidecar file
+            # rather than inlined into manifest.json so the manifest stays
+            # small and readable even for decks with many/long slides.
+            word_boundaries_path = output_file.with_suffix(".wordboundaries.json")
+            word_boundaries_path.write_text(
+                json.dumps(generator_result or [], ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            word_boundaries_file = word_boundaries_path.name
+
         manifest_entries.append({
             "slide_num": slide_num,
             "title": slide.get("title"),
             "audio_file": output_file.name,
+            "word_boundaries_file": word_boundaries_file,
         })
 
         if progress_callback is not None:

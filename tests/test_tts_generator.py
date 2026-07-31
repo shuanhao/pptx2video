@@ -1,3 +1,4 @@
+import json
 import ssl
 import tempfile
 import unittest
@@ -5,6 +6,28 @@ from pathlib import Path
 
 from src.exceptions import TTSGenerationError
 from src.tts import generate_audio_files
+
+
+class FakeCommunicate:
+    """Stand-in for edge_tts.Communicate - yields canned chunks instead of
+    making a real network call. Same shape as the fake used in
+    tests/test_tts_word_boundaries.py, duplicated here (rather than
+    imported) so this test file stays self-contained.
+    """
+
+    def __init__(self, chunks, **kwargs):
+        self._chunks = chunks
+
+    async def stream(self):
+        for chunk in self._chunks:
+            yield chunk
+
+
+def _factory(chunks):
+    def factory(**kwargs):
+        return FakeCommunicate(chunks, **kwargs)
+
+    return factory
 
 
 class TtsGeneratorTests(unittest.TestCase):
@@ -35,6 +58,14 @@ class TtsGeneratorTests(unittest.TestCase):
             self.assertTrue((output_dir / "slide_001.mp3").exists())
             self.assertTrue((output_dir / "slide_003.mp3").exists())
             self.assertFalse((output_dir / "slide_002.mp3").exists())
+            # A custom generator isn't guaranteed to produce timing data, so
+            # no sidecar file is written and the manifest says so explicitly
+            # rather than omitting the key.
+            self.assertEqual(
+                [entry["word_boundaries_file"] for entry in manifest["slides"]],
+                [None, None],
+            )
+            self.assertFalse((output_dir / "slide_001.wordboundaries.json").exists())
 
     def test_generate_audio_files_clamps_negative_max_retries_instead_of_skipping(self):
         # Regression test: range(1, max_retries + 2) is empty when
@@ -305,6 +336,99 @@ class TtsGeneratorTests(unittest.TestCase):
                 )
 
             self.assertEqual(call_count["n"], 1)
+
+    def test_default_generator_writes_word_boundaries_sidecar_file(self):
+        # No `generator=` override here - this exercises the real default
+        # path (_default_generator_with_word_boundaries), with a fake
+        # communicate_factory standing in for the network call.
+        chunks = [
+            {"type": "audio", "data": b"fake-mp3-bytes"},
+            {"type": "WordBoundary", "text": "Hello", "offset": 0, "duration": 5_000_000},
+            {"type": "WordBoundary", "text": "there", "offset": 5_000_000, "duration": 3_000_000},
+        ]
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            manifest = generate_audio_files(
+                slides,
+                output_dir,
+                voice="en-US-AriaNeural",
+                communicate_factory=_factory(chunks),
+            )
+
+            self.assertEqual(
+                manifest["slides"][0]["word_boundaries_file"],
+                "slide_001.wordboundaries.json",
+            )
+            sidecar_path = output_dir / "slide_001.wordboundaries.json"
+            self.assertTrue(sidecar_path.exists())
+            saved = json.loads(sidecar_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                saved,
+                [
+                    {"text": "Hello", "offset_seconds": 0.0, "duration_seconds": 0.5},
+                    {"text": "there", "offset_seconds": 0.5, "duration_seconds": 0.3},
+                ],
+            )
+            self.assertTrue((output_dir / "slide_001.mp3").exists())
+
+    def test_default_generator_writes_empty_sidecar_when_no_boundary_events(self):
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            manifest = generate_audio_files(
+                slides,
+                output_dir,
+                voice="en-US-AriaNeural",
+                communicate_factory=_factory([{"type": "audio", "data": b"fake"}]),
+            )
+
+            self.assertEqual(
+                manifest["slides"][0]["word_boundaries_file"],
+                "slide_001.wordboundaries.json",
+            )
+            saved = json.loads((output_dir / "slide_001.wordboundaries.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved, [])
+
+    def test_default_generator_word_boundaries_survive_a_retry(self):
+        # The generator fails once (transient), then succeeds - the
+        # word-boundary data persisted afterward should come from the
+        # successful attempt, not a stale/partial one.
+        call_count = {"n": 0}
+        chunks = [
+            {"type": "audio", "data": b"fake"},
+            {"type": "WordBoundary", "text": "ok", "offset": 0, "duration": 2_000_000},
+        ]
+
+        def flaky_factory(**kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise ConnectionError("temporary network blip")
+            return FakeCommunicate(chunks, **kwargs)
+
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            manifest = generate_audio_files(
+                slides,
+                output_dir,
+                voice="en-US-AriaNeural",
+                communicate_factory=flaky_factory,
+                retry_delay_seconds=0,
+            )
+
+            self.assertEqual(call_count["n"], 2)
+            saved = json.loads((output_dir / "slide_001.wordboundaries.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                saved, [{"text": "ok", "offset_seconds": 0.0, "duration_seconds": 0.2}]
+            )
+            self.assertEqual(manifest["slides"][0]["word_boundaries_file"], "slide_001.wordboundaries.json")
 
 
 if __name__ == "__main__":
