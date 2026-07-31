@@ -6,6 +6,12 @@
 
 ## [未發布]
 
+## [0.5.1] - 2026-07-31
+
+### Fixed
+
+- 修正 `--insert-audio` 與 `--export-video` 在同一行指令裡接續執行時，`export_video()` 會以 `CoInitialize 尚未被呼叫`（`CO_E_NOTINITIALIZED`）失敗的問題。根本原因：v0.4.1 為 `insert_audio()` 加上的逾時保護，讓它的 COM 呼叫改在背景執行緒執行、並在該執行緒呼叫 `pythoncom.CoInitialize()`；但呼叫端（主）執行緒本身從未被初始化過 COM，而 `export_video()` 一直都是直接在呼叫端執行緒跑 COM 呼叫，因此第一次在主執行緒做 COM 呼叫時就失敗。`ppt_automation.py` 的 `export_video()` 現在改成透過既有的 `_run_in_com_thread()` 執行（沿用同一條執行緒，不是額外開新執行緒），確保呼叫前一定執行過 `CoInitialize()`。同時修正 `insert_audio(timeout_seconds=None)`（即 `--insert-audio-timeout 0`）這個目前還沒被實際踩到、但成因相同的潛在問題，讓它也統一走 `_run_in_com_thread()`。
+
 ## [0.5.0] - 2026-07-31
 
 字幕功能從實驗性 PoC 正式畢業：原本 `subtitle_generator.py` 用「音檔總長度平均分配」估算每句字幕時間的做法，換成真正依照 edge-tts 回報的逐字/逐詞語音時間對齊，並整合進 `main.py` 的正式管線。分五個階段完成，設計討論與真實內容驗證過程詳見專案討論記錄。

@@ -169,7 +169,12 @@ def _run_with_optional_timeout(func: Callable[[], Any], timeout_seconds: Optiona
     surfacing a clear error, not about guaranteeing PowerPoint is cleaned up.
     """
     if timeout_seconds is None:
-        return func()
+        # Still route through _run_in_com_thread even though this stays on
+        # the caller's own thread: whichever thread ends up making the COM
+        # calls needs CoInitialize() called on it first, and nothing else
+        # guarantees that's already happened for the caller's thread (see
+        # export_video()'s use of the same helper for the same reason).
+        return _run_in_com_thread(func)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_run_in_com_thread, func)
@@ -471,58 +476,67 @@ def export_video(
     if not pptx_path.exists():
         raise FileNotFoundError(f"PPTX file not found: {pptx_path}")
 
-    with _powerpoint_session(powerpoint_app, visible) as (app, _created_app):
-        with _open_presentation(app, pptx_path, visible) as presentation:
-            presentation.CreateVideo(
-                FileName=str(output_path),
-                UseTimingsAndNarrations=use_timings_and_narrations,
-                DefaultSlideDuration=default_slide_duration,
-                VertResolution=resolution_height,
-                FramesPerSecond=frames_per_second,
-                Quality=quality,
-            )
-
-            start_time = time.monotonic()
-            last_status = None
-
-            while True:
-                status = presentation.CreateVideoStatus
-                status_name = _STATUS_NAMES.get(status, f"unknown({status})")
-
-                if progress_callback is not None and status != last_status:
-                    progress_callback(status_name)
-                    last_status = status
-
-                if status == PP_MEDIA_TASK_STATUS_DONE:
-                    break
-                if status == PP_MEDIA_TASK_STATUS_FAILED:
-                    raise VideoExportError(
-                        "PowerPoint reported the video export failed "
-                        "(CreateVideoStatus = failed)."
-                    )
-
-                elapsed = time.monotonic() - start_time
-                if elapsed > timeout_seconds:
-                    raise VideoExportTimeoutError(
-                        f"Timed out after {timeout_seconds}s waiting for PowerPoint "
-                        f"to finish exporting {output_path.name} "
-                        f"(last status: {status_name})."
-                    )
-
-                time.sleep(poll_interval_seconds)
-
-            # Safety net: don't just trust the reported "done" status (the
-            # status enum's exact numeric values are documented but
-            # unverified against every PowerPoint COM version in practice) -
-            # confirm the output file actually exists and isn't empty before
-            # declaring success.
-            if not output_path.exists() or output_path.stat().st_size == 0:
-                raise VideoExportError(
-                    "PowerPoint reported the video export as done, but no "
-                    f"non-empty output file was found at {output_path}."
+    def _do_export() -> Dict[str, Any]:
+        with _powerpoint_session(powerpoint_app, visible) as (app, _created_app):
+            with _open_presentation(app, pptx_path, visible) as presentation:
+                presentation.CreateVideo(
+                    FileName=str(output_path),
+                    UseTimingsAndNarrations=use_timings_and_narrations,
+                    DefaultSlideDuration=default_slide_duration,
+                    VertResolution=resolution_height,
+                    FramesPerSecond=frames_per_second,
+                    Quality=quality,
                 )
 
-            return {
-                "output_path": str(output_path),
-                "elapsed_seconds": time.monotonic() - start_time,
-            }
+                start_time = time.monotonic()
+                last_status = None
+
+                while True:
+                    status = presentation.CreateVideoStatus
+                    status_name = _STATUS_NAMES.get(status, f"unknown({status})")
+
+                    if progress_callback is not None and status != last_status:
+                        progress_callback(status_name)
+                        last_status = status
+
+                    if status == PP_MEDIA_TASK_STATUS_DONE:
+                        break
+                    if status == PP_MEDIA_TASK_STATUS_FAILED:
+                        raise VideoExportError(
+                            "PowerPoint reported the video export failed "
+                            "(CreateVideoStatus = failed)."
+                        )
+
+                    elapsed = time.monotonic() - start_time
+                    if elapsed > timeout_seconds:
+                        raise VideoExportTimeoutError(
+                            f"Timed out after {timeout_seconds}s waiting for PowerPoint "
+                            f"to finish exporting {output_path.name} "
+                            f"(last status: {status_name})."
+                        )
+
+                    time.sleep(poll_interval_seconds)
+
+                # Safety net: don't just trust the reported "done" status (the
+                # status enum's exact numeric values are documented but
+                # unverified against every PowerPoint COM version in practice) -
+                # confirm the output file actually exists and isn't empty before
+                # declaring success.
+                if not output_path.exists() or output_path.stat().st_size == 0:
+                    raise VideoExportError(
+                        "PowerPoint reported the video export as done, but no "
+                        f"non-empty output file was found at {output_path}."
+                    )
+
+                return {
+                    "output_path": str(output_path),
+                    "elapsed_seconds": time.monotonic() - start_time,
+                }
+
+    # Routed through _run_in_com_thread (not a new thread here - it runs on
+    # whichever thread calls export_video()) so this thread's COM apartment
+    # is guaranteed initialized before any COM call, regardless of whether
+    # insert_audio() happened to run on a different thread earlier in the
+    # same process. See _run_with_optional_timeout's docstring/comment for
+    # the failure this fixes (CO_E_NOTINITIALIZED / "CoInitialize 尚未被呼叫").
+    return _run_in_com_thread(_do_export)
