@@ -274,23 +274,7 @@ python src/main.py examples/sample_test.pptx --insert-audio --audio-output-dir o
 python src/main.py output/deck_with_audio.pptx --export-video --video-output output/deck.mp4 --video-resolution 1080
 ```
 
-**完整流程（解析 + 語音 + 字幕 + 插入音訊 + 匯出 MP4，等同於上方「11. 一次到底」的單一指令）：**
-
-```powershell
-python src/main.py examples/sample_test.pptx `
-  --output output/slides.json `
-  --generate-audio `
-  --audio-output-dir output/audio `
-  --voice "zh-TW-YunJheNeural" `
-  --rate=-10% `
-  --pitch="+0Hz" `
-  --subtitles-output output/captions.srt `
-  --insert-audio `
-  --pptx-output output/deck_with_audio.pptx `
-  --export-video `
-  --video-output output/deck.mp4 `
-  --verbose
-```
+**完整流程（解析 + 語音 + 字幕 + 插入音訊 + 匯出 MP4）：** 指令見上方「11. 一次到底：單一指令完成整個流程」，這裡不重複貼一次。
 
 ---
 
@@ -309,7 +293,10 @@ pptx2video/
 │   ├── exceptions.py             # 自訂例外階層
 │   ├── logging_config.py         # 統一 Logging 設定
 │   └── __init__.py
-├── tests/              # 測試檔案
+├── pptx2video/          # 套件入口（`python -m pptx2video ...` 用的就是這個）
+│   ├── __init__.py
+│   └── __main__.py
+├── tests/               # 測試檔案
 │   ├── test_pptx_parser.py
 │   ├── test_tts_generator.py
 │   ├── test_tts_word_boundaries.py
@@ -320,20 +307,22 @@ pptx2video/
 │   ├── test_logging_config.py
 │   ├── test_main_payload.py
 │   └── test_cli_end_to_end.py
-├── scripts/            # 手動驗證腳本（需要真實網路/Windows+PowerPoint，不在自動化測試涵蓋範圍內）
+├── scripts/             # 手動驗證腳本（需要真實網路/Windows+PowerPoint，不在自動化測試涵蓋範圍內）
 │   ├── smoke_test_word_boundaries.py
 │   ├── smoke_test_alignment.py
-│   └── verify_slide_timing.py
-├── examples/           # 範例腳本與範例簡報
-├── output/             # 輸出檔案（已加入 .gitignore，不進版控）
-├── logs/               # 帶日期的 log 檔案（已加入 .gitignore，不進版控）
-├── temp/               # 暫存資料夾
-├── requirements.txt    # Python 相依套件
-├── pyproject.toml      # 專案設定
-├── CHANGELOG.md        # 版本歷史
-├── TODO.md             # 待辦事項與已知限制
-├── PROJECT_HANDOVER.md # 架構與開發者交接文件
-└── README.md           # 本文件
+│   ├── verify_slide_timing.py
+│   └── sample_notes_for_smoke_test.txt   # 上面腳本用的範例備忘稿文字
+├── examples/            # 範例腳本與範例簡報
+├── output/              # 輸出檔案（已加入 .gitignore，不進版控）
+├── logs/                # 帶日期的 log 檔案（已加入 .gitignore，不進版控）
+├── temp/                # 暫存資料夾
+├── requirements.txt     # Python 相依套件
+├── pyproject.toml       # 專案設定
+├── LICENSE              # 授權條款
+├── CHANGELOG.md         # 版本歷史
+├── TODO.md              # 待辦事項與已知限制
+├── PROJECT_HANDOVER.md  # 架構與開發者交接文件
+└── README.md            # 本文件
 ```
 
 模組職責的詳細說明（每個檔案負責什麼、彼此如何協作）請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「每個模組的責任範圍」章節。
@@ -463,14 +452,14 @@ graph TD
     B --> C[tts.py<br>呼叫 Edge-TTS 生成音檔 + 逐字時間]
     C --> D[(輸出 output/audio/<br>mp3 + wordboundaries.json + manifest.json)]
 
-    D --> E[ppt_automation.py insert_audio<br>win32com 插入音訊<br>已完成]
+    D --> E[ppt_automation.py insert_audio<br>win32com 插入音訊]
     B --> F1[subtitle_segmenter.py<br>備忘稿斷句]
     F1 --> F2[subtitle_alignment.py<br>對齊逐字語音時間]
     D --> F2
     F2 --> F3[subtitle_pipeline.py<br>依實際投影片時長合併]
     D --> F3
 
-    E --> G[ppt_automation.py export_video<br>win32com 建立視訊<br>已完成]
+    E --> G[ppt_automation.py export_video<br>win32com 建立視訊]
     G --> I[輸出 output.mp4]
     F3 --> H[輸出 output/captions.srt]
 ```
