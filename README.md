@@ -231,6 +231,7 @@ python -m pptx2video <pptx_path> [選項...]
 | `--video-default-duration` | `5.0` | 沒有錄製時間、也沒有自動播放音訊的頁面（例如封面頁）要停留幾秒，對應 PowerPoint 匯出視窗的「每張投影片所用秒數」 |
 | `--video-use-recorded-timings` | `False`（flag） | 是否改用簡報錄製的時間/旁白，而不是 `--video-default-duration` / 音訊時長驅動的時間。預設關閉，對應 PowerPoint「不使用錄製的時間和旁白」選項 |
 | `--video-timeout` | `3600`（秒） | 等待 PowerPoint 匯出完成的逾時秒數，投影片數量多或解析度高時建議調大 |
+| `--global-scale-correction` | `1.0`（不修正） | 只在 `--subtitles-output` 搭配 `--export-video`（真實起始時間對齊模式）時有作用。修正一個跟已播放時間成正比、環境相依的字幕時間系統性偏差（詳見 CHANGELOG v0.6.1 第四輪修正）。**這不是通用常數**，每份 deck/每台機器可能需要不同的值（甚至不需要），必須自行校準：用 `scripts/dump_slide_bounds.py` 或 `scripts/regenerate_srt_from_export.py` 量出幾個分散在整份 deck 的時間點，跟用媒體播放器「跳至指定時間」功能精確驗證過的真實時間比對，回歸出 `真實時間 / 量測時間` 的比例後填入 |
 | `--log-dir` | `logs` | 存放帶日期檔名 log 檔的資料夾（例如 `logs/2026-07-28.log`）。這個檔案**永遠記錄完整 DEBUG 細節，不受 `--verbose` 影響**，方便事後除錯 |
 | `--no-file-log` | `False`（flag） | 停用寫入 log 檔案，只印到終端機 |
 
@@ -430,6 +431,7 @@ python -m unittest tests.test_cli_end_to_end -v
 * **`PlayOnEntry` 旗標的必要性尚未完全理解原理，僅為實測結論**：拿掉這個舊版旗標會讓匯出的 MP4 完全沒聲音、且每頁變回固定 5 秒，即使編輯 UI 上完全看不出差異。
 * **`CreateVideoStatus` 的狀態列舉值是依 Microsoft 官方文件假設，未逐一比對所有 PowerPoint 版本**：程式碼已加安全網（回報完成後仍會檢查輸出檔案是否存在、非空）降低風險。
 * **`insert_audio()` 的逾時（`--insert-audio-timeout`）只能停止等待，無法強制關閉卡住的 PowerPoint 行程**。
+* **真實起始時間對齊模式（`--export-video` + `--subtitles-output`）可能需要手動校準 `--global-scale-correction`**：在一份真實 2 小時 40 分鐘的 deck 上發現，字幕時間量測本身帶有一個跟已播放時間成正比、環境相依的系統性偏差，確切成因尚未定位到程式碼層級（已排除匯出檔案音畫不同步、重取樣誤差等可能性）。預設值 `1.0`（不修正）在偏差不明顯的情況下應該沒問題，但長影片建議先用真實播放時間核對幾個分散的時間點，確認是否需要校準這個係數。詳見 CHANGELOG v0.6.1 第四輪修正。
 
 以上限制的技術背景、實測過程與底層原理，請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「PowerPoint COM 特性」章節。完整待辦與已知限制清單請見 [TODO.md](TODO.md)。
 
@@ -456,13 +458,17 @@ graph TD
     B --> F1[subtitle_segmenter.py<br>備忘稿斷句]
     F1 --> F2[subtitle_alignment.py<br>對齊逐字語音時間]
     D --> F2
-    F2 --> F3[subtitle_pipeline.py<br>依實際投影片時長合併]
+    F2 --> F3[subtitle_pipeline.py<br>合併每頁字幕成整份 SRT]
     D --> F3
 
     E --> G[ppt_automation.py export_video<br>win32com 建立視訊]
     G --> I[輸出 output.mp4]
+    I -.有搭配 --export-video 時.-> L[audio_position_locator.py<br>比對 output.mp4 音軌<br>量出每頁真實起始時間]
+    L -.-> F3
     F3 --> H[輸出 output/captions.srt]
 ```
+
+`F3` 合併字幕時間軸有兩種模式：只有 `--subtitles-output`（沒有匯出影片）時用「預測」（把每頁 mp3 時長加總）；有搭配 `--export-video` 時，字幕改到匯出完成後才產生，改用 `audio_position_locator.py` 量到的**真實**起始時間，取代預測（見 CHANGELOG v0.6.0，長影片下預測會逐頁累積漂移）。
 
 技術選型的原因（為何選 edge-tts、為何用 win32com 而非其他方案）請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)。
 

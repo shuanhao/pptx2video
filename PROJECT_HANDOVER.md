@@ -45,7 +45,7 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 1. 解析 .pptx 的頁數與備忘稿
 2. 使用 Edge-TTS 產生逐頁語音，同時取得逐字時間（WordBoundary）
 3. 透過 Windows COM 控制 PowerPoint 插入音訊並匯出 MP4
-4. 把備忘稿斷句、對齊到逐字語音時間、依每張投影片實際時長合併，產生 SRT 字幕
+4. 把備忘稿斷句、對齊到逐字語音時間，合併成整份 SRT 字幕——沒有搭配匯出影片時用「預測」時間軸（每頁時長加總）；有搭配 `--export-video` 時，改在匯出完成後，用音訊互相關比對匯出影片的實際音軌，取代預測（見第 4.10 節、CHANGELOG v0.6.0）
 
 ### 主要技術選型與原因
 
@@ -56,6 +56,7 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 | PPT 內容解析：`python-pptx` | 可直接讀取投影片與備忘稿，不需要另外解析 XML |
 | 字幕斷句：`jieba` 中文斷詞 + 顯示寬度規則，而非 ASR/Whisper | 備忘稿文字本身就是逐字稿，不需要承擔語音辨識的辨識錯誤風險；斷句只需要決定「在哪裡換行」，`jieba` 用來避免從中文詞語中間硬切 |
 | 字幕時間：對齊 edge-tts 實際回報的 WordBoundary 時間，而非時間累加估算 | 早期版本（`subtitle_generator.py`，已移除）用音檔總長度平均分配時間，只是估算；`subtitle_alignment.py` 改用實際語音時間，精確度高很多，見第 4.5 節 |
+| 字幕合併時間軸：搭配 `--export-video` 時改用真實起始時間，而非預測 | 在一份真實長講稿測試（2 小時 40 分、20 頁）中發現，單純把每頁 mp3 時長加總的預測時間軸，會跟 PowerPoint 實際匯出的影片累積漂移到數秒，而且不是單純等比例關係、無法用一個縮放係數校正（見 `scripts/verify_slide_timing.py` 的實測數據與 CHANGELOG v0.6.0）。改用 `numpy`/`scipy` 的 FFT 互相關，直接在匯出好的 MP4 音軌裡量出每頁語音的真實位置，見第 4.10 節 |
 
 整體 Pipeline 的模組串接圖（哪個模組輸出餵給哪個模組）請見 [README.md](README.md#-功能特色) 附近的 Mermaid 架構圖，這裡不重畫一份；圖中沒畫出來的錯誤處理路徑（`_fail()` 統一收斂、單頁跳過 vs 整體中止）見第 4.9 節與第 5 節，COM session 的開關生命週期見第 3 節與第 4.3 節。
 
@@ -155,19 +156,30 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - 比對策略是寬鬆、盡力而為：找不到完全相符的位置時會嘗試模糊比對，還是找不到就跳過該事件（不會讓單一比對失誤中斷整段字幕），所有跳過/內插都會記錄進回傳的 `warnings` 清單
 - 每行的結束時間會延伸到下一行開始前留一小段緩衝（預設 0.15 秒），涵蓋語句間的自然停頓，但不會延伸到下一張投影片（跨投影片邊界維持自然斷開，見 4.6 節）
 
-### 4.6 subtitle_pipeline.py（v0.5.0 新增）
+### 4.6 subtitle_pipeline.py（v0.5.0 新增字幕合併；v0.6.0 加入真實起始時間模式）
 
-**Input**：多張投影片各自的 4.5 節對齊結果 + 各投影片音訊檔案的實際長度（`pydub` 量測）
+**Input**：多張投影片各自的 4.5 節對齊結果 + （預測模式）各投影片音訊檔案的實際長度（`pydub` 量測）／（真實起始時間模式）4.7 節 `audio_position_locator.py` 量到的每頁真實起始時間
 **Output**：合併後的完整 `output/captions.srt`
 **主要依賴**：`pydub`
 
-負責：把多張投影片各自對齊好的字幕（4.5 節的輸出），依照它們在最終匯出影片裡的實際時間軸合併成一份完整 SRT。
-- 每張投影片的時長 = 該投影片音訊檔案的**實際長度**（用 `pydub` 量測，不是估算），沒有備忘稿的投影片則用 `default_slide_duration`——這個假設已經用 `scripts/verify_slide_timing.py`（音訊互相關比對）在真實匯出的 MP4 上驗證過，量到的偏差在 0.2 秒內。之所以要特別驗證這件事，是因為網路上有其他使用者回報過 PowerPoint「建立視訊」匯出時，音訊驅動的投影片時長偶爾會多出 2～15 秒不等的死寂空白（原因不明，微軟未正式承認）；這個專案的 `insert_audio()` 有設定 `PlayOnEntry`/`HideWhileNotPlaying`，實測沒有踩到這個問題，但如果之後行為改變，第一個該重新驗證的地方就是這裡
-- 沒有備忘稿的投影片沒有字幕，但仍然佔用 `default_slide_duration` 秒，必須算進累加時間軸，否則後面所有投影片的字幕都會提早
-- 所有投影片的字幕行依序串接後只呼叫一次 `format_srt()`，編號連續，不分投影片重新編號
-- 遇到「有音訊但沒有 WordBoundary 資料」「音訊檔案讀不到」「WordBoundary 檔案壞掉」等情況，都是跳過該投影片、記錄警告、繼續處理後面的投影片，不會讓整個合併中斷
+負責：把每張投影片各自對齊好的字幕（4.5 節的輸出，跟時間軸怎麼擺放無關），依照它們在最終影片裡的位置合併成一份完整 SRT。共用的每頁對齊邏輯抽在 `_build_slide_captions()`，兩種擺放時間軸的方式分開成兩個公開函式：
+- **`generate_srt_for_deck()`（預測模式，v0.5.0）**：每張投影片的時長 = 該投影片音訊檔案的**實際長度**（用 `pydub` 量測，不是估算），沒有備忘稿的投影片則用 `default_slide_duration`，逐頁加總算出每頁在時間軸上的位置。這個假設早期（小規模測試簡報）曾驗證過偏差在 0.2 秒內，但在 v0.6.0 的一份真實長講稿測試（2 小時 40 分、20 頁）中發現，長影片下這個預測會累積漂移到數秒，而且不是等比例關係——只有在**沒有搭配 `--export-video`**（沒有真正的匯出影片可以測量）時才會使用這個模式，此時仍是「盡力而為」的估計值。
+- **`generate_srt_from_true_starts()`（真實起始時間模式，v0.6.0 新增）**：每張投影片的時間軸位置改用 4.7 節 `audio_position_locator.locate_slide_start_times()` 量到的**真實**起始時間，不做任何預測假設。只有在**這次執行同時有 `--export-video`** 時才會走這個模式（見 `main.py` 第 4.10 節）。單一投影片如果沒量到真實起始時間（音檔缺失、比對失敗），會退回該頁的預測位置並記錄警告，不會讓整份字幕開天窗。
+- 兩種模式都：沒有備忘稿的投影片沒有字幕，但仍然佔用時長，必須算進累加時間軸，否則後面所有投影片的字幕都會提早；所有投影片的字幕行依序串接後只呼叫一次 `format_srt()`，編號連續，不分投影片重新編號；遇到「有音訊但沒有 WordBoundary 資料」「音訊檔案讀不到」「WordBoundary 檔案壞掉」等情況，都是跳過該投影片、記錄警告、繼續處理後面的投影片，不會讓整個合併中斷。
 
-### 4.7 exceptions.py
+### 4.7 audio_position_locator.py（v0.6.0 新增）
+
+**Input**：`ppt_automation.export_video()` 匯出的 MP4 + 每頁的 mp3（來自 `manifest.json`）
+**Output**：`{投影片編號: 真實起始秒數}` 的字典 + warnings 清單
+**主要依賴**：`numpy`、`scipy`（FFT 互相關）、`ffmpeg`（抽取影片音軌，需在 PATH）
+
+負責：`locate_slide_start_times()`——對匯出好的 MP4 抽出音軌，逐頁把該頁自己的 mp3 拿去跟音軌做 FFT-based 互相關比對，量出這頁語音在最終影片裡「真正」開始播放的時間，取代 v0.5.0 單純把時長加總的預測方式。核心比對函式 `find_best_offset_seconds()` 原本是 `scripts/verify_slide_timing.py` 的內建邏輯（只用來印診斷報表），v0.6.0 抽成這個獨立模組，讓正式管線（4.6 節）跟診斷腳本共用同一份實現，不是兩份各自維護、可能各自漂移的複製。
+- 比對時以「預測位置」為中心、前後展開一個搜尋窗（預設 30 秒）去找真正的匹配位置，避免搜尋範圍過大誤配到別頁的音訊，也避免範圍太小、真的漂移很多時找不到
+- 單一投影片的音檔缺失或無法解碼時，跳過該頁（不會出現在回傳的字典裡）、記錄警告，不會讓整支影片的比對中斷；只有整支影片的音軌完全抽不出來（例如缺 ffmpeg、影片本身損毀）才會直接拋出例外，因為這種情況下沒有任何一頁能被測量
+- 為什麼需要獨立成正式模組而不是留在 `scripts/`：v0.5.0 時 `numpy`/`scipy` 只是這支診斷腳本的非必要依賴；v0.6.0 開始，只要使用者的正式流程用到 `--subtitles-output` + `--export-video`，這個比對邏輯就會被 `main.py` 呼叫，`numpy`/`scipy` 因此升級成專案的必要依賴（見 `pyproject.toml`）
+- **v0.6.1 第四輪修正新增 `global_scale_correction` 參數（`locate_slide_start_times()`、`locate_slide_start_and_end_times()` 均有）**：在真實 2 小時 40 分鐘 deck 上，逐頁用真實播放時間核對後發現，這個模組回傳的量測時間本身帶有一個跟已播放時間成正比、環境相依的系統性偏差（約 0.12%，整份 deck 累積到 12 秒等級）——已個別排除「PowerPoint 匯出加速音訊」（原本 v0.6.1 第一輪修正的假設，交叉驗證後證實從未存在）、「匯出檔案本身音畫不同步」、「本模組 ffmpeg/pydub 重取樣造成的浮點誤差」這三個候選成因，但確切是 `find_best_offset_seconds()` 互相關比對內部哪個環節造成的，**尚未定位到程式碼層級**。`global_scale_correction`（預設 `1.0`，不修正）是經驗校準的因應措施：直接乘上每一個回傳的時間值，套用後在真實 deck 上把殘差壓到 RMS 0.27 秒、全 deck 最大 0.53 秒。**這不是通用常數**，換一份 deck 或換一台機器，理論上都需要重新校準——校準方法見 `DEFAULT_GLOBAL_SCALE_CORRECTION` 的 docstring 或 CHANGELOG v0.6.1 第四輪修正的完整記錄。如果之後要接手定位確切成因，`find_best_offset_seconds()`（本模組）的 FFT 互相關實作是第一個該深入的地方。
+
+### 4.8 exceptions.py
 
 **Input／Output**：不適用——這是共用的例外類別定義，不處理資料流，供其他模組拋出、`main.py` 統一捕捉
 **主要依賴**：無（僅依賴 Python 內建 `Exception`/`TimeoutError`）
@@ -177,7 +189,7 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - `PptParseError`、`TTSGenerationError`、`PowerPointLaunchError`、`AudioInsertionError`、`AudioInsertionTimeoutError`、`VideoExportError`、`VideoExportTimeoutError`——兩個 `*TimeoutError` 同時也是內建 `TimeoutError` 的子類別，向下相容只認得 `TimeoutError` 的呼叫端
 - `FileNotFoundError`、`ValueError` 等語意已經明確的 Python 內建例外故意不重新包裝
 
-### 4.8 logging_config.py
+### 4.9 logging_config.py
 
 **Input**：CLI 的 `--log-dir`／`--verbose`／`--no-file-log` 設定
 **Output**：終端機簡潔輸出 + `logs/YYYY-MM-DD.log`（完整 DEBUG 細節）
@@ -189,17 +201,18 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - log 資料夾無法寫入時優雅降級成只輸出到終端機，不會讓程式崩潰
 - 提供 `shutdown_logging()` 供測試或需要主動釋放 log 檔案控制權的情境使用
 
-### 4.9 main.py
+### 4.10 main.py
 
 **Input**：CLI 參數（`.pptx` 路徑 + 各項 flag，例如 `--generate-audio`/`--insert-audio`/`--export-video`/`--subtitles-output`）
 **Output**：依所給 flag 而定——`slides.json`、音檔＋`manifest.json`、插入音訊後的 `.pptx`、`output.mp4`、`output/captions.srt`
-**主要依賴**：上述 4.1–4.8 所有模組
+**主要依賴**：上述 4.1–4.9 所有模組
 
 負責：
 - 串接上面所有模組
 - 提供 CLI 入口
 - 決定輸入與輸出路徑
 - 讓使用者只需執行一個命令即可完成流程
+- **v0.6.0 起：決定字幕要用哪種模式產生**——`--subtitles-output` 搭配 `--export-video` 時，字幕產生從「跟 `--generate-audio` 同時進行」改成「等 `--export-video` 成功後才進行」，改呼叫 4.7 節的 `audio_position_locator` + 4.6 節的 `generate_srt_from_true_starts()`；只有 `--subtitles-output`、沒有 `--export-video` 時，維持原本「跟 `--generate-audio` 同時」的 `generate_srt_for_deck()` 預測路徑。真實起始時間比對本身失敗時（例如缺 ffmpeg），記錄警告後自動退回預測路徑，不會讓已經成功匯出的影片因為字幕比對失敗而讓整個指令回報錯誤
 - 統一在 `_fail()` 這個 helper 裡處理錯誤：先寫進 log（`logger.error()`），再透過 `parser.error()` 印給使用者看並結束程式
 
 ---
@@ -220,9 +233,10 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 使用 win32com 時，務必在 try/finally 中關閉 PowerPoint，避免背景殘留執行緒或記憶體洩漏。`_powerpoint_session()` / `_open_presentation()` 已經封裝了這個邏輯，新增功能時應該重用這兩個 context manager，不要自己再開一套。
 
 ### 5.4 字幕與語音同步
-字幕與音檔時長必須一致，避免出現時間漂移。目前的做法（v0.5.0）：
-- 每張投影片的字幕時間對齊 edge-tts 實際回報的 WordBoundary 時間（`subtitle_alignment.py`），不是估算
-- 多投影片合併時，以每頁音訊**實際量測**的長度為基準（`pydub`），累加成整支影片的時間軸（`subtitle_pipeline.py`），這個假設已用 `scripts/verify_slide_timing.py` 在真實匯出的 MP4 上驗證過，細節見第 4.6 節
+字幕與音檔時長必須一致，避免出現時間漂移。目前的做法：
+- 每張投影片的字幕時間對齊 edge-tts 實際回報的 WordBoundary 時間（`subtitle_alignment.py`），不是估算——這一層 v0.5.0 起就沒變過，不受下面這點影響
+- 多投影片合併成整支影片的時間軸時（v0.6.0 起）：**只要這次執行有搭配 `--export-video`**，改用 `audio_position_locator.py` 對匯出好的 MP4 做互相關比對，量出每頁真實起始時間，不是預測（見第 4.6、4.7 節）。這個改動的起因是：早期只用小規模測試簡報驗證過「以每頁音訊實際量測長度加總」這個預測假設，偏差在 0.2 秒內；但用一份真實長講稿（2 小時 40 分、20 頁）重新測試後，發現預測時間軸會逐頁累積漂移到數秒，而且不是等比例關係、無法用單一縮放係數校正——`scripts/verify_slide_timing.py` 是保留下來的診斷工具，可以用來對任何一次匯出重新驗證這個假設是否仍然成立。**只有** `--subtitles-output` **沒有搭配** `--export-video` **時**，才會退回沿用舊的「預測」時間軸，因為這種情況下沒有已匯出的影片可以測量。
+- **即使搭配 `--export-video` 用了真實起始時間，仍可能需要 `--global-scale-correction`**（v0.6.1 第四輪修正，見第 4.7 節）：真實起始時間量測本身，在同一份 2 小時 40 分鐘 deck 上被發現帶有一個跟已播放時間成正比的系統性偏差，且已排除是匯出檔案本身音畫不同步或本專案重取樣造成的。這跟上一點「預測時間軸的漂移」是兩個不同層級的問題——一個是「要不要用真實量測取代預測」，一個是「真實量測本身夠不夠準」，兩者都需要处理才能在超長 deck 上得到準確字幕。
 
 ### 5.5 COM 操作為何不做自動重試
 

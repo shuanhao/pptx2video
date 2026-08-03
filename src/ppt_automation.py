@@ -537,6 +537,6 @@ def export_video(
     # whichever thread calls export_video()) so this thread's COM apartment
     # is guaranteed initialized before any COM call, regardless of whether
     # insert_audio() happened to run on a different thread earlier in the
-    # same process. See _run_with_optional_timeout's docstring/comment for
-    # the failure this fixes (CO_E_NOTINITIALIZED / "CoInitialize 尚未被呼叫").
+    # same process. See _run_with_optional_timeout's comment for the
+    # failure this fixes (CO_E_NOTINITIALIZED / "CoInitialize 尚未被呼叫").
     return _run_in_com_thread(_do_export)
