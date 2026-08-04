@@ -4,7 +4,8 @@
 
 ## 待進行
 
-- **定位 `global_scale_correction` 的確切根因**（見 CHANGELOG v0.6.1 第四輪修正、`audio_position_locator.py` 的 `DEFAULT_GLOBAL_SCALE_CORRECTION` docstring）——目前已經有一個經真實 deck 驗證過、精準到次秒等級的經驗校準值可用，但 `find_best_offset_seconds()` 互相關比對內部究竟是哪個環節造成這個跟已播放時間成正比的系統性偏差，還沒有定位到程式碼層級。不影響目前可用性（有校準流程可以繞過），但如果之後要讓工具「不需要每份 deck 手動校準就準」，需要先解決這個。
+- **定位 `global_scale_correction` 的確切根因**（見 CHANGELOG v0.6.1 第四輪修正、`audio_position_locator.py` 的 `DEFAULT_GLOBAL_SCALE_CORRECTION` docstring）——目前已經有一個經真實 deck 驗證過、精準到次秒等級的經驗校準值可用，但 `find_best_offset_seconds()` 互相關比對內部究竟是哪個環節造成這個跟已播放時間成正比的系統性偏差，還沒有定位到程式碼層級。不影響目前可用性（有校準流程可以繞過，見 `scripts/calibrate_scale.py`），但如果之後要讓工具「不需要每份 deck 手動校準就準」，需要先解決這個。
+- **驗證 `global_scale_correction` 偏差是否為 PowerPoint 通用特性、還是本機特有**——目前只在一台機器、一套 PowerPoint 安裝上驗證過 k=1.00121。最直接的驗證方式是在另一台機器/另一個 PowerPoint 版本上，用 `scripts/calibrate_scale.py` 跑一次自己的校準，比較兩個 k 值是否量級接近。如果多台機器的 k 值都收斂在接近的範圍，代表可能是 PowerPoint 匯出管線的普遍特性、之後可以考慮給一個保守預設值；如果分散很大，代表主要是本機因素，維持「每個環境各自校準」的現狀即可。
 
 ## 暫緩（等有實際需求再做）
 
@@ -16,6 +17,7 @@
 
 - **Temporary File Cleanup**（自動清除 `output/audio`、`manifest.json` 等）——會打斷分階段執行的工作流程（例如今天先 `--generate-audio`，明天才 `--insert-audio`），刻意保留現狀。
 - **COM 操作（`insert_audio()` / `export_video()`）自動重試**——重試前若沒有先確保舊的 PowerPoint 物件已關閉，反而可能製造殭屍程序，風險大於效益。注意這跟 TTS 網路請求的重試機制是分開的決定：TTS 重試已經實作（見 CHANGELOG v0.4.0 的 `--tts-max-retries`），因為兩者失敗情境的風險屬性不同（網路重試安全，COM 重試不安全）。
+- **`global_scale_correction` 改成每頁各自一個校正值，而非單一全域係數**——已用真實 2 小時 40 分 deck 的 20 個資料點驗證過，單一全域乘數就能把殘差收斂到 RMS 0.27 秒，且殘差沒有隨頁數發散或在特定頁面異常偏高——這是「偏差是單一、貫穿全程的比例關係，不是逐頁各自獨立」的直接證據。Per-slide 校正值只會用更少的資料點去擬合更多自由度，雜訊反而更大，目前沒有實證支持。除非之後真的觀察到某份 deck 的殘差呈現逐頁發散或特定頁面離群的樣態（那種情況更可能是那幾頁本身量測不穩，該做的是改善量測穩健性，而非引入 per-slide 校正參數去掩蓋），否則不會做。
 
 ## 已知限制（目前不打算修）
 

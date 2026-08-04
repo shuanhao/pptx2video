@@ -217,6 +217,12 @@ examples/*.pptx
 # Local temporary directories
 temp/
 
+# scripts/calibrate_scale.py's inputs/outputs - personal, per-machine/per-deck
+# measurement data, not something to share via version control (see README.md's
+# "手動校準 global_scale_correction" section for the expected file format).
+my_observations.json
+calibration_report.json
+
 # Ruff stuff:
 .ruff_cache/
 
