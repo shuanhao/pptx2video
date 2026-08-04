@@ -5,3 +5,14 @@ jieba>=0.42.1
 numpy>=1.24
 scipy>=1.10
 pywin32>=306; sys_platform == "win32"
+# pydub 0.25.1 still unconditionally does ``import audioop`` internally
+# (e.g. AudioSegment.set_frame_rate()/.set_channels(), used throughout
+# audio_position_locator.py) and hasn't been updated for its removal from
+# the standard library in Python 3.13 (deprecated since 3.11 per PEP 594,
+# removed in 3.13). Without this, a fresh venv on Python 3.13 installs
+# cleanly but fails at runtime the first time pydub actually touches audio
+# - not at pip install time, which makes it easy to miss until well after
+# setup looks "done". audioop-lts is the official backport that restores
+# the module; only needed on 3.13+, harmless/unavailable-and-skipped on
+# older versions thanks to the environment marker.
+audioop-lts; python_version >= "3.13"
