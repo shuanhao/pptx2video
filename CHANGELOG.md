@@ -8,6 +8,17 @@
 
 （目前沒有尚未發布的變更——下一批新功能/修正會累積在這裡，發布時再依慣例改成帶版號與日期的章節。）
 
+## [0.8.0] - 2026-08-04
+
+### Added
+
+- **`scripts/split_video_by_slides.py`（新工具）**：把已匯出的 MP4 依「換頁面的地方」切成多段檔案，而不是依任意的時間長度硬切。背景：使用者的 deck 約 20 頁，匯出的 MP4 長達 2.5～3 小時，希望分成 3 段，但要求切點必須剛好落在換頁邊界上，不能切在講稿講到一半的地方。PowerPoint 的 `Presentation.CreateVideo()`（`ppt_automation.export_video()` 底層呼叫的 API）沒有任何「只匯出某個投影片範圍」的參數——每次呼叫一定是匯出整份簡報，如果為了分段而重新匯出 3 次，2.5～3 小時的匯出時間會直接乘上 3 倍。這個新工具改成「對已經匯出好的單一 MP4 事後切割」：重用 `audio_position_locator.locate_slide_start_and_end_times()`（跟 `regenerate_srt_from_export.py` 用來校正字幕的同一個真實起始時間量測函式）取得每一頁narration 真正開始播放的時間點，保證切點精準落在頁面交界，而不是任意時間戳記。
+  - 支援兩種切點決定方式：`--num-segments N`（自動選出 N-1 個切點，讓每一段的長度盡量平均，用「逐一比對每個尚未使用過的頁面邊界與該段目標時間點的距離」的貪婪法選擇，而非只看與理論上等分點最近的單一邊界，避免因為某幾頁特別長而讓某一段明顯比其他段長很多）；`--split-after-slides 7 14`（明確指定要在哪幾頁之後切，例如切成 1-7、8-14、15-end 三段）。
+  - 實際切割用 ffmpeg 的 `-c copy`（stream copy，不重新編碼）以求速度，代價是切點會吸附到該時間點之前最近的關鍵影格，而不是絕對影格精準；加上 `--reencode` 可以改成重新編碼以取得影格精準的切點（速度慢很多）。
+  - 跟 `regenerate_srt_from_export.py` 一樣支援 `--global-scale-correction`（見 v0.6.1 第四輪修正、`scripts/calibrate_scale.py`、`scripts/verify_srt_accuracy.py`），而且這裡校正是否準確更重要：字幕時間軸差個零點幾秒觀眾未必有感，但切點沒校正好，可能會把下一頁narration的前一小段直接切掉或留在上一段結尾。
+  - **`--subtitles`（同一個 commit 追加）**：只切影片、不處理字幕的話，整份 deck 的 `captions.srt` 時間軸沒有跟著每一段影片各自歸零，第 2、3 段之後字幕就完全對不上畫面。加上 `--subtitles output/captions.srt`（必須是 Step 10 真實起始時間對齊版本，不能是 Step 8 單獨執行時的「預測版」）之後，會在切每一段影片的同時也把字幕切成對應的 `segment_N.srt`，各自從 `00:00:00` 重新算起——而且刻意**重用跟切影片時完全相同的切點時間戳**，不是另外重新量一次，確保同一段的 `.mp4`/`.srt` 對「時間 0 秒」的認定一致。落在切點範圍外的字幕行整行捨棄；橫跨切點的字幕行（理論上不該發生，因為切點本來就選在某頁narration 的真正起點）會被裁切到所在那一段的範圍內，不會整行丟掉或重複出現在兩段裡。新增了手刻的 `_parse_srt()`（沒有另外引入外部套件，因為要讀的只有這個專案自己 `format_srt()` 寫出來的簡單格式）跟 `_slice_srt_for_segment()`。
+  - 已有 `tests/test_split_video_by_slides.py`：純邏輯的切點選擇測試（等分/不等長投影片/邊界只能用一次/排除第 1 頁自己的起始時間等情境）、SRT 解析與切片測試（標準格式解析、跳過格式異常區塊、只保留有重疊的字幕行並歸零、裁切橫跨邊界的字幕行、邊界剛好相接時的零長度重疊會被捨棄），以及 `_probe_duration_seconds()`/`_run_ffmpeg_segment()` 的 ffmpeg 端對端測試（用合成測試影片驗證量測整支影片長度、切出指定時間區間、確認輸出檔案存在且長度正確），最後這組跟 `test_calibrate_scale.py` 一樣用 `@unittest.skipUnless(shutil.which("ffmpeg") ...)` 包起來，沒有 ffmpeg 的環境會自動跳過而不是失敗。全部 16 個測試都通過，整個套件目前 167 個測試全過。
+
 ## [0.7.0] - 2026-08-04
 
 ### Added
