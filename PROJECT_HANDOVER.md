@@ -115,6 +115,9 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - 生成失敗時拋出 `TTSGenerationError`，訊息會標明是第幾頁失敗，並保留原始例外鏈
 - 僅對判斷為暫時性的網路/服務錯誤重試（見 `_is_retryable`），`max_retries` 若傳負值會被 clamp 成 0，確保重試迴圈至少執行一次，不會出現「從未呼叫生成、卻仍記錄成功」的情況（v0.4.1 修正）
 - `synthesize_with_word_boundaries()`：透過 edge-tts streaming API 額外取得每個語音片段的文字與時間（`offset_seconds`/`duration_seconds`）。`generate_audio_files()` 預設（沒有自訂 `generator` 時）就是用這個當底層實作，同一次 TTS 呼叫順便把結果存成 `slide_XXX.wordboundaries.json` 旁路檔案，並記錄進 `manifest.json` 的 `word_boundaries_file` 欄位（v0.5.0 新增）——自訂 `generator` 不保證支援這個介面，此時 `word_boundaries_file` 固定是 `None`，字幕生成會跳過該投影片並記錄警告，不是硬性錯誤
+- `find_suspected_dropped_narration()`（見 4.5 節 `subtitle_alignment.py`）疑似漏講偵測：每頁生成完後，`generate_audio_files()` 會（僅限預設 generator）自動呼叫這個函式比對這一頁的 WordBoundary 覆蓋情形，結果存進 `manifest.json` 每筆 entry 的 `narration_gap_warnings` 欄位，並透過新增的 `on_narration_gap(slide_num, suspect)` callback 參數即時通知呼叫端；`main.py` 把這個 callback 接到一個會印出 `POSSIBLE DROPPED NARRATION` 警告的 logger（含疑似漏講的文字預覽跟音檔時間戳記，方便直接跳去用耳朵確認）。這整段檢查包在 try/except 裡，即使邏輯本身出錯也不會讓音訊生成中斷——最壞情況只是少一個警告，不會多一個崩潰點。動機：真實使用中發現過 edge-tts 悄悄漏講整段內容、完全沒有任何錯誤訊息的案例（見 CHANGELOG「未發布」段落跟 4.5 節），這個 callback 就是那次事件之後新增的安全網。
+- **`main.py` 的 `--slides` 篩選（未發布，本次新增）**：只把篩選出的頁面交給 `generate_audio_files()`，`generate_audio_files()` 本身完全不知道有篩選這回事——它一如往常「呼叫端給哪些頁面，就完整生成/描述那些頁面」，包括寫出一份只含這些頁面的 `manifest.json`。篩選跟「跟舊 manifest.json 合併，保留沒被篩選到的頁面原有紀錄」這兩件事，刻意都放在 `main.py` 這一層（`_parse_slide_selector()` 解析 `"6,9"`／`"6,8-10"` 這種語法，合併邏輯在 `--generate-audio` 區塊內），維持 `generate_audio_files()` 的呼叫合約單純。動機：`find_suspected_dropped_narration()` 上線後，實際情境會是「某一頁被標出疑似漏講，想單獨重新生成那一頁」，而原本的設計沒有「只重生一頁、其他頁不動」這個選項，逼得使用者必須重新整份重跑（長 deck 可能超過一小時）。
+- **`scripts/check_narration_gaps.py`（未發布，本次新增）**：`find_suspected_dropped_narration()` 的獨立、離線版本，直接讀取既有的 `manifest.json` + `slide_XXX.wordboundaries.json` + 備忘稿文字（`slides.json` 或重新解析 `.pptx`），不呼叫 edge-tts、不寫任何檔案，純本機比對，秒級完成。存在的原因：這個檢查目前只在 `--generate-audio` 執行過程中自動觸發一次；對於這個功能上線之前就已經生成好的資料（例如原本用來發現第 9 頁問題的那批 manifest/wordboundaries），沒有「事後補跑檢查」的路徑，除非整份重新生成音訊。支援 `--slides` 篩選頁面、`--min-gap-chars`／`--pace-ratio-threshold` 覆寫敏感度門檻（`generate_audio_files()`/`--generate-audio` 目前還沒有暴露這兩個參數，見 TODO.md）；找到疑似漏講內容時 exit code 是 `1`，方便串進其他腳本判斷。
 
 ### 4.3 ppt_automation.py
 
@@ -155,6 +158,7 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - 核心問題：WordBoundary 事件只有語音時間跟文字內容，**沒有**字元位置（確認過 edge-tts 原始碼 `Communicate.__parse_metadata`）。解法是拿一個游標依序在原文裡找每個事件的文字對應到哪個位置，因為 edge-tts 不會打亂文字順序
 - 比對策略是寬鬆、盡力而為：找不到完全相符的位置時會嘗試模糊比對，還是找不到就跳過該事件（不會讓單一比對失誤中斷整段字幕），所有跳過/內插都會記錄進回傳的 `warnings` 清單
 - 每行的結束時間會延伸到下一行開始前留一小段緩衝（預設 0.15 秒），涵蓋語句間的自然停頓，但不會延伸到下一張投影片（跨投影片邊界維持自然斷開，見 4.6 節）
+- **`find_suspected_dropped_narration()`（未發布，本次新增）**：獨立於字幕對齊之外的另一個功能，用同一份 `_match_word_boundaries()` 比對結果做「疑似漏講」偵測。動機是真實使用中發現 edge-tts 會在沒有任何錯誤訊息的情況下，直接跳過一大段原文不唸——這跟字幕對齊本身「找不到就跳過、記錄警告」的容錯設計是兩回事：字幕對齊處理的是「WordBoundary 有對到、只是位置比對失敗」，這裡處理的是「這段文字對應的語音根本沒被生成」。做法：算出這一頁自己的整體語速（字元數 / 秒數，用第一個到最後一個成功比對的 WordBoundary 事件之間的區間算），然後逐一檢查相鄰兩個成功比對事件之間的間隔——如果這段間隔涵蓋的原文字數，照這一頁的正常語速換算應該要花上比實際間隔長很多的時間（預設門檻：實際時間 < 預期時間的 30%，且間隔字數 >= 15 字才算，避免把正常的標點/空白小間隔也算進來），就回報為疑似漏講，附上疑似漏講的文字內容、原文位置、音檔時間戳記。這兩個門檻（`min_gap_chars`／`pace_ratio_threshold`）目前是函式參數，還沒有對應的 CLI flag（見 TODO.md）。已用真實觸發過的案例（`slide_009`，約 300 字漏講）驗證能準確抓到、且沒有誤判其他頁面。
 
 ### 4.6 subtitle_pipeline.py（v0.5.0 新增字幕合併；v0.6.0 加入真實起始時間模式）
 
