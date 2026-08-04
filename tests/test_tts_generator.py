@@ -374,6 +374,71 @@ class TtsGeneratorTests(unittest.TestCase):
             )
             self.assertTrue((output_dir / "slide_001.mp3").exists())
 
+    def test_default_generator_flags_suspected_dropped_narration(self):
+        # Regression test for a real finding (see
+        # subtitle_alignment.find_suspected_dropped_narration's docstring):
+        # a real deck's slide 9 had edge-tts silently skip ~300 characters
+        # of notes mid-slide, with no exception and no otherwise-visible
+        # error. This reproduces the same shape end-to-end through
+        # generate_audio_files(): a WordBoundary stream that establishes a
+        # steady pace, then jumps over a large stretch of the notes text
+        # with almost no time elapsed, then resumes.
+        prefix = "AAAAAAAAAA"  # 10 chars, one WordBoundary each, 0.2s apart -> 5 chars/sec
+        dropped = "BBBBBBBBBBBBBBBBBBBB"  # 20 chars - real notes text, but never voiced
+        suffix = "CCCCCCCCCC"
+        notes = prefix + dropped + suffix
+
+        chunks = [{"type": "audio", "data": b"fake-mp3-bytes"}]
+        offset_ticks = 0
+        for ch in prefix:
+            chunks.append({"type": "WordBoundary", "text": ch, "offset": offset_ticks, "duration": 1_600_000})
+            offset_ticks += 2_000_000  # 0.2s per char
+        # Jump straight to the suffix, barely any time later - the 20
+        # dropped characters get none of the ~4s (20 * 0.2s) their length
+        # would predict at the pace established above.
+        offset_ticks += 1_000_000  # +0.1s only
+        for ch in suffix:
+            chunks.append({"type": "WordBoundary", "text": ch, "offset": offset_ticks, "duration": 1_600_000})
+            offset_ticks += 2_000_000
+
+        slides = [{"slide_num": 1, "title": "Intro", "notes": notes}]
+        gap_calls = []
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            manifest = generate_audio_files(
+                slides,
+                output_dir,
+                voice="en-US-AriaNeural",
+                communicate_factory=_factory(chunks),
+                on_narration_gap=lambda slide_num, suspect: gap_calls.append((slide_num, suspect)),
+            )
+
+            gap_warnings = manifest["slides"][0]["narration_gap_warnings"]
+            self.assertEqual(len(gap_warnings), 1)
+            self.assertEqual(gap_warnings[0]["skipped_text"], dropped)
+            self.assertEqual(len(gap_calls), 1)
+            self.assertEqual(gap_calls[0][0], 1)
+            self.assertEqual(gap_calls[0][1]["skipped_text"], dropped)
+
+    def test_custom_generator_skips_narration_gap_check(self):
+        # A custom generator isn't guaranteed to produce word-boundary
+        # data at all (see word_boundaries_file's own None-when-custom
+        # behavior) - the narration-gap check must not run (or error) for
+        # it, and narration_gap_warnings should just be an empty list.
+        def custom_generator(text, output_path, voice):
+            Path(output_path).write_bytes(b"fake-mp3-bytes")
+
+        slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            manifest = generate_audio_files(slides, output_dir, generator=custom_generator)
+
+            self.assertEqual(manifest["slides"][0]["narration_gap_warnings"], [])
+
     def test_default_generator_writes_empty_sidecar_when_no_boundary_events(self):
         slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]
 

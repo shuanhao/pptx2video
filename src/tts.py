@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Optional, Any
 import edge_tts
 
 from src.exceptions import TTSGenerationError
+from src.subtitle_alignment import find_suspected_dropped_narration
 
 # Default retry policy for transient TTS failures (network blips, service
 # hiccups). Deliberately NOT applied to COM/PowerPoint operations elsewhere
@@ -289,6 +290,7 @@ def generate_audio_files(
     retry_delay_seconds: float = DEFAULT_RETRY_DELAY_SECONDS,
     on_retry: Optional[Callable[[int, int, int, Exception], None]] = None,
     communicate_factory: Optional[Callable[..., Any]] = None,
+    on_narration_gap: Optional[Callable[[int, Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     """Generate MP3 files for slides that have notes.
 
@@ -325,6 +327,23 @@ def generate_audio_files(
             call, instead of having to bypass it entirely with a custom
             ``generator`` (which would also, correctly, skip word-boundary
             capture). Ignored if ``generator`` is supplied.
+        on_narration_gap: Optional callback invoked as
+            ``on_narration_gap(slide_num, suspect)`` once per suspected
+            dropped-narration finding (see
+            ``subtitle_alignment.find_suspected_dropped_narration``) for a
+            slide, right after that slide's audio finishes generating -
+            ``suspect`` is one of that function's returned dicts (has
+            ``skipped_text``, ``gap_seconds``, ``expected_seconds``,
+            ``audio_position_seconds``). This check only runs when the
+            default generator is used (word-boundary data is required for
+            it) and is a heuristic, not a certainty - see that function's
+            docstring for why it exists (a real deck showed edge-tts
+            silently skip ~300 characters of a slide's notes with no error
+            of any kind) and how it decides something looks wrong. Findings
+            are also always recorded in the slide's manifest entry as
+            ``"narration_gap_warnings"`` regardless of whether this
+            callback is supplied, so they survive being written to
+            manifest.json and can be reviewed later even without one.
 
     Word-boundary capture: when the default generator is used (``generator``
     left as ``None``), each slide's WordBoundary events (see
@@ -390,6 +409,7 @@ def generate_audio_files(
             ) from last_exc
 
         word_boundaries_file = None
+        narration_gap_warnings: List[Dict[str, Any]] = []
         if using_default_generator:
             # generator_result is the list of WordBoundary events returned
             # by _default_generator_with_word_boundaries (possibly empty,
@@ -404,11 +424,33 @@ def generate_audio_files(
             )
             word_boundaries_file = word_boundaries_path.name
 
+            # Safety net for a real, observed failure mode: edge-tts can
+            # silently skip a whole chunk of a slide's notes while
+            # synthesizing - no exception, no error, just audio that's
+            # shorter than it should be and a WordBoundary stream that
+            # jumps over the missing text. This is otherwise invisible
+            # until someone happens to notice the video is missing content
+            # (or diffs the per-segment subtitle warnings by hand, as this
+            # was first found). Runs here, right after generation, so it
+            # fires even for callers that never touch subtitle generation
+            # at all (e.g. --generate-audio + --insert-audio + --export-video
+            # with no --subtitles-output).
+            try:
+                narration_gap_warnings = find_suspected_dropped_narration(
+                    str(slide["notes"]), generator_result or []
+                )
+            except Exception:  # noqa: BLE001 - this safety net must never itself break audio generation
+                narration_gap_warnings = []
+            if on_narration_gap is not None:
+                for suspect in narration_gap_warnings:
+                    on_narration_gap(slide_num, suspect)
+
         manifest_entries.append({
             "slide_num": slide_num,
             "title": slide.get("title"),
             "audio_file": output_file.name,
             "word_boundaries_file": word_boundaries_file,
+            "narration_gap_warnings": narration_gap_warnings,
         })
 
         if progress_callback is not None:

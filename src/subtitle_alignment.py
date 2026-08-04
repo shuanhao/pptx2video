@@ -94,13 +94,160 @@ DEFAULT_TRAILING_GAP_SECONDS = 0.15
 _MATCH_SEARCH_WINDOW = 200
 
 
-def _find_boundary_span(text: str, cursor: int, boundary_text: str) -> Optional[Tuple[int, int]]:
+# How many of the immediately-following WordBoundary events' texts to use
+# for disambiguating which occurrence of a *repeated* boundary_text is the
+# right one (see _pick_best_candidate). Found necessary by a real case: a
+# slide whose notes said "...第三。SRAM 斷電後資料立即消失。Flash 則可以永
+# 久保存。第四。SRAM 的讀寫速度非常快。Flash 的讀取速度雖然也很快..." - edge-tts
+# silently dropped everything from "SRAM 斷電後" through "...非常快。" (a real
+# content-loss bug, the same failure mode find_suspected_dropped_narration
+# exists to catch - see that function's docstring), so the *actual* audio
+# jumped straight from "第三" to the *second* "Flash 的讀取速度...". But
+# because "Flash" (and shortly after, "的") also occur earlier in the
+# skipped text, picking the first occurrence at-or-after the cursor (the
+# old, unconditional behavior) locked onto the *first* "Flash" - the one
+# inside the dropped span - instead of the one that was actually spoken.
+# That misattribution didn't just get one word wrong: every event after it
+# inherited a wrong cursor position, fragmenting what should have been one
+# large, obviously-anomalous gap into several small ones, each too small on
+# its own to look suspicious. 3 is enough to disambiguate that real case
+# (the very next event, "的", was itself ambiguous - "Flash" appears twice
+# nearby and each is followed by "的" - but the event after that, "讀取" vs.
+# "讀寫", was not) while staying cheap - most boundary_text values are not
+# ambiguous at all (see _find_boundary_span), so this only adds work in the
+# rare case there's more than one candidate to choose between.
+_DISAMBIGUATION_LOOKAHEAD = 3
+
+
+def _find_all_occurrences(text: str, cursor: int, window_end: int, boundary_text: str) -> List[int]:
+    """All non-overlapping start indices of ``boundary_text`` in
+    ``text[cursor:window_end]`` (searched with respect to the full string's
+    offsets, not the slice's). Empty if none.
+    """
+    occurrences: List[int] = []
+    search_from = cursor
+    while True:
+        idx = text.find(boundary_text, search_from, window_end)
+        if idx == -1:
+            break
+        occurrences.append(idx)
+        search_from = idx + 1  # allow overlapping matches, e.g. boundary_text "aa" in "aaa"
+    return occurrences
+
+
+# When two (or more) candidates' downstream continuations are within this
+# many characters of each other, treat their continuation quality as
+# "roughly tied" and let proximity to the cursor break the tie instead
+# (see _pick_best_candidate). Sized to comfortably cover the kind of
+# single-character punctuation noise that a genuine nearby match can
+# accumulate (e.g. "：\n" vs "，" before the next word, or a 1-2 character
+# reshuffle), while staying well below the length of any real dropped
+# clause - the shortest confirmed real drop seen so far skipped well over
+# ten characters of source text, let alone the ~20-30 seen in the cases
+# that motivated this module. There's no exact value derived from first
+# principles here; this just needs to sit clearly between "a couple of
+# characters of punctuation" and "a real skipped sentence fragment".
+_CONTINUATION_TIE_THRESHOLD = 10
+
+
+def _pick_best_candidate(
+    text: str,
+    cursor: int,
+    candidates: List[int],
+    match_len: int,
+    upcoming_texts: Sequence[str],
+) -> int:
+    """When ``boundary_text`` occurs more than once shortly after the
+    cursor, pick the occurrence that lets the *next few* WordBoundary
+    events also be found close by, instead of always the earliest one (see
+    ``_DISAMBIGUATION_LOOKAHEAD``'s docstring for the real case this fixes).
+
+    For each candidate, a "continuation cost" is computed: greedily locate
+    ``upcoming_texts`` one after another starting right after that
+    candidate, summing how many characters were skipped to find each one
+    (unbounded - a legitimate continuation can be arbitrarily far if
+    nothing closer fits). The candidate whose continuation reads most
+    fluently (lowest cost) is preferred - this is what correctly resolves
+    the original real case this feature exists for: a slide whose notes
+    said "...第三。SRAM 斷電後資料立即消失。Flash 則可以永久保存。第四。
+    SRAM 的讀寫速度非常快。Flash 的讀取速度雖然也很快..." where edge-tts
+    silently dropped everything from "SRAM 斷電後" through "...非常快。",
+    so the actual audio jumped straight from "第三" to the *second*
+    "Flash"; picking the first "Flash" (inside the dropped span) would
+    have looked fine locally but fails badly a few words later, while the
+    second "Flash" reads perfectly - a large, unambiguous continuation-cost
+    gap.
+
+    Continuation cost alone isn't always enough, though: when *both*
+    "Flash" and its dropped-span twin are close together in a genuinely
+    ambiguous way, or when the source text itself contains two
+    near-duplicate phrases (e.g. a slide whose notes said "...分成四個階
+    段：Input，也就是輸入。" summarizing, then "...第一個階段，Input，也
+    就是輸入。" introducing detail moments later), the continuation costs
+    of the two candidates can come out only a character or two apart - one
+    fewer skipped character of punctuation before the next word is not
+    meaningful evidence, and picking the farther candidate on that basis
+    alone jumps the cursor forward and silently discards everything in
+    between as if it had been matched (confirmed for real: it did exactly
+    this, cascading into a flood of "Could not locate" warnings for
+    everything downstream). So candidates are compared lexicographically:
+    continuation cost is the primary key, but any candidates whose cost is
+    within ``_CONTINUATION_TIE_THRESHOLD`` of the best are treated as tied,
+    and among those the one nearest the cursor wins. This resolves both
+    real cases correctly - the ~2-character continuation-cost gaps in the
+    duplicate-phrase cases fall within the tie threshold (so proximity
+    decides, correctly picking the near candidate), while the "Flash" case's
+    continuation-cost gap (tens of characters, the length of the dropped
+    span) does not (so continuation quality decides, correctly picking the
+    far candidate).
+
+    A candidate for which some upcoming text can't be found at all
+    afterward is not competitive - only considered if no candidate manages
+    to place all of them (falls back to the first candidate then,
+    preserving the old behavior rather than guessing).
+    """
+    scored: List[Tuple[int, int, int]] = []  # (continuation_cost, distance, index)
+
+    for index, candidate in enumerate(candidates):
+        pos = candidate + match_len
+        continuation_cost = 0
+        placed_all = True
+        for upcoming in upcoming_texts:
+            idx = text.find(upcoming, pos)
+            if idx == -1:
+                placed_all = False
+                break
+            continuation_cost += idx - pos
+            pos = idx + len(upcoming)
+
+        if not placed_all:
+            continue
+        scored.append((continuation_cost, candidate - cursor, index))
+
+    if not scored:
+        return candidates[0]
+
+    best_cost = min(cost for cost, _distance, _index in scored)
+    tied = [entry for entry in scored if entry[0] <= best_cost + _CONTINUATION_TIE_THRESHOLD]
+    _cost, _distance, best_index = min(tied, key=lambda entry: entry[1])
+    return candidates[best_index]
+
+
+def _find_boundary_span(
+    text: str, cursor: int, boundary_text: str, upcoming_texts: Sequence[str] = ()
+) -> Optional[Tuple[int, int]]:
     """Find where ``boundary_text`` (one WordBoundary event's ``text``)
     next occurs in ``text`` at or after ``cursor``.
 
     Tries, in order:
     1. Exact substring search within a bounded lookahead window
        (``_MATCH_SEARCH_WINDOW``) - the fast, expected-common-case path.
+       If more than one occurrence exists in that window, ``upcoming_texts``
+       (the next few WordBoundary events' texts, if given) are used to
+       disambiguate which one is actually right - see
+       ``_pick_best_candidate``. With zero or one occurrence, or no
+       ``upcoming_texts`` to disambiguate with, the first (only) one is
+       used, same as before this disambiguation existed.
     2. Exact substring search with no bound - a legitimate match that's
        simply farther from the cursor than expected (e.g. several
        consecutive unmatched events before it).
@@ -116,9 +263,13 @@ def _find_boundary_span(text: str, cursor: int, boundary_text: str) -> Optional[
 
     window_end = min(len(text), cursor + _MATCH_SEARCH_WINDOW)
 
-    idx = text.find(boundary_text, cursor, window_end)
-    if idx != -1:
-        return idx, idx + len(boundary_text)
+    candidates = _find_all_occurrences(text, cursor, window_end, boundary_text)
+    if candidates:
+        if len(candidates) == 1 or not upcoming_texts:
+            start = candidates[0]
+        else:
+            start = _pick_best_candidate(text, cursor, candidates, len(boundary_text), upcoming_texts)
+        return start, start + len(boundary_text)
 
     idx = text.find(boundary_text, cursor)
     if idx != -1:
@@ -145,12 +296,22 @@ def _match_word_boundaries(
     warnings: List[str] = []
     cursor = 0
 
+    # Precompute the non-empty texts once, in order, so each event can look
+    # ahead at the next few upcoming ones for disambiguation (see
+    # _DISAMBIGUATION_LOOKAHEAD) without re-filtering word_boundaries on
+    # every iteration.
+    non_empty_texts = [str(wb.get("text", "")) for wb in word_boundaries if str(wb.get("text", "")).strip()]
+
+    lookahead_index = 0
     for wb in word_boundaries:
         raw_text = str(wb.get("text", ""))
         if not raw_text.strip():
             continue
 
-        span = _find_boundary_span(text, cursor, raw_text)
+        upcoming_texts = non_empty_texts[lookahead_index + 1 : lookahead_index + 1 + _DISAMBIGUATION_LOOKAHEAD]
+        lookahead_index += 1
+
+        span = _find_boundary_span(text, cursor, raw_text, upcoming_texts)
         if span is None:
             warnings.append(
                 f"Could not locate WordBoundary text {raw_text!r} in the "
@@ -276,6 +437,125 @@ def align_segments_with_word_boundaries(
             aligned[index]["end_seconds"] = extended_end
 
     return aligned, warnings
+
+
+# Defaults for find_suspected_dropped_narration() - see its docstring for
+# how these were chosen (against the real slide_009 case that motivated
+# this function).
+DEFAULT_MIN_SUSPECTED_DROP_CHARS = 15
+DEFAULT_SUSPECTED_DROP_PACE_RATIO = 0.3
+
+
+def find_suspected_dropped_narration(
+    text: str,
+    word_boundaries: Sequence[Dict[str, Any]],
+    min_gap_chars: int = DEFAULT_MIN_SUSPECTED_DROP_CHARS,
+    pace_ratio_threshold: float = DEFAULT_SUSPECTED_DROP_PACE_RATIO,
+) -> List[Dict[str, Any]]:
+    """Detect stretches of ``text`` that edge-tts likely never voiced at
+    all, as opposed to ordinary unmatched punctuation/whitespace.
+
+    Why this exists: a real deck showed edge-tts silently skip an entire
+    ~300-character stretch of a slide's notes (two full bullet points'
+    worth of content) while synthesizing its mp3 - not a crash, not an
+    error, just a WordBoundary stream that jumps straight from one word to
+    another with several sentences' worth of source text in between and
+    only a few seconds of audio to show for it. The existing per-segment
+    "No WordBoundary events matched" warning (see
+    ``align_segments_with_word_boundaries``) only surfaces this
+    indirectly, one small Phase-2 segment at a time, mixed in with
+    ordinary single-character punctuation mismatches (e.g. a lone closing
+    quote mark edge-tts doesn't voice) - nothing about it flags "this is
+    unusually large" or shows what text was actually lost. Confirmed
+    against a real deck: the project owner listened to the exact audio
+    position this function would have flagged and confirmed the narration
+    genuinely jumped straight over that text.
+
+    Method: re-run the same word-boundary-to-source-text matching
+    ``align_segments_with_word_boundaries`` uses internally
+    (``_match_word_boundaries``), then walk the *matched* events in order
+    and look at the gap between each consecutive pair - both in source
+    *characters* (how much text sits between them, unmatched) and in
+    *audio seconds* (how much time the recording actually spent between
+    them). Ordinary skipped punctuation/whitespace produces small,
+    unremarkable gaps in both dimensions. A dropped chunk of real content
+    produces a gap that's large in characters but suspiciously small in
+    seconds, because the audio simply doesn't contain it - compared
+    against this slide's *own* overall narration pace (characters spoken
+    per second, measured from its own matched events, so it's not thrown
+    off by a different slide's voice/rate settings), a gap is flagged when
+    the actual audio time is less than ``pace_ratio_threshold`` (default
+    30%) of what that much source text should have taken to speak at this
+    slide's own pace. ``min_gap_chars`` (default 15) filters out the
+    ordinary small gaps (a skipped punctuation mark, a line break) that
+    would otherwise trigger on nearly every slide and bury real findings
+    in noise.
+
+    This is deliberately a heuristic, not a guarantee: a slide with too
+    few matched events (fewer than 2) can't establish its own pace at all
+    and is skipped entirely (returns ``[]``); a genuinely unusual but real
+    pause (e.g. a long dramatic silence written into the notes) could in
+    theory trip this too, though it hasn't been observed in practice, and
+    reviewing the flagged ``skipped_text`` immediately tells a human which
+    case it is.
+
+    Args:
+        text: The original notes text - same string passed to
+            ``synthesize_with_word_boundaries``/``align_segments_with_word_boundaries``.
+        word_boundaries: The raw WordBoundary events from
+            ``synthesize_with_word_boundaries`` (the same input
+            ``align_segments_with_word_boundaries`` takes).
+        min_gap_chars: Minimum unmatched source-character span for a gap
+            to be considered at all - smaller gaps are ordinary and not
+            reported.
+        pace_ratio_threshold: A gap is flagged when its actual audio
+            duration is less than this fraction of what the slide's own
+            measured narration pace would predict for that many
+            characters.
+
+    Returns:
+        A list of dicts, one per suspected drop, each with
+        ``source_start_offset``/``source_end_offset`` (the unmatched
+        span's bounds in ``text``), ``skipped_text`` (the actual substring
+        - shown directly so a human doesn't have to go hunting for it, see
+        the real slide_009 investigation this was built from), ``gap_seconds``
+        (how much audio time actually elapsed), ``expected_seconds`` (how
+        much this slide's own pace predicts that much text should have
+        taken), and ``audio_position_seconds`` (where in the mp3 to listen
+        to check by ear). Empty if nothing suspicious was found.
+    """
+    matched, _ = _match_word_boundaries(text, word_boundaries)
+    if len(matched) < 2:
+        return []
+
+    total_chars = matched[-1]["source_end_offset"] - matched[0]["source_start_offset"]
+    total_seconds = (
+        matched[-1]["offset_seconds"] + matched[-1]["duration_seconds"] - matched[0]["offset_seconds"]
+    )
+    if total_chars <= 0 or total_seconds <= 0:
+        return []
+    overall_pace_chars_per_second = total_chars / total_seconds
+
+    suspects: List[Dict[str, Any]] = []
+    for prev, nxt in zip(matched, matched[1:]):
+        gap_chars = nxt["source_start_offset"] - prev["source_end_offset"]
+        if gap_chars < min_gap_chars:
+            continue
+
+        gap_seconds = nxt["offset_seconds"] - (prev["offset_seconds"] + prev["duration_seconds"])
+        expected_seconds = gap_chars / overall_pace_chars_per_second
+
+        if gap_seconds < expected_seconds * pace_ratio_threshold:
+            suspects.append({
+                "source_start_offset": prev["source_end_offset"],
+                "source_end_offset": nxt["source_start_offset"],
+                "skipped_text": text[prev["source_end_offset"]:nxt["source_start_offset"]],
+                "gap_seconds": max(gap_seconds, 0.0),
+                "expected_seconds": expected_seconds,
+                "audio_position_seconds": prev["offset_seconds"] + prev["duration_seconds"],
+            })
+
+    return suspects
 
 
 def _seconds_to_srt_timestamp(seconds: float) -> str:
