@@ -158,6 +158,146 @@ class CliEndToEndTests(unittest.TestCase):
             self.assertEqual(payload["audio"]["voice"], "fake-voice")
             self.assertTrue(payload["slides"][0]["audio_file"].endswith("slide_001.mp3"))
 
+    def test_slides_flag_regenerates_only_selected_slide_and_merges_manifest(self):
+        # Simulates the real use case this flag exists for: a manifest.json
+        # already exists from a prior full run (e.g. one that predates the
+        # dropped-narration check, or where a single slide needs
+        # re-generating after investigating a POSSIBLE DROPPED NARRATION
+        # warning) - --slides 2 should regenerate only slide 2's audio and
+        # leave slide 1's and slide 3's manifest entries from the prior run
+        # untouched, rather than truncating manifest.json down to just slide 2.
+        pptx_path = self._create_pptx([
+            ("One", "First"),
+            ("Two", "Second"),
+            ("Three", "Third"),
+        ])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_dir = Path(tmp) / "audio"
+            audio_dir.mkdir()
+            existing_manifest = {
+                "voice": "old-voice",
+                "rate": "-10%",
+                "pitch": "+0Hz",
+                "output_dir": str(audio_dir),
+                "slides": [
+                    {"slide_num": 1, "title": "One", "audio_file": "slide_001.mp3", "word_boundaries_file": None, "narration_gap_warnings": []},
+                    {"slide_num": 2, "title": "Two", "audio_file": "slide_002.mp3", "word_boundaries_file": None, "narration_gap_warnings": []},
+                    {"slide_num": 3, "title": "Three", "audio_file": "slide_003.mp3", "word_boundaries_file": None, "narration_gap_warnings": []},
+                ],
+            }
+            (audio_dir / "manifest.json").write_text(json.dumps(existing_manifest), encoding="utf-8")
+
+            regenerated_manifest = {
+                "voice": "new-voice",
+                "rate": "-10%",
+                "pitch": "+0Hz",
+                "output_dir": str(audio_dir),
+                "slides": [
+                    {"slide_num": 2, "title": "Two", "audio_file": "slide_002.mp3", "word_boundaries_file": "slide_002.wordboundaries.json", "narration_gap_warnings": []},
+                ],
+            }
+
+            with mock.patch(
+                "src.main.generate_audio_files", return_value=regenerated_manifest
+            ) as mock_generate:
+                _, _, exit_code = self._invoke([
+                    str(pptx_path),
+                    "--output", str(Path(tmp) / "slides.json"),
+                    "--generate-audio",
+                    "--audio-output-dir", str(audio_dir),
+                    "--slides", "2",
+                    "--subtitles-output", str(Path(tmp) / "captions.srt"),
+                    "--no-file-log",
+                ])
+
+            self.assertIsNone(exit_code)
+            # generate_audio_files should only have been asked to generate
+            # slide 2, not all three.
+            call_args, _ = mock_generate.call_args
+            generated_slides = call_args[0]
+            self.assertEqual([s["slide_num"] for s in generated_slides], [2])
+
+            merged = json.loads((audio_dir / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual([s["slide_num"] for s in merged["slides"]], [1, 2, 3])
+            self.assertEqual(merged["slides"][0]["audio_file"], "slide_001.mp3")  # untouched
+            self.assertEqual(merged["slides"][1]["word_boundaries_file"], "slide_002.wordboundaries.json")  # regenerated
+            self.assertEqual(merged["slides"][2]["audio_file"], "slide_003.mp3")  # untouched
+
+    def test_slides_flag_rejects_slide_number_not_in_deck(self):
+        pptx_path = self._create_pptx([("Only", "Some notes")])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            _, stderr, exit_code = self._invoke([
+                str(pptx_path),
+                "--output", str(Path(tmp) / "slides.json"),
+                "--generate-audio",
+                "--audio-output-dir", str(Path(tmp) / "audio"),
+                "--slides", "99",
+                "--no-file-log",
+            ])
+
+            self.assertIsNotNone(exit_code)
+            self.assertNotEqual(exit_code, 0)
+            self.assertIn("99", stderr)
+
+    def test_subtitles_output_alone_reuses_existing_manifest_without_generate_audio(self):
+        # Regression test for a real gap found via a user question: after
+        # audio was already generated in an earlier, separate
+        # `--generate-audio` run (leaving a real manifest.json + per-slide
+        # wordboundaries.json on disk), running *just* `--subtitles-output`
+        # on its own (no `--generate-audio`, no `--export-video`) used to
+        # silently write an empty .srt instead of using that already-generated
+        # data - even though the exact same scenario, routed through
+        # `--insert-audio` or the post-`--export-video` true-start subtitle
+        # path, already correctly loaded it via `_resolve_audio_manifest()`.
+        # That meant producing subtitles without re-generating audio (the
+        # whole point of separating steps 7/8 to save re-paying for edge-tts)
+        # only worked if you also exported a video in that same command -
+        # confirmed by reproducing it directly against main(). Fixed by
+        # routing the predictive (no-export-video) subtitle path through the
+        # same `_resolve_audio_manifest()` fallback.
+        pptx_path = self._create_pptx([("Intro", "Hello there test notes")])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_dir = Path(tmp) / "audio"
+            audio_dir.mkdir()
+            (audio_dir / "slide_001.mp3").write_bytes(b"\x00")
+            word_boundaries = [
+                {"text": t, "offset_seconds": i * 0.3, "duration_seconds": 0.25}
+                for i, t in enumerate(["Hello", " ", "there", " ", "test", " ", "notes"])
+            ]
+            (audio_dir / "slide_001.wordboundaries.json").write_text(
+                json.dumps(word_boundaries), encoding="utf-8"
+            )
+            manifest = {
+                "voice": "fake-voice",
+                "rate": "-10%",
+                "pitch": "+0Hz",
+                "output_dir": str(audio_dir),
+                "slides": [{
+                    "slide_num": 1,
+                    "title": "Intro",
+                    "audio_file": "slide_001.mp3",
+                    "word_boundaries_file": "slide_001.wordboundaries.json",
+                }],
+            }
+            (audio_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+            srt_path = Path(tmp) / "captions.srt"
+            _, _, exit_code = self._invoke([
+                str(pptx_path),
+                "--output", str(Path(tmp) / "slides.json"),
+                "--audio-output-dir", str(audio_dir),
+                "--subtitles-output", str(srt_path),
+                "--no-file-log",
+            ])
+
+            self.assertIsNone(exit_code)
+            srt_text = srt_path.read_text(encoding="utf-8")
+            self.assertNotEqual(srt_text, "")
+            self.assertIn("Hello there test", srt_text)
+
     def test_negative_tts_max_retries_is_rejected_before_any_work_happens(self):
         # End-to-end version of the CLI-layer guard added in v0.4.1
         # (test_pptx_parser.py already checks build_parser() in isolation;

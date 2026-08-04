@@ -3,7 +3,9 @@ import unittest
 from src.subtitle_alignment import (
     DEFAULT_TRAILING_GAP_SECONDS,
     align_segments_with_word_boundaries,
+    find_suspected_dropped_narration,
     format_srt,
+    _match_word_boundaries,
     _seconds_to_srt_timestamp,
 )
 from src.subtitle_segmenter import segment_notes_for_subtitles
@@ -225,6 +227,249 @@ class AlignSegmentsWithWordBoundariesTests(unittest.TestCase):
         self.assertLess(aligned[0]["start_seconds"], aligned[0]["end_seconds"])
         self.assertLess(aligned[1]["start_seconds"], aligned[1]["end_seconds"])
         self.assertLessEqual(aligned[0]["end_seconds"], aligned[1]["start_seconds"])
+
+
+class FindSuspectedDroppedNarrationTests(unittest.TestCase):
+    # Regression tests for a real finding (see subtitle_alignment.py's
+    # find_suspected_dropped_narration docstring): a real deck's slide 9
+    # showed edge-tts silently skip ~300 characters (two full bullet
+    # points) of narration mid-slide - the WordBoundary stream jumped
+    # straight from "操作" to "今天" with only ~4s of audio in between,
+    # where that much source text should have taken ~55s at this slide's
+    # own measured pace. The project owner confirmed by ear: listening to
+    # the flagged audio position, the narration genuinely jumps straight
+    # over the skipped text. These tests reproduce that shape synthetically
+    # (one character per WordBoundary event, 0.2s apart - i.e. 5 chars/sec,
+    # matching this module's other tests' convention) so they don't depend
+    # on real edge-tts output.
+
+    def _steady_pace_boundaries(self, text, seconds_per_char=0.2, skip_chars=frozenset("。！\n")):
+        word_boundaries = []
+        t = 0.0
+        for ch in text:
+            if ch not in skip_chars:
+                word_boundaries.append(_wb(ch, t, seconds_per_char * 0.8))
+            t += seconds_per_char
+        return word_boundaries
+
+    def test_no_suspects_when_narration_covers_text_at_a_steady_pace(self):
+        text = "這是一段完全正常的講稿內容，語速穩定，沒有任何內容被跳過。"
+        word_boundaries = self._steady_pace_boundaries(text)
+
+        suspects = find_suspected_dropped_narration(text, word_boundaries)
+
+        self.assertEqual(suspects, [])
+
+    def test_flags_a_large_chunk_missing_with_only_a_brief_time_gap(self):
+        prefix = "第三，是以讀取為主。CPU可以快速取得程式。但是寫入速度則比較慢。"
+        # ~20 characters of real content that should take ~4s at this
+        # slide's pace (0.2s/char) but is given almost no time at all -
+        # same shape as the real slide_009 finding, just shorter.
+        dropped = "因此Flash並不適合頻繁修改資料這也是後面會介紹的原因第四是可重複寫入"
+        suffix = "今天大家先建立概念即可。"
+        text = prefix + dropped + suffix
+
+        word_boundaries = self._steady_pace_boundaries(prefix, seconds_per_char=0.2)
+        last_prefix_end = word_boundaries[-1]["offset_seconds"] + word_boundaries[-1]["duration_seconds"]
+        # The dropped text has NO word boundary events at all - simulating
+        # edge-tts never having voiced it - and the suffix picks up only
+        # 0.5s later, nowhere near the ~4s the dropped text's length would
+        # imply at the established pace.
+        suffix_start = last_prefix_end + 0.5
+        suffix_boundaries = []
+        t = suffix_start
+        for ch in suffix:
+            if ch not in "。！\n":
+                suffix_boundaries.append(_wb(ch, t, 0.16))
+            t += 0.2
+        word_boundaries += suffix_boundaries
+
+        suspects = find_suspected_dropped_narration(text, word_boundaries)
+
+        self.assertEqual(len(suspects), 1)
+        # skipped_text includes the trailing "。" of the previous sentence
+        # too, since punctuation is never matched to a WordBoundary event
+        # either - this matches the real slide_009 finding, whose
+        # skipped_text also started with the prior sentence's own
+        # unvoiced "。\n".
+        self.assertEqual(suspects[0]["skipped_text"], "。" + dropped)
+        self.assertLess(suspects[0]["gap_seconds"], suspects[0]["expected_seconds"] * 0.3)
+
+    def test_short_gap_like_a_single_skipped_punctuation_mark_is_not_flagged(self):
+        # A lone unvoiced character (e.g. a closing quote mark edge-tts
+        # doesn't speak) is normal and far below min_gap_chars - must not
+        # be treated the same as a real dropped chunk.
+        text = "他說「這是重點」，大家要記住這一點。"
+        word_boundaries = self._steady_pace_boundaries(text, skip_chars=frozenset("。！\n「」，"))
+
+        suspects = find_suspected_dropped_narration(text, word_boundaries)
+
+        self.assertEqual(suspects, [])
+
+    def test_fewer_than_two_matched_events_returns_empty_list(self):
+        text = "很短的一句話。"
+        word_boundaries = [_wb("很", 0.0, 0.2)]
+
+        self.assertEqual(find_suspected_dropped_narration(text, word_boundaries), [])
+        self.assertEqual(find_suspected_dropped_narration(text, []), [])
+
+
+class RepeatedWordDisambiguationTests(unittest.TestCase):
+    # Regression tests for a second real finding, on the same deck as the
+    # FindSuspectedDroppedNarrationTests cases above (a different slide):
+    # edge-tts dropped "SRAM 斷電後資料立即消失。Flash 則可以永久保存。第四。
+    # SRAM 的讀寫速度非常快。" entirely, with the narration jumping straight
+    # from "第三" to the word "Flash" that starts "Flash 的讀取速度雖然也很快"
+    # a sentence later. The word "Flash" (and, immediately after it, "的")
+    # both also occur earlier, inside the dropped span itself - so
+    # _find_boundary_span's old "always take the first occurrence at or
+    # after the cursor" behavior locked onto the *wrong*, earlier "Flash"/
+    # "的" pair. That didn't just mislabel one word: every event after it
+    # inherited a wrong text position, which fragmented what should have
+    # been one large, obviously-anomalous gap into several small ones - two
+    # of which were individually below find_suspected_dropped_narration's
+    # threshold and went unreported, while the two that were reported had
+    # the wrong skipped_text and position. The project owner confirmed the
+    # real drop's true extent by ear before this was fixed.
+    #
+    # These tests reproduce the shape synthetically: a repeated word
+    # appears once inside a dropped span and once again where the audio
+    # actually resumes, with a short common word (here "的") repeating
+    # right after each occurrence too - the exact "ambiguous word followed
+    # by another ambiguous word" pattern that defeated a naive one-token
+    # lookahead.
+
+    def _tokenize(self, text):
+        # Splits on ASCII-letter runs (e.g. "Flash", "SRAM") vs. individual
+        # CJK characters - matching how edge-tts's real WordBoundary events
+        # group an English word as one event but voice each Chinese
+        # character as its own (see the real slide_006/009/010
+        # wordboundaries.json files this bug was found from). Punctuation
+        # is dropped entirely, same as real edge-tts output.
+        tokens = []
+        i = 0
+        while i < len(text):
+            ch = text[i]
+            if ch in "。\n":
+                i += 1
+                continue
+            if ch.isascii() and ch.isalpha():
+                j = i
+                while j < len(text) and text[j].isascii() and text[j].isalpha():
+                    j += 1
+                tokens.append(text[i:j])
+                i = j
+            else:
+                tokens.append(ch)
+                i += 1
+        return tokens
+
+    def test_disambiguates_repeated_word_using_lookahead_to_find_true_resume_point(self):
+        prefix = "第三。SRAM斷電後資料立即消失。"
+        dropped = "Flash則可以永久保存。第四。SRAM的讀寫速度非常快。"
+        resumes_with = "Flash的讀取速度雖然也很快。"
+        text = prefix + dropped + resumes_with
+
+        prefix_end = len(prefix)
+        resume_start = len(prefix) + len(dropped)
+
+        # Audio: narrates the prefix at a steady pace, then - exactly like
+        # the real case - jumps straight to "resumes_with" with almost no
+        # elapsed time, i.e. "dropped" was never voiced at all.
+        word_boundaries = []
+        t = 0.0
+        for token in self._tokenize(prefix):
+            word_boundaries.append(_wb(token, t, 0.16))
+            t += 0.2
+        resume_audio_start = t + 0.1  # tiny gap, not the ~9s a 24-char skip would need
+        t = resume_audio_start
+        for token in self._tokenize(resumes_with):
+            word_boundaries.append(_wb(token, t, 0.16))
+            t += 0.2
+
+        matched, alignment_warnings = _match_word_boundaries(text, word_boundaries)
+
+        self.assertEqual(alignment_warnings, [])
+        # The "Flash" WordBoundary event must be attributed to its real
+        # (second) occurrence - the one that starts resumes_with - not the
+        # one inside dropped.
+        flash_events = [m for m in matched if text[m["source_start_offset"]:m["source_end_offset"]] == "Flash"]
+        self.assertEqual(len(flash_events), 1)
+        self.assertEqual(flash_events[0]["source_start_offset"], resume_start)
+
+        suspects = find_suspected_dropped_narration(text, word_boundaries)
+
+        self.assertEqual(len(suspects), 1)
+        # Starts at (or just before, if the last prefix character was
+        # unvoiced punctuation - same as the real case) where "dropped"
+        # begins, and ends exactly where the real "Flash" resumes.
+        self.assertLessEqual(suspects[0]["source_start_offset"], prefix_end)
+        self.assertGreater(suspects[0]["source_start_offset"], prefix_end - 2)
+        self.assertEqual(suspects[0]["source_end_offset"], resume_start)
+        self.assertIn("Flash則可以永久保存", suspects[0]["skipped_text"])
+        self.assertIn("SRAM的讀寫速度非常快", suspects[0]["skipped_text"])
+
+    def test_near_duplicate_phrase_prefers_nearby_candidate_over_slightly_cleaner_far_one(self):
+        # Regression test for a real finding from a *third* slide, on the
+        # same deck, surfaced only after the "Flash" fix above was
+        # deployed and a later full-deck subtitle regen reprocessed this
+        # slide's untouched old data with the new code. The notes had two
+        # near-duplicate phrases close together: a summary ("...分成四個
+        # 階段：Input，也就是輸入。") immediately followed later by a
+        # detail intro ("...第一個階段，Input，也就是輸入。") - nothing was
+        # actually dropped here. The first version of the lookahead fix
+        # picked the *second*, wrong "個" purely because "，Input" costs
+        # one fewer skipped character than "：\nInput" before it - jumping
+        # the cursor ~19 characters ahead here (135 in the real slide) and
+        # silently discarding real, correctly-matched-so-far text, which
+        # cascaded into a flood of "Could not locate" warnings afterward
+        # (in the real case, over 700 of them). The fix must prefer the
+        # nearby, correct "個" - a farther candidate should only win when
+        # its continuation is *substantially* cleaner, not by a character
+        # or two of punctuation (see _CONTINUATION_TIE_THRESHOLD).
+        text = "分成四個階段：Input也就是輸入。第一個階段，Input也就是輸入。"
+        near_start = text.index("四個") + 1  # the "個" right after "四"
+        far_start = text.index("一個") + 1  # the "個" right after "一"
+        self.assertLess(near_start, far_start)
+
+        word_boundaries = []
+        t = 0.0
+        for token in self._tokenize(text):
+            word_boundaries.append(_wb(token, t, 0.16))
+            t += 0.2
+
+        matched, alignment_warnings = _match_word_boundaries(text, word_boundaries)
+
+        self.assertEqual(alignment_warnings, [])
+        ge_events = [m for m in matched if text[m["source_start_offset"]:m["source_end_offset"]] == "個"]
+        self.assertEqual(len(ge_events), 2)
+        # The first "個" WordBoundary event (there are two - one per
+        # occurrence, narrated in order) must resolve to the nearby
+        # occurrence, not jump ahead to the far one.
+        self.assertEqual(ge_events[0]["source_start_offset"], near_start)
+        self.assertEqual(ge_events[1]["source_start_offset"], far_start)
+        # Nothing was dropped, so no suspects should be reported.
+        self.assertEqual(find_suspected_dropped_narration(text, word_boundaries), [])
+
+    def test_unambiguous_repeated_words_still_resolve_in_order_when_not_dropped(self):
+        # Sanity check: when nothing was actually dropped and a word simply
+        # repeats normally (e.g. "的" used twice in an ordinary sentence),
+        # disambiguation must not make things worse - each occurrence
+        # should still resolve to its own correct, sequential position.
+        text = "他的書和她的筆都放在桌上。"
+        word_boundaries = []
+        t = 0.0
+        for ch in text:
+            if ch not in "。":
+                word_boundaries.append(_wb(ch, t, 0.16))
+            t += 0.2
+
+        matched, alignment_warnings = _match_word_boundaries(text, word_boundaries)
+
+        self.assertEqual(alignment_warnings, [])
+        starts = [m["source_start_offset"] for m in matched]
+        self.assertEqual(starts, sorted(starts))
+        self.assertEqual(len(starts), len(set(starts)))
 
 
 class FormatSrtTests(unittest.TestCase):

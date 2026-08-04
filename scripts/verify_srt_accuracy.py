@@ -69,6 +69,21 @@ For each sampled word this reports THREE things:
   after a code change is how you confirm the fix actually helped instead of
   just re-confirming the same underlying ground truth every time.
 
+After sampling, this also prints a **suggested ``--global-scale-correction``
+value**, fitted (same least-squares-through-origin regression
+``scripts/calibrate_scale.py`` uses) directly from this run's own
+cross-correlation samples - see ``_fit_scale``'s docstring. This means you
+don't have to manually open the exported MP4 in Audacity and read off real
+timestamps by hand just to get a first estimate: this script already has
+real, ground-truth-measured word positions scattered across the whole deck
+from the same cross-correlation technique. For a quick pass, or a deck
+where "close enough" is fine, the suggested value can usually be used
+directly with ``--global-scale-correction``. For a deck where getting this
+exactly right matters, cross-check it against ``calibrate_scale.py``'s
+manually-measured result rather than trusting only this - this script's
+samples are all machine-picked and machine-measured, with no independent
+human-verified ground truth in the loop.
+
 Usage:
     python scripts/verify_srt_accuracy.py \\
         --video output/deck.mp4 --manifest output/audio/manifest.json \\
@@ -121,6 +136,39 @@ def _pick_sample_indices(n_events: int, samples_per_slide: int):
         return list(range(n_events))
     # Evenly spaced, always including the first and last event.
     return sorted({round(i * (n_events - 1) / (samples_per_slide - 1)) for i in range(samples_per_slide)})
+
+
+def _fit_scale(measured: list, observed: list) -> float:
+    """Least-squares fit of ``observed ~= k * measured``, forced through the
+    origin - the exact same regression ``scripts/calibrate_scale.py`` uses
+    (deliberately duplicated, not imported, so this script stays usable
+    standalone - see that script's own copy for the derivation). Closed-form
+    solution for a single coefficient with no intercept: ``k = sum(m*o) /
+    sum(m*m)``.
+
+    Added so this script can suggest a ``--global-scale-correction`` value
+    directly from its own cross-correlation samples - every ``(measured,
+    observed)`` pair this needs (``corrected_predicted_word_position``,
+    ``measured_word_position``) is something this script already computes
+    per sampled word while verifying accuracy, in the course of normal
+    operation. That means a deck-wide correction coefficient can now be
+    derived *without* ``scripts/calibrate_scale.py``'s manual step (opening
+    the exported MP4 in Audacity and reading off real timestamps by hand for
+    a handful of slides) - this script already has real, ground-truth
+    measured positions for many words scattered across the whole deck, from
+    the same cross-correlation technique, just automated instead of
+    ear/eye-verified. See ``main()``'s use of this after the sampling loop
+    for why this is *not* a strictly-better replacement for
+    ``calibrate_scale.py`` in every case (fewer/noisier samples on a short
+    deck, and no independent human-verified ground truth to sanity-check
+    against) - it's a fast first estimate, not a replacement for manual
+    calibration on a deck where getting this right really matters.
+    """
+    numerator = sum(m * o for m, o in zip(measured, observed))
+    denominator = sum(m * m for m in measured)
+    if denominator == 0:
+        raise ValueError("all measured word positions are zero - can't fit a scale correction from this data")
+    return numerator / denominator
 
 
 def main():
@@ -250,7 +298,10 @@ def main():
                 corrected_delta = measured_word_position - corrected_predicted_word_position
                 fraction = word_offset / own_duration if own_duration > 1e-6 else 0.0
 
-                rows.append((slide_num, ev.get("text", ""), word_offset, fraction, naive_delta, implied_scale, corrected_delta))
+                rows.append((
+                    slide_num, ev.get("text", ""), word_offset, fraction, naive_delta, implied_scale,
+                    corrected_delta, corrected_predicted_word_position, measured_word_position,
+                ))
                 print(
                     f"{slide_num:>5} {ev.get('text', '')[:10]:>10} {word_offset:>7.2f}s {fraction:>5.1%} "
                     f"{naive_delta:>+11.3f}s {implied_scale:>14.5f} {corrected_delta:>+15.3f}s"
@@ -263,6 +314,7 @@ def main():
             writer.writerow([
                 "slide_num", "text", "word_offset_seconds", "fraction_within_slide",
                 "naive_delta_seconds", "implied_local_scale", "corrected_delta_seconds",
+                "corrected_predicted_word_position_seconds", "measured_word_position_seconds",
             ])
             for r in rows:
                 writer.writerow(r)
@@ -295,6 +347,35 @@ def main():
         "  wasn't (e.g. it doesn't shrink relative to naive_delta at all), something is still wrong\n"
         "  with how the scale is being computed or applied, not just with which slide it's measured\n"
         "  from."
+    )
+
+    # Auto-suggested --global-scale-correction, derived entirely from this
+    # run's own cross-correlation samples - no Audacity/manual timestamp
+    # reading required (see _fit_scale's docstring for why this pairing of
+    # values is valid). Needs at least a couple of samples spread across
+    # real elapsed playback time to mean anything; a single slide or a very
+    # short deck won't give the regression much to work with.
+    measured_positions = [r[7] for r in rows]
+    observed_positions = [r[8] for r in rows]
+    try:
+        suggested_k = _fit_scale(measured_positions, observed_positions)
+    except ValueError as exc:
+        print(f"\nCould not derive a suggested --global-scale-correction: {exc}")
+        return
+
+    residuals = [k_row[8] - k_row[7] * suggested_k for k_row in rows]
+    rms = (sum(r * r for r in residuals) / len(residuals)) ** 0.5
+    max_abs = max(abs(r) for r in residuals)
+    print(
+        f"\nSuggested --global-scale-correction (fitted from the {len(rows)} sample(s) above, "
+        f"no manual measurement needed): {suggested_k:.5f}\n"
+        f"Residual after applying it: RMS {rms:.3f}s, max {max_abs:.3f}s across the sampled words.\n"
+        "This is a fast estimate from whatever this run happened to sample - more samples (raise "
+        "--samples-per-slide) and a longer deck (more elapsed time for any proportional drift to "
+        "show up in) make it more reliable. For a deck where getting this exactly right matters, "
+        "cross-check against scripts/calibrate_scale.py's manually-measured result rather than "
+        "trusting this alone; for a quick pass or a short deck, this number is usually good enough "
+        "to use directly with --global-scale-correction."
     )
 
 
