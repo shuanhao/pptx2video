@@ -58,7 +58,31 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 | 字幕時間：對齊 edge-tts 實際回報的 WordBoundary 時間，而非時間累加估算 | 早期版本（`subtitle_generator.py`，已移除）用音檔總長度平均分配時間，只是估算；`subtitle_alignment.py` 改用實際語音時間，精確度高很多，見第 4.5 節 |
 | 字幕合併時間軸：搭配 `--export-video` 時改用真實起始時間，而非預測 | 在一份真實長講稿測試（2 小時 40 分、20 頁）中發現，單純把每頁 mp3 時長加總的預測時間軸，會跟 PowerPoint 實際匯出的影片累積漂移到數秒，而且不是單純等比例關係、無法用一個縮放係數校正（見 `scripts/verify_slide_timing.py` 的實測數據與 CHANGELOG v0.6.0）。改用 `numpy`/`scipy` 的 FFT 互相關，直接在匯出好的 MP4 音軌裡量出每頁語音的真實位置，見第 4.10 節 |
 
-整體 Pipeline 的模組串接圖（哪個模組輸出餵給哪個模組）請見 [README.md](README.md#-功能特色) 附近的 Mermaid 架構圖，這裡不重畫一份；圖中沒畫出來的錯誤處理路徑（`_fail()` 統一收斂、單頁跳過 vs 整體中止）見第 4.9 節與第 5 節，COM session 的開關生命週期見第 3 節與第 4.3 節。
+整體 Pipeline 的模組串接圖（哪個模組輸出餵給哪個模組）：
+
+```mermaid
+graph TD
+    A[輸入 .pptx 簡報檔] --> B[pptx_parser.py<br>提取頁數與備忘稿]
+    B --> C[tts.py<br>呼叫 Edge-TTS 生成音檔 + 逐字時間]
+    C --> D[(輸出 output/audio/<br>mp3 + wordboundaries.json + manifest.json)]
+
+    D --> E[ppt_automation.py insert_audio<br>win32com 插入音訊]
+    B --> F1[subtitle_segmenter.py<br>備忘稿斷句]
+    F1 --> F2[subtitle_alignment.py<br>對齊逐字語音時間]
+    D --> F2
+    F2 --> F3[subtitle_pipeline.py<br>合併每頁字幕成整份 SRT]
+    D --> F3
+
+    E --> G[ppt_automation.py export_video<br>win32com 建立視訊]
+    G --> I[輸出 output.mp4]
+    I -.有搭配 --export-video 時.-> L[audio_position_locator.py<br>比對 output.mp4 音軌<br>量出每頁真實起始時間]
+    L -.-> F3
+    F3 --> H[輸出 output/captions.srt]
+```
+
+`F3` 合併字幕時間軸有兩種模式：只有 `--subtitles-output`（沒有匯出影片）時用「預測」（把每頁 mp3 時長加總）；有搭配 `--export-video` 時，字幕改到匯出完成後才產生，改用 `audio_position_locator.py` 量到的**真實**起始時間，取代預測（見 CHANGELOG v0.6.0，長影片下預測會逐頁累積漂移）。細節見第 4.6、4.7 節。
+
+圖中沒畫出來的錯誤處理路徑（`_fail()` 統一收斂、單頁跳過 vs 整體中止）見第 4.9 節、第 4.8 節的例外階層、與第 5.6 節的 Skip/Abort 判斷表；COM session 的開關生命週期見第 3 節與第 4.3 節。
 
 ---
 
@@ -194,6 +218,18 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - `PptParseError`、`TTSGenerationError`、`PowerPointLaunchError`、`AudioInsertionError`、`AudioInsertionTimeoutError`、`VideoExportError`、`VideoExportTimeoutError`——兩個 `*TimeoutError` 同時也是內建 `TimeoutError` 的子類別，向下相容只認得 `TimeoutError` 的呼叫端
 - `FileNotFoundError`、`ValueError` 等語意已經明確的 Python 內建例外故意不重新包裝
 
+觸發情境對照表：
+
+| 例外類別 | 觸發情境 |
+|---|---|
+| `PptParseError` | `.pptx` 檔案損毀、格式不支援，或其他解析失敗 |
+| `TTSGenerationError` | edge-tts 生成語音失敗（網路問題、服務錯誤、缺少 ffmpeg 等），訊息會標明是第幾頁失敗 |
+| `PowerPointLaunchError` | PowerPoint 無法啟動，或簡報檔無法開啟（非 Windows 環境、pywin32 缺失、COM 呼叫失敗等） |
+| `AudioInsertionError` | 插入音訊後無法儲存 PPTX（單一頁面的插入失敗會記錄成 `skipped_slides`，不會拋出這個例外） |
+| `AudioInsertionTimeoutError` | `--insert-audio-timeout` 等待逾時（同時也是 `AudioInsertionError` 與內建 `TimeoutError` 的子類別） |
+| `VideoExportError` | PowerPoint 回報匯出失敗，或回報完成但找不到輸出檔案 |
+| `VideoExportTimeoutError` | 匯出等待超過 `--video-timeout` 設定的秒數（同時也是內建 `TimeoutError` 的子類別） |
+
 ### 4.9 logging_config.py
 
 **Input**：CLI 的 `--log-dir`／`--verbose`／`--no-file-log` 設定
@@ -247,6 +283,27 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 
 TTS 網路請求有自動重試機制（見 4.2），但 `insert_audio()` / `export_video()` 這類 COM 操作刻意不做自動重試：重試前如果沒有先確保舊的 PowerPoint 物件已經完全關閉，重試反而可能製造殭屍程序，風險大於效益。這是跟「插入逾時只停止等待、不強制關閉」（見第 3 節最後一段）同一個風險考量下的一致決策，之後如果要改變這個決策，需要先解決「如何確認舊 PowerPoint 行程已清乾淨」這個前提問題。
 
+### 5.6 錯誤處理策略（Skip vs Abort）
+
+程式對每一種失敗情境，都明確分成兩類處理方式：
+
+- **Skip（跳過）**：只影響單一投影片，不影響其他頁的處理結果。記錄下來（`skipped_slides` 或 log 裡的 `WARNING`），流程繼續跑完。
+- **Abort（中止）**：影響整個操作能不能繼續進行下去，直接停止並回報錯誤。
+
+判斷原則：**如果失敗只跟某一頁投影片的內容/資源有關，且不影響其他頁的處理，用 Skip；如果失敗會讓後續步驟根本無法進行（缺少必要的輸入、外部程式無法啟動、結果無法儲存），用 Abort。**
+
+| 情境 | 行為 | 說明 |
+|---|---|---|
+| 投影片沒有 notes | Skip | 正常情況（例如封面/結尾頁），`has_notes: false`，不生成音訊 |
+| `--strict` 模式下有頁面沒有 notes | Abort | 使用者主動選擇的嚴格模式，用來檢查簡報是否漏寫備忘稿 |
+| TTS 生成失敗（任一頁） | **Abort**（fail fast） | TTS 失敗很多時候是系統性問題（服務掛掉、網路整個斷線），fail fast 能立刻讓使用者知道，而不是等所有頁面都跑過一輪失敗才發現 |
+| `--insert-audio` 時某頁音檔缺失 | Skip | 記錄進 `skipped_slides`，其他頁繼續插入 |
+| `--insert-audio` 時某投影片編號不存在 | Skip | 記錄進 `skipped_slides` |
+| PPTX 檔案不存在 | Abort | 沒有輸入檔案，後續步驟無法進行 |
+| PowerPoint 無法啟動 / 無法開啟簡報 | Abort | 後續所有 COM 操作都建立在這一步成功的前提上 |
+| `--insert-audio` 存檔失敗 / 逾時 | Abort | 已完成的插入工作無法保存，或 PowerPoint 卡住太久，繼續等待也沒有意義 |
+| MP4 匯出失敗 / 逾時 | Abort | PowerPoint 的匯出是全有或全無，沒有「匯出一半」的中間狀態 |
+
 ---
 
 ## 6. 維護建議
@@ -271,6 +328,90 @@ TTS 網路請求有自動重試機制（見 4.2），但 `insert_audio()` / `exp
 - GUI 支援
 - Plugin 架構
 - 更細粒度的 Output Validation（目前只驗證檔案存在且非空，「能否開啟」「影片長度是否合理」等更進階檢查暫緩，等有實際需求再做）
+
+---
+
+## 8. 專案結構總覽
+
+```text
+pptx2video/
+├── src/                     # 主要程式碼
+│   ├── main.py                   # CLI 入口與 JSON 輸出
+│   ├── pptx_parser.py            # 解析 .pptx 與 notes
+│   ├── tts.py                    # edge-tts 音訊生成，含逐字時間（WordBoundary）擷取
+│   ├── subtitle_segmenter.py     # 字幕斷句：備忘稿 → 適合當一行字幕的片段（純文字，不涉及時間）
+│   ├── subtitle_alignment.py     # 字幕對齊：把斷好的片段對齊到實際語音時間，輸出 SRT 文字
+│   ├── subtitle_pipeline.py      # 字幕合併：多投影片依實際時間軸合併成一份完整 SRT
+│   ├── ppt_automation.py         # PowerPoint COM 自動化：插入音訊、匯出 MP4
+│   ├── audio_position_locator.py # 對匯出好的 mp4 做音訊互相關比對，量出每頁真實起始時間
+│   ├── exceptions.py             # 自訂例外階層
+│   ├── logging_config.py         # 統一 Logging 設定
+│   └── __init__.py
+├── pptx2video/          # 套件入口（`python -m pptx2video ...` 用的就是這個）
+│   ├── __init__.py
+│   └── __main__.py
+├── tests/               # 測試檔案（見第 9 節「如何執行測試」）
+├── scripts/             # 選用的輔助/驗證腳本，多數不需要真實網路/Windows+PowerPoint 就能跑
+│   ├── smoke_test_word_boundaries.py
+│   ├── smoke_test_alignment.py
+│   ├── verify_slide_timing.py
+│   ├── verify_tts_alignment.py
+│   ├── verify_srt_accuracy.py            # 逐字交叉比對真實匯出影片，順便自動回歸出 --global-scale-correction 建議值（不需人耳/Audacity）
+│   ├── regenerate_srt_from_export.py     # 對已匯出的 mp4 重新量測、重新產生 captions.srt
+│   ├── dump_slide_bounds.py
+│   ├── calibrate_scale.py                # 從幾個「手動」核對過的真實播放時間，回歸推算出 --global-scale-correction 的建議值（有人耳驗證，較可信但較費工）
+│   ├── check_narration_gaps.py           # 離線版疑似漏講偵測，不呼叫 edge-tts
+│   ├── split_video_by_slides.py          # 把已匯出的 mp4 依換頁邊界切成多段，加 --subtitles 可同步切出對應的 segment_N.srt
+│   └── sample_notes_for_smoke_test.txt   # 上面腳本用的範例備忘稿文字
+├── examples/            # 範例腳本與範例簡報
+├── output/              # 輸出檔案（已加入 .gitignore，不進版控）
+├── logs/                # 帶日期的 log 檔案（已加入 .gitignore，不進版控）
+├── temp/                # 暫存資料夾
+├── requirements.txt     # Python 相依套件
+├── pyproject.toml       # 專案設定
+├── LICENSE              # 授權條款
+├── CHANGELOG.md         # 版本歷史
+├── TODO.md              # 待辦事項與已知限制
+├── docs/                # 選用功能的獨立說明文件（校準、影片分段）
+├── PROJECT_HANDOVER.md  # 本文件：架構與開發者交接文件
+└── README.md            # 功能特色、快速開始、CLI 參數
+```
+
+每個 `src/` 模組的詳細責任範圍見第 4 節。
+
+## 9. 如何執行測試
+
+跑全部測試：
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+只跑單一模組的測試，例如只測 parser：
+
+```powershell
+python -m unittest tests.test_pptx_parser -v
+```
+
+其他可單獨測試的模組：
+
+```powershell
+python -m unittest tests.test_tts_generator -v
+python -m unittest tests.test_tts_word_boundaries -v
+python -m unittest tests.test_subtitle_segmenter -v
+python -m unittest tests.test_subtitle_alignment -v
+python -m unittest tests.test_subtitle_pipeline -v
+python -m unittest tests.test_ppt_automation -v
+python -m unittest tests.test_logging_config -v
+python -m unittest tests.test_main_payload -v
+python -m unittest tests.test_cli_end_to_end -v
+```
+
+> `test_ppt_automation.py` 用假的 COM 物件模擬 PowerPoint，不需要真的安裝 PowerPoint 也能在任何作業系統跑，但這不能取代在真實 Windows + PowerPoint 環境的實測。
+>
+> `test_cli_end_to_end.py` 直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫）、字幕產生、`--strict`、`--pretty`、錯誤處理等完整流程，補足其他測試模組只測個別函式、沒有測過 `main()` 本身的缺口。同樣因為需要真的 Windows + PowerPoint，`--insert-audio`/`--export-video` 不在這個模組的涵蓋範圍內。
+>
+> `test_tts_word_boundaries.py`、`test_subtitle_segmenter.py`、`test_subtitle_alignment.py`、`test_subtitle_pipeline.py` 涵蓋的是逐字時間擷取、字幕斷句、時間對齊、多投影片合併這幾個各自獨立的環節，都用假資料（不需要真的連網或裝 PowerPoint）；實際對真實 edge-tts/PowerPoint 輸出的驗證見 `scripts/` 底下的手動驗證腳本。
 
 ---
 

@@ -4,7 +4,8 @@
 
 - 版本歷史：[CHANGELOG.md](CHANGELOG.md)
 - 還沒完成的工作與已知限制：[TODO.md](TODO.md)
-- 架構設計、模組職責、PowerPoint COM 細節等開發者向內容：[PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)
+- 架構設計、模組職責、專案結構、PowerPoint COM 細節、測試等開發者向內容：[PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)
+- 字幕/切點校準：[docs/CALIBRATION.md](docs/CALIBRATION.md)；把匯出的 MP4 依換頁邊界切成多段：[docs/SPLIT_VIDEO.md](docs/SPLIT_VIDEO.md)
 
 ---
 
@@ -292,7 +293,7 @@ python -m pptx2video <pptx_path> [選項...]
 | `--video-default-duration` | `5.0` | 沒有錄製時間、也沒有自動播放音訊的頁面（例如封面頁）要停留幾秒，對應 PowerPoint 匯出視窗的「每張投影片所用秒數」 |
 | `--video-use-recorded-timings` | `False`（flag） | 是否改用簡報錄製的時間/旁白，而不是 `--video-default-duration` / 音訊時長驅動的時間。預設關閉，對應 PowerPoint「不使用錄製的時間和旁白」選項 |
 | `--video-timeout` | `3600`（秒） | 等待 PowerPoint 匯出完成的逾時秒數，投影片數量多或解析度高時建議調大 |
-| `--global-scale-correction` | `1.0`（不修正） | 只在 `--subtitles-output` 搭配 `--export-video`（真實起始時間對齊模式）時有作用。修正一個跟已播放時間成正比、環境相依的字幕時間系統性偏差（詳見 CHANGELOG v0.6.1 第四輪修正）。**這不是通用常數**，每份 deck/每台機器可能需要不同的值（甚至不需要），必須自行校準：**免動手**用 `scripts/verify_srt_accuracy.py`（會自動跑交叉比對並回歸出建議值，不需要 Audacity/人耳確認，推薦先試這個），或想要有人耳驗證、較高可信度時用 `scripts/calibrate_scale.py`（手動核對幾個真實時間點）——都在下方「🎯 校準 `--global-scale-correction`」有完整流程 |
+| `--global-scale-correction` | `1.0`（不修正） | 只在 `--subtitles-output` 搭配 `--export-video`（真實起始時間對齊模式）時有作用。修正一個跟已播放時間成正比、環境相依的字幕時間系統性偏差（詳見 CHANGELOG v0.6.1 第四輪修正）。**這不是通用常數**，每份 deck/每台機器可能需要不同的值（甚至不需要），必須自行校準，完整流程見 [docs/CALIBRATION.md](docs/CALIBRATION.md) |
 | `--log-dir` | `logs` | 存放帶日期檔名 log 檔的資料夾（例如 `logs/2026-07-28.log`）。這個檔案**永遠記錄完整 DEBUG 細節，不受 `--verbose` 影響**，方便事後除錯 |
 | `--no-file-log` | `False`（flag） | 停用寫入 log 檔案，只印到終端機 |
 
@@ -340,284 +341,16 @@ python src/main.py output/deck_with_audio.pptx --export-video --video-output out
 
 ---
 
-## 🎯 校準 `--global-scale-correction`
+## 🧩 進階與選用功能
 
-真實起始時間對齊模式（`--subtitles-output` + `--export-video`）量出來的時間，帶有一個跟已播放時間成正比、環境相依的系統性偏差（詳見 CHANGELOG v0.6.1 第四輪修正）。這不是通用常數，換一份 deck 或換一台機器，理論上都需要重新校準。
+以下是選用功能的獨立說明文件，第一次使用/日常使用不需要看，遇到對應情境再點進去即可：
 
-### 想要免動手：`scripts/verify_srt_accuracy.py` 自動估算（推薦先試這個）
+- **字幕/切點對不準、需要校準**：[docs/CALIBRATION.md](docs/CALIBRATION.md)（`--global-scale-correction` 怎麼校準、免動手自動估算 vs 手動校準）
+- **匯出的 MP4 太長，想依換頁邊界切成多段**：[docs/SPLIT_VIDEO.md](docs/SPLIT_VIDEO.md)（`scripts/split_video_by_slides.py`）
 
-如果不想每次都要開 Audacity 手動核對時間點，`scripts/verify_srt_accuracy.py`（本來是用來驗證字幕準確度的工具，見下方「📁 專案結構」）現在也會**自動**從自己抽樣比對出來的資料，回歸算出一個建議的 `--global-scale-correction` 值——不需要人耳確認、不需要 Audacity：
+開發者/架構向的內容（專案結構總覽、例外階層、Skip vs Abort 錯誤處理策略、如何執行測試、系統架構圖）都整理在 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)，一般使用不需要看這份文件。
 
-```powershell
-python scripts/verify_srt_accuracy.py --video output/deck.mp4 --manifest output/audio/manifest.json --slides-json output/slides.json
-```
-
-跑完會在最後印出建議值跟套用後的 RMS／最大殘差，例如：
-
-```
-Suggested --global-scale-correction (fitted from the 42 sample(s) above, no manual measurement needed): 1.00118
-Residual after applying it: RMS 0.041s, max 0.187s across the sampled words.
-```
-
-拿到建議值後直接套用即可：
-
-```powershell
-python scripts/regenerate_srt_from_export.py --video output/deck.mp4 --manifest output/audio/manifest.json --slides-json output/slides.json --output output/captions.srt --global-scale-correction 1.00118
-```
-
-這個方法的取捨：樣本是機器自動挑、自動比對出來的，沒有獨立的人耳驗證當作對照組；deck 越長、抽樣的字越多，估出來的值越可靠，短 deck 或想要最高準確度時，建議還是跟下面手動校準流程的結果交叉核對一次。加大 `--samples-per-slide`（預設 3）可以增加抽樣密度，讓估算更穩定。
-
-### 手動校準流程（想要最高準確度、或想交叉驗證自動估算結果時使用）
-
-`scripts/calibrate_scale.py` 是手動校準的工具——需要你自己實際核對過幾個真實時間點，換來的是有獨立人耳驗證過的校準值，適合用在準確度真的很重要的場合。
-
-### 使用流程
-
-1. 先用預設值（不加 `--global-scale-correction`，等同 1.0）跑一次完整流程，產出未校正的 `output/deck.mp4` 與 `output/audio/manifest.json`。
-2. 挑 5～8 個（越分散越好，deck 的頭、中、尾都要有）投影片，用能顯示精確時間戳的方式（見下方「怎麼量真實時間」），量出這幾頁旁白**真正開始出聲**的真實秒數。
-3. 把量到的時間存成一個 JSON 檔（見下方「`my_observations.json` 的格式」），檔名建議固定用 `my_observations.json`（已加進 `.gitignore`，不會被誤 commit）。
-4. 執行：
-
-```powershell
-python scripts/calibrate_scale.py `
-  --video output/deck.mp4 `
-  --manifest output/audio/manifest.json `
-  --slides-json output/slides.json `
-  --observations my_observations.json `
-  --report calibration_report.json
-```
-
-腳本會印出建議的 `--global-scale-correction` 值，以及套用後的 RMS／最大殘差供你判斷擬合品質。`--report` 是選用的，會多寫一份 `calibration_report.json`（同樣已加進 `.gitignore`），內含逐頁的量測值/觀測值/殘差，方便之後回頭檢查是否有特定頁面殘差異常大。
-
-### `my_observations.json` 的格式
-
-一個 JSON 物件，key 是投影片編號（字串或數字都可以），value 是你量到的真實秒數：
-
-```json
-{
-  "2": 5.12,
-  "6": 2173.22,
-  "11": 4891.03,
-  "17": 7950.03,
-  "20": 9105.27
-}
-```
-
-注意事項：
-
-- 每個 key-value 後面（除了最後一個）都要有逗號，這是最容易手誤的地方（JSON 語法錯誤會直接讓腳本在讀檔那一步就報錯）。
-- value 量的是「這一頁旁白**開始出聲**的瞬間」，不是「畫面切換」的瞬間——這兩者通常幾乎同一時刻，但如果某頁有轉場動畫、或想要最準的結果，請以聲音為準（見下一節）。
-
-### 怎麼量真實時間
-
-**不建議**只用眼睛看畫面配合耳朵聽音量來抓，很難抓到小於一秒的精確度。推薦做法是只處理音訊、不用管畫面：
-
-1. 用 ffmpeg 把 `output/deck.mp4` 的音軌單獨抽出來：`ffmpeg -i output/deck.mp4 -vn -acodec pcm_s16le output_audio.wav`
-2. 用免費的 **Audacity** 打開這個 wav 檔（如果不知道大概要找哪個位置，可以先用預設值跑一次 `scripts/dump_slide_bounds.py`，拿它算出來的粗略、未校正時間當作放大搜尋的起點——這個值本身有偏差，但拿來定位大概位置綽綽有餘）。
-3. 放大時間軸，找到波形從一片平坦（靜音）第一次明顯跳出波峰的轉折點，把游標點在那裡。
-4. Audacity 下方選取工具列會直接顯示精確到毫秒的時間戳，換算成秒填進 `my_observations.json`。
-
-這個方法不需要處理畫面、不需要 frame-by-frame 的影片剪輯軟體，精確度（約 ±0.05～0.1 秒）也遠遠超過校準這個偏差所需要的水準——回歸用的是最小平方法，觀測點時間跨度越大，同樣的量測誤差對算出來的係數影響就越小。
-
-### 產出的兩個檔案不需要進版控
-
-`my_observations.json`（你自己量的時間，因人/因deck而異）跟 `calibration_report.json`（腳本產出的擬合記錄）都已經加進 `.gitignore`，不會被 `git add -A` 之類的指令意外收進去。如果你想留存某次校準的記錄，用檔名另存（例如 `calibration_report_2h40m_deck.json`）並手動決定要不要加進版控，不要用預設檔名去 commit。
-
----
-
-## ✂️ 把匯出的 MP4 依換頁邊界切成多段
-
-deck 頁數多、講稿長的時候，Step 10 匯出的單一 MP4 可能長達數小時，不方便觀看/上傳/分享。PowerPoint 的匯出 API（`Presentation.CreateVideo()`）**沒有任何「只匯出某個頁面範圍」的參數**——每次呼叫一定是匯出整份簡報，如果為了分段而重跑 Step 10 三次，等於要付出三倍的匯出時間。
-
-`scripts/split_video_by_slides.py` 改成對**已經匯出好的單一 MP4** 事後切割，並重用跟 `regenerate_srt_from_export.py` 校正字幕時同一套「真實起始時間」量測，保證切點精準落在換頁的地方，不會切在講稿講到一半。
-
-自動平均分段（例如分成 3 段，長度盡量平均）：
-
-```powershell
-python scripts/split_video_by_slides.py --video output/deck.mp4 --manifest output/audio/manifest.json --slides-json output/slides.json --output-dir output/segments --num-segments 3
-```
-
-或指定要在哪幾頁之後切（例如切成第 1~7 頁、第 8~14 頁、第 15 頁~結尾 三段）：
-
-```powershell
-python scripts/split_video_by_slides.py --video output/deck.mp4 --manifest output/audio/manifest.json --slides-json output/slides.json --output-dir output/segments --split-after-slides 7 14
-```
-
-會在 `output/segments` 底下產生 `segment_1.mp4`、`segment_2.mp4`、`segment_3.mp4`。
-
-⚠️ **強烈建議加上 `--global-scale-correction`**（見上一節）：字幕時間軸差個零點幾秒觀眾未必有感，但切點沒校正好，可能會把下一頁narration的開頭一小段切掉、或留在上一段的結尾。用法跟 `regenerate_srt_from_export.py` 一樣：
-
-```powershell
-python scripts/split_video_by_slides.py --video output/deck.mp4 --manifest output/audio/manifest.json --slides-json output/slides.json --output-dir output/segments --num-segments 3 --global-scale-correction 1.001221
-```
-
-實際切割預設用 ffmpeg 的 `-c copy`（stream copy，不重新編碼），速度快，但切點會吸附到該時間點之前最近的關鍵影格；如果切出來的片段開頭偶爾閃一下前一頁畫面的尾巴，那就是關鍵影格間距造成的，加上 `--reencode` 可以改成重新編碼、取得影格精準的切點（速度慢很多，長影片請預留足夠時間）。
-
-### 字幕也要一起切嗎？加 `--subtitles` 就會
-
-只切影片、不處理字幕的話，`output/captions.srt` 還是整份 deck 的時間軸，直接搭配 `segment_2.mp4`、`segment_3.mp4` 播放時間會完全對不上（因為 `segment_2.mp4` 是從整支影片的中間某個時間點開始重新算 00:00:00，但 `captions.srt` 裡的時間戳沒有跟著歸零）。
-
-加上 `--subtitles`（指向 Step 10 產生的、已經是真實起始時間對齊版本的 `captions.srt`），這個工具就會在切每一段影片的同時，也把字幕切成對應的 `segment_1.srt`、`segment_2.srt`、`segment_3.srt`，各自從 `00:00:00` 重新算起：
-
-```powershell
-python scripts/split_video_by_slides.py --video output/deck.mp4 --manifest output/audio/manifest.json --slides-json output/slides.json --output-dir output/segments --num-segments 3 --global-scale-correction 1.001221 --subtitles output/captions.srt
-```
-
-這裡刻意**重用跟切影片時完全相同的切點時間戳**，而不是另外重新量一次——這樣才能保證每一段影片跟它自己的 `.srt` 對「時間 0 秒」的認定完全一致，不會因為兩次量測結果有些微差異而讓字幕跟畫面對不齊。落在切點之外的字幕行會整行捨棄；理論上不會有字幕行剛好橫跨切點（因為切點本來就選在某一頁narration 的真正起點，那一頁的字幕自然是從那個時間點才開始），但如果真的出現極小的誤差橫跨到切點，這個工具會把該行**裁切**到所在那一段的範圍內，而不是整行丟掉或整行重複塞進兩段。
-
-⚠️ 注意：`--subtitles` 吃的必須是**真實起始時間對齊版本**的 `captions.srt`（Step 10 把 `--subtitles-output` 跟 `--export-video` 寫在同一行時產生的版本，或用 `regenerate_srt_from_export.py` 事後重新產生的版本）——如果拿 Step 8 單獨執行、還沒匯出影片時的「預測版」字幕來切，時間戳本身就跟實際匯出的 `output/deck.mp4` 對不準，切出來的分段字幕自然也不會準。
-
----
-
-## 📁 專案結構
-
-```text
-pptx2video/
-├── src/                     # 主要程式碼
-│   ├── main.py                   # CLI 入口與 JSON 輸出
-│   ├── pptx_parser.py            # 解析 .pptx 與 notes
-│   ├── tts.py                    # edge-tts 音訊生成，含逐字時間（WordBoundary）擷取
-│   ├── subtitle_segmenter.py     # 字幕斷句：備忘稿 → 適合當一行字幕的片段（純文字，不涉及時間）
-│   ├── subtitle_alignment.py     # 字幕對齊：把斷好的片段對齊到實際語音時間，輸出 SRT 文字
-│   ├── subtitle_pipeline.py      # 字幕合併：多投影片依實際時間軸合併成一份完整 SRT
-│   ├── ppt_automation.py         # PowerPoint COM 自動化：插入音訊、匯出 MP4
-│   ├── exceptions.py             # 自訂例外階層
-│   ├── logging_config.py         # 統一 Logging 設定
-│   └── __init__.py
-├── pptx2video/          # 套件入口（`python -m pptx2video ...` 用的就是這個）
-│   ├── __init__.py
-│   └── __main__.py
-├── tests/               # 測試檔案
-│   ├── test_pptx_parser.py
-│   ├── test_tts_generator.py
-│   ├── test_tts_word_boundaries.py
-│   ├── test_subtitle_segmenter.py
-│   ├── test_subtitle_alignment.py
-│   ├── test_subtitle_pipeline.py
-│   ├── test_ppt_automation.py
-│   ├── test_logging_config.py
-│   ├── test_main_payload.py
-│   └── test_cli_end_to_end.py
-├── scripts/             # 手動驗證腳本（需要真實網路/Windows+PowerPoint，不在自動化測試涵蓋範圍內）
-│   ├── smoke_test_word_boundaries.py
-│   ├── smoke_test_alignment.py
-│   ├── verify_slide_timing.py
-│   ├── verify_tts_alignment.py
-│   ├── verify_srt_accuracy.py            # 逐字交叉比對真實匯出影片，順便自動回歸出 --global-scale-correction 建議值（不需人耳/Audacity）
-│   ├── regenerate_srt_from_export.py
-│   ├── dump_slide_bounds.py
-│   ├── calibrate_scale.py                # 從幾個「手動」核對過的真實播放時間，回歸推算出 --global-scale-correction 的建議值（有人耳驗證，較可信但較費工）
-│   ├── split_video_by_slides.py          # 把已匯出的 mp4 依換頁邊界切成多段（自動平均分段或指定頁碼），加 --subtitles 可同步切出對應的 segment_N.srt
-│   └── sample_notes_for_smoke_test.txt   # 上面腳本用的範例備忘稿文字
-├── examples/            # 範例腳本與範例簡報
-├── output/              # 輸出檔案（已加入 .gitignore，不進版控）
-├── logs/                # 帶日期的 log 檔案（已加入 .gitignore，不進版控）
-├── temp/                # 暫存資料夾
-├── requirements.txt     # Python 相依套件
-├── pyproject.toml       # 專案設定
-├── LICENSE              # 授權條款
-├── CHANGELOG.md         # 版本歷史
-├── TODO.md              # 待辦事項與已知限制
-├── PROJECT_HANDOVER.md  # 架構與開發者交接文件
-└── README.md            # 本文件
-```
-
-模組職責的詳細說明（每個檔案負責什麼、彼此如何協作）請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「每個模組的責任範圍」章節。
-
----
-
-## 🪵 錯誤處理與 Logging
-
-專案有自訂例外階層與正式 Logging，取代單純依賴 `print()` 跟通用 `RuntimeError` 的做法。
-
-### 自訂例外階層（`src/exceptions.py`）
-
-所有 pptx2video 自己拋出的例外都繼承自 `Pptx2VideoError`，方便統一捕捉，也能依情境個別處理：
-
-| 例外類別 | 觸發情境 |
-|---|---|
-| `PptParseError` | `.pptx` 檔案損毀、格式不支援，或其他解析失敗 |
-| `TTSGenerationError` | edge-tts 生成語音失敗（網路問題、服務錯誤、缺少 ffmpeg 等），訊息會標明是第幾頁失敗 |
-| `PowerPointLaunchError` | PowerPoint 無法啟動，或簡報檔無法開啟（非 Windows 環境、pywin32 缺失、COM 呼叫失敗等） |
-| `AudioInsertionError` | 插入音訊後無法儲存 PPTX（單一頁面的插入失敗會記錄成 `skipped_slides`，不會拋出這個例外） |
-| `AudioInsertionTimeoutError` | `--insert-audio-timeout` 等待逾時（同時也是 `AudioInsertionError` 與內建 `TimeoutError` 的子類別） |
-| `VideoExportError` | PowerPoint 回報匯出失敗，或回報完成但找不到輸出檔案 |
-| `VideoExportTimeoutError` | 匯出等待超過 `--video-timeout` 設定的秒數（同時也是內建 `TimeoutError` 的子類別） |
-
-`FileNotFoundError`、`ValueError` 這類 Python 內建例外在語意上已經很清楚（例如「找不到輸入檔案」），故意保留不重新包裝。
-
-### Logging（`src/logging_config.py`）
-
-- **終端機輸出維持簡潔風格**（沒有時間戳記，`--verbose` 才會顯示更細節的訊息）
-- **log 檔案（`logs/YYYY-MM-DD.log`）永遠記錄完整 DEBUG 等級細節，不受 `--verbose` 影響**——就算這次沒加 `--verbose`，log 檔案還是會完整記下所有過程，方便事後除錯或回報問題時附上
-- 如果 log 資料夾無法建立或寫入（例如唯讀檔案系統），會在終端機印出警告並自動降級成只在終端機輸出，不會讓整個程式當掉
-- 可用 `--log-dir` 指定其他資料夾，或用 `--no-file-log` 完全停用檔案記錄
-
-範例：跑完一次指令後，檢查發生了什麼事
-
-```powershell
-python src/main.py examples/sample_test.pptx --generate-audio
-type logs\2026-07-28.log
-```
-
-### 錯誤處理策略（Skip vs Abort）
-
-程式對每一種失敗情境，都明確分成兩類處理方式：
-
-- **Skip（跳過）**：只影響單一投影片，不影響其他頁的處理結果。記錄下來（`skipped_slides` 或 log 裡的 `WARNING`），流程繼續跑完。
-- **Abort（中止）**：影響整個操作能不能繼續進行下去，直接停止並回報錯誤。
-
-判斷原則：**如果失敗只跟某一頁投影片的內容/資源有關，且不影響其他頁的處理，用 Skip；如果失敗會讓後續步驟根本無法進行（缺少必要的輸入、外部程式無法啟動、結果無法儲存），用 Abort。**
-
-| 情境 | 行為 | 說明 |
-|---|---|---|
-| 投影片沒有 notes | Skip | 正常情況（例如封面/結尾頁），`has_notes: false`，不生成音訊 |
-| `--strict` 模式下有頁面沒有 notes | Abort | 使用者主動選擇的嚴格模式，用來檢查簡報是否漏寫備忘稿 |
-| TTS 生成失敗（任一頁） | **Abort**（fail fast） | TTS 失敗很多時候是系統性問題（服務掛掉、網路整個斷線），fail fast 能立刻讓使用者知道，而不是等所有頁面都跑過一輪失敗才發現 |
-| `--insert-audio` 時某頁音檔缺失 | Skip | 記錄進 `skipped_slides`，其他頁繼續插入 |
-| `--insert-audio` 時某投影片編號不存在 | Skip | 記錄進 `skipped_slides` |
-| PPTX 檔案不存在 | Abort | 沒有輸入檔案，後續步驟無法進行 |
-| PowerPoint 無法啟動 / 無法開啟簡報 | Abort | 後續所有 COM 操作都建立在這一步成功的前提上 |
-| `--insert-audio` 存檔失敗 / 逾時 | Abort | 已完成的插入工作無法保存，或 PowerPoint 卡住太久，繼續等待也沒有意義 |
-| MP4 匯出失敗 / 逾時 | Abort | PowerPoint 的匯出是全有或全無，沒有「匯出一半」的中間狀態 |
-
-這些決策背後的取捨（例如為何 TTS 失敗選擇 fail fast、為何 COM 操作不做自動重試）記錄在 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)。
-
----
-
-## 🧪 執行測試
-
-跑全部測試：
-
-```powershell
-python -m unittest discover -s tests -v
-```
-
-只跑單一模組的測試，例如只測 parser：
-
-```powershell
-python -m unittest tests.test_pptx_parser -v
-```
-
-其他可單獨測試的模組：
-
-```powershell
-python -m unittest tests.test_tts_generator -v
-python -m unittest tests.test_tts_word_boundaries -v
-python -m unittest tests.test_subtitle_segmenter -v
-python -m unittest tests.test_subtitle_alignment -v
-python -m unittest tests.test_subtitle_pipeline -v
-python -m unittest tests.test_ppt_automation -v
-python -m unittest tests.test_logging_config -v
-python -m unittest tests.test_main_payload -v
-python -m unittest tests.test_cli_end_to_end -v
-```
-
-> `test_ppt_automation.py` 用假的 COM 物件模擬 PowerPoint，不需要真的安裝 PowerPoint 也能在任何作業系統跑，但這不能取代在真實 Windows + PowerPoint 環境的實測。
->
-> `test_cli_end_to_end.py` 直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫）、字幕產生、`--strict`、`--pretty`、錯誤處理等完整流程，補足其他測試模組只測個別函式、沒有測過 `main()` 本身的缺口。同樣因為需要真的 Windows + PowerPoint，`--insert-audio`/`--export-video` 不在這個模組的涵蓋範圍內。
->
-> `test_tts_word_boundaries.py`、`test_subtitle_segmenter.py`、`test_subtitle_alignment.py`、`test_subtitle_pipeline.py` 涵蓋的是逐字時間擷取、字幕斷句、時間對齊、多投影片合併這幾個各自獨立的環節，都用假資料（不需要真的連網或裝 PowerPoint）；實際對真實 edge-tts/PowerPoint 輸出的驗證見上方 `scripts/` 底下的手動驗證腳本。
+日常操作用得到的一點 Logging 資訊：終端機輸出預設簡潔（`--verbose` 顯示更多細節），但 `logs/YYYY-MM-DD.log` 永遠保留完整 DEBUG 細節，事後除錯或回報問題時可以直接附上；用 `--log-dir` 指定其他資料夾，或 `--no-file-log` 完全停用檔案記錄。
 
 ---
 
@@ -627,7 +360,7 @@ python -m unittest tests.test_cli_end_to_end -v
 * **`PlayOnEntry` 旗標的必要性尚未完全理解原理，僅為實測結論**：拿掉這個舊版旗標會讓匯出的 MP4 完全沒聲音、且每頁變回固定 5 秒，即使編輯 UI 上完全看不出差異。
 * **`CreateVideoStatus` 的狀態列舉值是依 Microsoft 官方文件假設，未逐一比對所有 PowerPoint 版本**：程式碼已加安全網（回報完成後仍會檢查輸出檔案是否存在、非空）降低風險。
 * **`insert_audio()` 的逾時（`--insert-audio-timeout`）只能停止等待，無法強制關閉卡住的 PowerPoint 行程**。
-* **真實起始時間對齊模式（`--export-video` + `--subtitles-output`）可能需要手動校準 `--global-scale-correction`**：在一份真實 2 小時 40 分鐘的 deck 上發現，字幕時間量測本身帶有一個跟已播放時間成正比、環境相依的系統性偏差，確切成因尚未定位到程式碼層級（已排除匯出檔案音畫不同步、重取樣誤差等可能性）。預設值 `1.0`（不修正）在偏差不明顯的情況下應該沒問題，但長影片建議先用真實播放時間核對幾個分散的時間點，確認是否需要校準這個係數。詳見 CHANGELOG v0.6.1 第四輪修正。
+* **真實起始時間對齊模式（`--export-video` + `--subtitles-output`）可能需要手動校準 `--global-scale-correction`**：在一份真實 2 小時 40 分鐘的 deck 上發現，字幕時間量測本身帶有一個跟已播放時間成正比、環境相依的系統性偏差，確切成因尚未定位到程式碼層級（已排除匯出檔案音畫不同步、重取樣誤差等可能性）。預設值 `1.0`（不修正）在偏差不明顯的情況下應該沒問題，但長影片建議先校準這個係數，完整流程見 [docs/CALIBRATION.md](docs/CALIBRATION.md)。
 
 以上限制的技術背景、實測過程與底層原理，請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「PowerPoint COM 特性」章節。完整待辦與已知限制清單請見 [TODO.md](TODO.md)。
 
@@ -642,31 +375,7 @@ python -m unittest tests.test_cli_end_to_end -v
 - 若要產生字幕，需安裝 `ffmpeg` 並加入 PATH（供 `pydub` 量測每張投影片實際音檔時長使用）；純粹生成語音本身不需要 ffmpeg
 - `jieba`（`requirements.txt` 已包含）：中文字幕斷句時避免從詞語中間硬切，第一次呼叫時會建立內部字典，稍微增加起始延遲，屬正常現象
 
-## 🏗️ 系統架構與資料流
-
-```mermaid
-graph TD
-    A[輸入 .pptx 簡報檔] --> B[pptx_parser.py<br>提取頁數與備忘稿]
-    B --> C[tts.py<br>呼叫 Edge-TTS 生成音檔 + 逐字時間]
-    C --> D[(輸出 output/audio/<br>mp3 + wordboundaries.json + manifest.json)]
-
-    D --> E[ppt_automation.py insert_audio<br>win32com 插入音訊]
-    B --> F1[subtitle_segmenter.py<br>備忘稿斷句]
-    F1 --> F2[subtitle_alignment.py<br>對齊逐字語音時間]
-    D --> F2
-    F2 --> F3[subtitle_pipeline.py<br>合併每頁字幕成整份 SRT]
-    D --> F3
-
-    E --> G[ppt_automation.py export_video<br>win32com 建立視訊]
-    G --> I[輸出 output.mp4]
-    I -.有搭配 --export-video 時.-> L[audio_position_locator.py<br>比對 output.mp4 音軌<br>量出每頁真實起始時間]
-    L -.-> F3
-    F3 --> H[輸出 output/captions.srt]
-```
-
-`F3` 合併字幕時間軸有兩種模式：只有 `--subtitles-output`（沒有匯出影片）時用「預測」（把每頁 mp3 時長加總）；有搭配 `--export-video` 時，字幕改到匯出完成後才產生，改用 `audio_position_locator.py` 量到的**真實**起始時間，取代預測（見 CHANGELOG v0.6.0，長影片下預測會逐頁累積漂移）。
-
-技術選型的原因（為何選 edge-tts、為何用 win32com 而非其他方案）請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)。
+系統架構圖、資料流、模組職責等開發者向內容，請見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)。
 
 ---
 
