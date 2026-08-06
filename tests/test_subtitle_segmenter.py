@@ -39,23 +39,21 @@ class NormalizeWhitespaceTests(unittest.TestCase):
 
 
 class SegmentNotesForSubtitlesTests(unittest.TestCase):
-    def test_default_width_matches_16_fullwidth_cjk_characters(self):
-        # The project owner's requirement (revised after checking real
-        # Chinese-subtitle conventions - the original 20 read as too long
-        # for one line) is "全形16個字" (16 full-width CJK characters per
-        # line), not 16 display-width units - each CJK character is worth
-        # 2 display width, so the default must be 32, not 16. A
-        # 16-character CJK sentence (width 32) must fit on one line by
-        # default; adding one more character (width 34) must not.
-        self.assertEqual(DEFAULT_MAX_DISPLAY_WIDTH, 32)
+    def test_default_width_matches_18_fullwidth_cjk_characters(self):
+        # The project owner's requirement is "全形18個字" (18 full-width CJK
+        # characters per line), not 18 display-width units - each CJK
+        # character is worth 2 display width, so the default must be 36,
+        # not 18. An 18-character CJK sentence (width 36) must fit on one
+        # line by default; adding one more character (width 38) must not.
+        self.assertEqual(DEFAULT_MAX_DISPLAY_WIDTH, 36)
 
-        exactly_16_chars = "測" * 16 + "。"
-        segments = segment_notes_for_subtitles(exactly_16_chars)
+        exactly_18_chars = "測" * 18 + "。"
+        segments = segment_notes_for_subtitles(exactly_18_chars)
         self.assertEqual(len(segments), 1)
-        self.assertEqual(segments[0]["text"], "測" * 16)
+        self.assertEqual(segments[0]["text"], "測" * 18)
 
-        seventeen_chars = "測" * 17 + "。"
-        segments = segment_notes_for_subtitles(seventeen_chars)
+        nineteen_chars = "測" * 19 + "。"
+        segments = segment_notes_for_subtitles(nineteen_chars)
         self.assertGreater(len(segments), 1)
 
     def test_empty_or_whitespace_only_text_returns_empty_list(self):

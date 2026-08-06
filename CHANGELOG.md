@@ -6,6 +6,11 @@
 
 ## [未發布]
 
+### Changed
+
+- **字幕每行最大長度從「全形 16 個字」調整為「全形 18 個字」**：`src/subtitle_segmenter.py` 的 `DEFAULT_MAX_DISPLAY_WIDTH` 從 `32` 改為 `36`（顯示寬度單位，全形字算 2，故 18 × 2 = 36）。`tests/test_subtitle_segmenter.py` 同步更新對應的邊界測試（18 個全形字仍在同一行、19 個字必須被斷成多行）。這是純設定值調整，`src/main.py` 沒有把這個寬度開放成 CLI 參數、`scripts/` 底下也沒有腳本寫死這個數字，因此只需要改這兩個檔案。
+  對已經產出的檔案的影響：只需要用 `scripts/regenerate_srt_from_export.py` 重新產生 `.srt`（不需要重跑 TTS/插入音訊/匯出影片）；如果之前用 `split_video_by_slides.py` 切過分段影片，記得連 `--subtitles` 也重新切一次，讓分段字幕套用新的斷行長度。
+
 ### Added
 
 - **新增選用的 `requirements-dev.txt`（`pytest`）**：測試套件原本就能用 stdlib 的 `unittest`（`python -m unittest discover -s tests -v`）完整執行，不需要安裝任何額外套件；這次追查 Windows 編碼問題時另外驗證用 `pytest tests/ -q` 跑同一套測試，輸出比較精簡、之後也可能需要 `-k` 篩選單一測試，因此把它列為選用開發相依套件，避免以後需要用的時候又要重新想「這個要裝什麼」。`pyproject.toml` 同步新增 `[project.optional-dependencies] dev = ["pytest>=7.0"]`，可用 `pip install -e ".[dev]"` 或 `pip install -r requirements-dev.txt` 安裝；不裝也完全不影響專案本身或既有 `unittest` 測試方式。

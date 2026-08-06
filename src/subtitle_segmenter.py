@@ -77,7 +77,7 @@ import re
 import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
 
-DEFAULT_MAX_DISPLAY_WIDTH = 32  # 16 full-width (CJK) characters, per the project owner's "全形16個字"
+DEFAULT_MAX_DISPLAY_WIDTH = 36  # 18 full-width (CJK) characters, per the project owner's "全形18個字"
 
 # Sentence-ending punctuation: splitting here is the *primary* way this
 # module breaks a paragraph into candidate subtitle lines.
