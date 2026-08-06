@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pptx2video"
-version = "0.8.0"
+version = "0.9.0"
 description = "Convert PowerPoint presentations into narrated MP4 videos, with aligned SRT subtitles, using Edge-TTS and PowerPoint automation"
 requires-python = ">=3.9"
 dependencies = [

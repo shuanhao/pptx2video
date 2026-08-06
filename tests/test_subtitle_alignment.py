@@ -118,6 +118,57 @@ class AlignSegmentsWithWordBoundariesTests(unittest.TestCase):
         # Raw end (0.6) is kept, not shrunk to 0.62 - 0.15 = 0.47.
         self.assertAlmostEqual(aligned[0]["end_seconds"], 0.6)
 
+    def test_straddling_word_boundary_event_does_not_overlap_adjacent_segments(self):
+        # Real-world bug (2026-08, found by the project owner burning
+        # subtitles into video): subtitle_segmenter can break a sentence
+        # into two lines at a point that falls *inside* a single
+        # WordBoundary event's own text span (no punctuation nearby to
+        # break on cleanly). That one straddling event ("CD", spanning
+        # offsets 2-4) then overlaps BOTH segments' offset ranges (segment
+        # 0 is offsets 0-3, segment 1 is offsets 3-6) and gets counted
+        # into both - pulling segment 0's end later and segment 1's start
+        # earlier at the same time. Before the fix this produced two SRT
+        # cues with genuinely overlapping timestamps (segment 1 starting
+        # before segment 0 ends), which broke scripts/burn_subtitles.py's
+        # fixed-height black bar (libass's collision avoidance pushed the
+        # second cue's text off the bar entirely - see
+        # docs/SUBTITLE_OVERLAP_INCIDENT.md).
+        text = "ABCDEF"
+        segments = [_seg("ABC", 0, 3), _seg("DEF", 3, 6)]
+        word_boundaries = [
+            _wb("AB", 0.0, 0.2),   # fully inside segment 0 (offsets 0-2)
+            _wb("CD", 0.3, 0.2),   # straddles the split point (offsets 2-4)
+            _wb("EF", 0.7, 0.2),   # fully inside segment 1 (offsets 4-6)
+        ]
+
+        aligned, warnings = align_segments_with_word_boundaries(text, segments, word_boundaries)
+
+        self.assertEqual(warnings, [])
+        # The straddling event must not be allowed to make these overlap -
+        # segment 0 must end at or before segment 1 starts.
+        self.assertLessEqual(aligned[0]["end_seconds"], aligned[1]["start_seconds"])
+        # Segment 0's end is clamped down to segment 1's start (0.3), not
+        # left at the raw max(0.0+0.2, 0.3+0.2) = 0.5 that caused the bug.
+        self.assertAlmostEqual(aligned[0]["end_seconds"], 0.3)
+        self.assertAlmostEqual(aligned[1]["start_seconds"], 0.3)
+        self.assertAlmostEqual(aligned[1]["end_seconds"], 0.9)
+
+    def test_clamping_never_inverts_a_segment_into_negative_duration(self):
+        # Pathological case: if the overlap were somehow so severe that
+        # clamping end down to the next segment's start would put it
+        # *before* this segment's own start, the clamp must floor at this
+        # segment's own start instead of producing end < start.
+        text = "ABCDEF"
+        segments = [_seg("ABC", 0, 3), _seg("DEF", 3, 6)]
+        word_boundaries = [
+            _wb("ABCD", 0.5, 0.4),  # spans both segments' offsets (0-4), starts late
+            _wb("EF", 0.2, 0.2),    # fully inside segment 1, but starts *before* the above
+        ]
+
+        aligned, warnings = align_segments_with_word_boundaries(text, segments, word_boundaries)
+
+        self.assertGreaterEqual(aligned[0]["end_seconds"], aligned[0]["start_seconds"])
+
     def test_unmatched_word_boundary_text_is_skipped_with_a_warning(self):
         text = "早安世界"
         segments = [_seg("早安世界", 0, 4)]

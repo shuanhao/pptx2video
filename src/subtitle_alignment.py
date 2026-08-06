@@ -63,6 +63,32 @@ Design decisions (confirmed with the project owner before implementing):
    does not decide *where* an SRT file is written, whether one is produced
    per slide or for the whole deck, or how any of this wires into
    ``main.py``/``manifest.json`` - all Phase 4 concerns.
+4. **(2026-08 bugfix) Adjacent segments' times are clamped so they never
+   overlap.** Confirmed real-world failure: when ``subtitle_segmenter``
+   breaks a single sentence into two subtitle lines at a point that falls
+   *inside* one edge-tts ``WordBoundary`` event's own text span (e.g. the
+   sentence is split mid-word because there's no punctuation nearby to
+   break on and the line-width limit was reached), that one straddling
+   event's character range overlaps *both* segments' offset ranges. It
+   then gets counted into both segments' ``overlapping`` list above -
+   pulling the earlier segment's ``end_seconds`` later (it includes the
+   straddling event's full end) and the later segment's ``start_seconds``
+   earlier (it includes the same event's start) at the same time,
+   producing two SRT cues with genuinely overlapping timestamps (the next
+   cue starts before the previous one ends). Soft-subtitle players mostly
+   hide this by only ever showing the most recent cue, but it broke
+   ``scripts/burn_subtitles.py``'s fixed-height black bar: libass's
+   built-in collision avoidance pushes the second overlapping cue's text
+   *above* the fixed bar (onto the raw video frame) rather than dropping
+   or replacing it, so the pushed-up line renders with no black backing
+   and can become effectively invisible against a light slide background
+   - see ``docs/SUBTITLE_OVERLAP_INCIDENT.md`` for the full reproduction
+   and diagnosis. Fixed by clamping each segment's ``end_seconds`` down to
+   the following segment's ``start_seconds`` whenever they'd otherwise
+   overlap, immediately after the trailing-gap extension step below -
+   guaranteeing at most one subtitle cue is ever meant to be on screen at
+   a time, regardless of how the underlying WordBoundary events happened
+   to land.
 
 Known limitation: if a Phase 2 segment has no matched ``WordBoundary``
 events overlapping its offset range at all (e.g. every event in that span
@@ -435,6 +461,15 @@ def align_segments_with_word_boundaries(
         extended_end = next_start - trailing_gap_seconds
         if extended_end > aligned[index]["end_seconds"]:
             aligned[index]["end_seconds"] = extended_end
+        elif aligned[index]["end_seconds"] > next_start:
+            # This segment's raw end already overlaps the next segment's
+            # start - a shared WordBoundary event straddling both
+            # segments' offset ranges (see design decision 4 above), not
+            # a natural short gap. Clamp rather than leave the overlap in
+            # place, so at most one cue is ever meant to be on screen at
+            # once. Floored at this segment's own start so a severe
+            # overlap can't invert the interval into a negative duration.
+            aligned[index]["end_seconds"] = max(next_start, aligned[index]["start_seconds"])
 
     return aligned, warnings
 

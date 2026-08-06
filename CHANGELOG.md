@@ -6,6 +6,8 @@
 
 ## [未發布]
 
+## [0.9.0] - 2026-08-06
+
 ### Changed
 
 - **字幕每行最大長度從「全形 16 個字」調整為「全形 18 個字」**：`src/subtitle_segmenter.py` 的 `DEFAULT_MAX_DISPLAY_WIDTH` 從 `32` 改為 `36`（顯示寬度單位，全形字算 2，故 18 × 2 = 36）。`tests/test_subtitle_segmenter.py` 同步更新對應的邊界測試（18 個全形字仍在同一行、19 個字必須被斷成多行）。這是純設定值調整，`src/main.py` 沒有把這個寬度開放成 CLI 參數、`scripts/` 底下也沒有腳本寫死這個數字，因此只需要改這兩個檔案。
@@ -20,6 +22,13 @@
 - **新增選用的 `requirements-dev.txt`（`pytest`）**：測試套件原本就能用 stdlib 的 `unittest`（`python -m unittest discover -s tests -v`）完整執行，不需要安裝任何額外套件；這次追查 Windows 編碼問題時另外驗證用 `pytest tests/ -q` 跑同一套測試，輸出比較精簡、之後也可能需要 `-k` 篩選單一測試，因此把它列為選用開發相依套件，避免以後需要用的時候又要重新想「這個要裝什麼」。`pyproject.toml` 同步新增 `[project.optional-dependencies] dev = ["pytest>=7.0"]`，可用 `pip install -e ".[dev]"` 或 `pip install -r requirements-dev.txt` 安裝；不裝也完全不影響專案本身或既有 `unittest` 測試方式。
 
 ### Fixed
+
+- **修正相鄰字幕時間戳會重疊、燒字幕時整句消失的問題**：測試燒字幕功能、對照真實課程影片時，使用者發現某一句字幕沒有出現在畫面上。追查後發現這兩句字幕的原始時間戳本身就有重疊（後一句比前一句還沒結束就開始了），用相同時間戳重現燒字幕過程後確認：字幕沒有真的被丟掉，而是 libass 遇到重疊字幕時的內建碰撞迴避機制，把後面那句自動往上推到 `scripts/burn_subtitles.py` 畫的固定黑條範圍**之外**，疊在沒有黑底的原始畫面上——真實影片裡那個位置通常是投影片的淺色背景，白字疊上去幾乎看不見，因此看起來像是「消失」了。
+  根本原因追到 `src/subtitle_alignment.py` 的 `align_segments_with_word_boundaries()`：當 `subtitle_segmenter.py` 把一整句話從中間斷成兩行字幕的地方，剛好落在 edge-tts 某個 WordBoundary 事件的文字範圍中間（例如一整句沒有標點可斷、被迫因為行寬限制而硬斷），這一個事件會同時被算進前後兩句的時間範圍——把前一句的結束時間拉晚、同時把後一句的開始時間拉早，兩句的時間戳因此重疊。這個 bug 存在於字幕產生的核心邏輯裡，不是燒字幕或切分段造成的；燒字幕只是把原本軟字幕上不容易被注意到的問題，變成肉眼可見的「整句消失」。
+  修正方式：在原有「把結束時間往後延伸、填補句子間自然停頓」的收尾邏輯裡，新增一個相反方向的收斂——如果某句字幕的結束時間已經超過下一句的開始時間（重疊），就把它收斂到下一句開始的時間點，並以自身開始時間為下限，避免收斂後產生負時長。完整重現過程、診斷細節見 `docs/SUBTITLE_OVERLAP_INCIDENT.md`。
+  新增測試：`tests/test_subtitle_alignment.py` 新增 `test_straddling_word_boundary_event_does_not_overlap_adjacent_segments`（完整重現跨斷句點的 WordBoundary 事件情境）、`test_clamping_never_inverts_a_segment_into_negative_duration`（驗證嚴重重疊時不會產生負時長的畸形資料）。
+  **影響範圍**：這個修正改的是 `.srt` 產生邏輯本身，軟字幕跟燒字幕都會受惠，不只是燒字幕情境；已經產出的 `deck.mp4` 需要重新執行 `scripts/regenerate_srt_from_export.py` 才能套用，如果之前切過分段，`split_video_by_slides.py --subtitles`（要的話再加 `--burn-subtitles`）也要重新跑一次。
+  **真實 deck 驗證**：使用者重新產生真實課程 deck 的 `captions.srt` 後，提供新舊完整版本（各 3,360 條字幕）比對，逐條掃描時間戳重疊：舊版有 6 處重疊（0.42～0.54 秒），新版全數修正、且沒有引入新的重疊。另外從語料庫的逐字時間軸資料直接查證到 edge-tts 確實會把多字詞（如「系統的」「廣泛」）合併成單一 WordBoundary 事件，時長與觀察到的重疊量級吻合，佐證根本原因推論無誤。過程中另外發現一個成因相關但獨立的問題——`subtitle_segmenter.py` 的 jieba 斷詞在極少數情況下會斷錯詞界，導致「廣泛」被拆到兩行字幕（跟本次修正的時間戳重疊無關），已記錄於 `docs/SUBTITLE_OVERLAP_INCIDENT.md` 第 10 節，尚未修正。
 
 - **修正在 Windows 上、當 stdout/stderr 被導向管線（pipe）或檔案時，印出中文字會讓程式直接崩潰的問題**：使用者在自己的 Windows 機器上執行 `pytest`（會用 `subprocess.run(..., capture_output=True, text=True)` 呼叫 `scripts/check_narration_gaps.py`）時，`test_detects_real_shaped_drop_and_exits_1` 測試失敗——起初懷疑跟同一時間調整 `DEFAULT_MAX_DISPLAY_WIDTH` 有關，追查後確認兩者無關；真正原因是 `check_narration_gaps.py` 印出「疑似漏講內容」預覽（含中文）時，`print()` 底層用的是 `sys.stdout` 當下解析出的編碼。互動式終端機通常會拿到 UTF-8（或作業系統目前使用中的主控台字碼頁），但**被導向管線或重新導向到檔案的 stdout/stderr**，Python 會改用 `locale.getpreferredencoding()`，在使用者這台非 Unicode 預設的 Windows 安裝上解析出來的是 `cp1252`——一個完全無法表示任何中文字元的舊式單位元組字碼頁。實際重現後拿到的錯誤是 `UnicodeEncodeError: 'charmap' codec can't encode characters ...: character maps to <undefined>`，程式在印出任何東西之前就直接崩潰，測試因為 stdout 是空字串而斷言失敗；同一份指令直接在互動式終端機執行卻完全正常，一開始因此容易誤判成跟其他變更有關。
   修正方式：`src/logging_config.py` 新增 `ensure_utf8_console()`，在 `sys.stdout`／`sys.stderr` 尚未是 UTF-8 時呼叫 `.reconfigure(encoding="utf-8", errors="replace")`；已經是 UTF-8、或該串流不支援 `.reconfigure()`（較舊版 Python 或非標準串流物件）時安全地略過，`ValueError`／`OSError` 也會被吞掉，確保這個防禦性工具本身永遠不會變成讓整支程式崩潰的原因。`setup_logging()`（`src/main.py` 主流程會呼叫）在建立 console handler 之前會先呼叫這個函式；另外 10 支獨立腳本（`scripts/calibrate_scale.py`、`check_narration_gaps.py`、`dump_slide_bounds.py`、`regenerate_srt_from_export.py`、`smoke_test_alignment.py`、`smoke_test_word_boundaries.py`、`split_video_by_slides.py`、`verify_slide_timing.py`、`verify_srt_accuracy.py`、`verify_tts_alignment.py`）的 `main()` 一開始也都各自呼叫，因為這些腳本不一定會經過 `setup_logging()`。
