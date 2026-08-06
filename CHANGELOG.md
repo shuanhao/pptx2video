@@ -13,6 +13,10 @@
 
 ### Added
 
+- **新增燒字幕（硬字幕）功能：`src/subtitle_burner.py` + `scripts/burn_subtitles.py` + `split_video_by_slides.py --burn-subtitles`**：把字幕直接燒進影片畫面，燒成一條固定寬高、固定位置的黑色長條、白色無外框文字疊在上面——不是 libass 內建 `BorderStyle=3` 那種隨每行文字長短自動縮放寬度的貼字黑底框，也不是預設的白字黑外框樣式。背景：專案負責人想要字幕黑底的大小固定不變（不論這行字幕多長），並且要能避開投影片模板本身的頁尾元素（logo、頁碼），這兩點都是 libass 自動貼字框做不到的；黑條的寬高、位置、字型（`Noto Sans CJK TC`）、字級（`15`）等預設值，是對照一份真實 1280x720 匯出投影片、實際目測反覆調整校正出來的（**不是通用常數**，換解析度/字型/字幕斷行長度都可能要重新校正，見 `docs/SPLIT_VIDEO.md`）。
+  `src/subtitle_burner.py` 提供 `build_burn_filter()`（純字串組裝，含 Windows 絕對路徑冒號在 ffmpeg filtergraph 語法裡的跳脫處理——不跳脫的話磁碟機代號的 `:` 會被誤判成新的 filter 參數而整串解析失敗，不是「檔案找不到」這種好懂的錯誤）跟 `burn_subtitles_into_video()`（實際呼叫 ffmpeg，一律重新編碼視訊 `libx264`、直接複製音訊 `-c:a copy`）。`scripts/burn_subtitles.py` 是獨立 CLI，可以燒任一組 `.mp4`/`.srt`（完整版或已切好的某一段都可以）；`split_video_by_slides.py` 新增的 `--burn-subtitles`（需搭配 `--subtitles`）則是在切每一段的同時，立刻用同一套邏輯多產生一個 `segment_N_burned.mp4`，原本未燒字幕的 `segment_N.mp4` 跟軟字幕 `segment_N.srt` 依然保留，方便之後只想調整字幕樣式時不用重新切影片。黑條寬高/位置/字型/字級/`crf` 都可以用 CLI 參數覆寫，不用改程式碼。
+  新增測試：`tests/test_subtitle_burner.py`（濾鏡字串組裝、Windows 路徑跳脫的純邏輯測試 + 用合成影片驗證實際燒出來的檔案可播放、時長不變的端對端測試）、`tests/test_split_video_by_slides.py` 新增 `--burn-subtitles` 缺少 `--subtitles` 時報錯、以及完整 CLI 端對端（合成雙投影片 deck，確認 `segment_N.mp4`/`.srt`/`_burned.mp4` 都正確產生）的測試。
+
 - **新增選用的 `requirements-dev.txt`（`pytest`）**：測試套件原本就能用 stdlib 的 `unittest`（`python -m unittest discover -s tests -v`）完整執行，不需要安裝任何額外套件；這次追查 Windows 編碼問題時另外驗證用 `pytest tests/ -q` 跑同一套測試，輸出比較精簡、之後也可能需要 `-k` 篩選單一測試，因此把它列為選用開發相依套件，避免以後需要用的時候又要重新想「這個要裝什麼」。`pyproject.toml` 同步新增 `[project.optional-dependencies] dev = ["pytest>=7.0"]`，可用 `pip install -e ".[dev]"` 或 `pip install -r requirements-dev.txt` 安裝；不裝也完全不影響專案本身或既有 `unittest` 測試方式。
 
 ### Fixed

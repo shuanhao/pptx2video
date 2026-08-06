@@ -144,9 +144,9 @@
   完整操作說明，以及三個核心技術子系統（字幕真實時間對齊、字幕斷句演算法、PowerPoint 自動化）的設計記錄。</div>
 
   <div class="meta-row">
-    <div class="meta-item">最後更新 <b>2026-08-05</b></div>
+    <div class="meta-item">最後更新 <b>2026-08-06</b></div>
     <div class="meta-item">目前版本 <span class="chip">v0.8.0</span></div>
-    <div class="meta-item">後端測試 <span class="chip">167 passed</span></div>
+    <div class="meta-item">後端測試 <span class="chip">188 passed</span></div>
   </div>
 
   <hr class="hr">
@@ -168,7 +168,7 @@
   <div class="stat-row">
     <div class="stat"><div class="v">5</div><div class="l">處理階段：解析 / 語音 / 字幕 / 插入音訊 / 匯出</div></div>
     <div class="stat"><div class="v">Windows</div><div class="l">需要 PowerPoint 才能插入音訊與匯出影片</div></div>
-    <div class="stat"><div class="v">167</div><div class="l">自動化測試，涵蓋每個處理階段</div></div>
+    <div class="stat"><div class="v">188</div><div class="l">自動化測試，涵蓋每個處理階段</div></div>
   </div>
 
   <div class="footer-strip"><span>PPTX2VIDEO · 系統說明書</span><span>1 / 13</span></div>
@@ -217,8 +217,8 @@
       <span>把生成好的語音插入對應投影片，再呼叫 PowerPoint 自動匯出成 MP4；字幕會在影片匯出完成後，依照真實畫面時間重新校正一次（詳細設計見第二部）。</span>
     </div></div>
     <div class="card"><div class="num">06</div><div class="body">
-      <b>一次到底 / 分段輸出</b>
-      <span>以上步驟可以拆開一步步跑，方便個別除錯，也可以合併成單一指令一次完成；影片太長時，另有工具可依換頁邊界切成多段，方便觀看與分享。</span>
+      <b>一次到底 / 分段輸出 / 燒字幕</b>
+      <span>以上步驟可以拆開一步步跑，方便個別除錯，也可以合併成單一指令一次完成；影片太長時，另有工具可依換頁邊界切成多段，方便觀看與分享；分段的同時也能選擇把字幕直接燒進畫面（固定樣式的黑底白字字幕列），不依賴播放器是否支援字幕軌。</span>
     </div></div>
   </div>
 

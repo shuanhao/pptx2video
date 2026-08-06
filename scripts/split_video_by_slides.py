@@ -77,6 +77,18 @@ ever straddle a cut boundary if the true-start measurement that produced the
 cut point and the one that produced the cue's own timing disagreed by a
 sliver - in that rare case this script clips the cue to the segment's
 window rather than dropping or duplicating it whole.
+
+Burning subtitles in: add --burn-subtitles (requires --subtitles) to also
+hardsub each segment's just-written segment_N.srt into its segment_N.mp4,
+producing segment_N_burned.mp4 - via the same
+src.subtitle_burner.burn_subtitles_into_video() that scripts/
+burn_subtitles.py uses standalone, so the two never drift apart. This exists
+because splitting and burning are almost always done back-to-back for the
+same segments; scripts/burn_subtitles.py remains the tool for burning a
+single .mp4/.srt pair on its own (the full unsplit deck, or re-burning one
+segment after tweaking style without re-cutting). segment_N.mp4/segment_N.srt
+are still written either way, so re-running just the burn step later doesn't
+require re-cutting the video.
 """
 
 import argparse
@@ -97,6 +109,16 @@ from src.audio_position_locator import (
 from src.pptx_parser import extract_notes
 from src.subtitle_alignment import format_srt
 from src.logging_config import ensure_utf8_console
+from src.subtitle_burner import (
+    DEFAULT_BAR_BOTTOM_OFFSET_PX,
+    DEFAULT_BAR_HEIGHT_PX,
+    DEFAULT_BAR_WIDTH_PX,
+    DEFAULT_CRF,
+    DEFAULT_FONT_NAME,
+    DEFAULT_FONT_SIZE,
+    DEFAULT_MARGIN_V,
+    burn_subtitles_into_video,
+)
 
 _SRT_TIMESTAMP_RE = re.compile(
     r"(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})"
@@ -309,7 +331,24 @@ def main() -> None:
             "guaranteed to line up with that segment's .mp4."
         ),
     )
+    parser.add_argument(
+        "--burn-subtitles", action="store_true",
+        help="Also hardsub each segment's .srt into its .mp4, producing segment_N_burned.mp4. Requires --subtitles.",
+    )
+    parser.add_argument("--bar-width", type=int, default=DEFAULT_BAR_WIDTH_PX, help=f"--burn-subtitles: black bar width in px (default: {DEFAULT_BAR_WIDTH_PX}).")
+    parser.add_argument("--bar-height", type=int, default=DEFAULT_BAR_HEIGHT_PX, help=f"--burn-subtitles: black bar height in px (default: {DEFAULT_BAR_HEIGHT_PX}).")
+    parser.add_argument(
+        "--bar-bottom-offset", type=int, default=DEFAULT_BAR_BOTTOM_OFFSET_PX,
+        help=f"--burn-subtitles: px from the frame's bottom edge to the bar's TOP edge (default: {DEFAULT_BAR_BOTTOM_OFFSET_PX}).",
+    )
+    parser.add_argument("--font-name", default=DEFAULT_FONT_NAME, help=f"--burn-subtitles: font family (default: {DEFAULT_FONT_NAME!r}).")
+    parser.add_argument("--font-size", type=int, default=DEFAULT_FONT_SIZE, help=f"--burn-subtitles: font size in px (default: {DEFAULT_FONT_SIZE}).")
+    parser.add_argument("--margin-v", type=int, default=DEFAULT_MARGIN_V, help=f"--burn-subtitles: px from the frame's bottom edge to the text's bottom edge (default: {DEFAULT_MARGIN_V}).")
+    parser.add_argument("--burn-crf", type=int, default=DEFAULT_CRF, help=f"--burn-subtitles: libx264 quality (default: {DEFAULT_CRF}).")
     args = parser.parse_args()
+
+    if args.burn_subtitles and args.subtitles is None:
+        raise SystemExit("--burn-subtitles requires --subtitles (nothing to burn without a source .srt).")
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     audio_dir = args.audio_dir or Path(manifest.get("output_dir") or args.manifest.parent)
@@ -379,6 +418,21 @@ def main() -> None:
             srt_output_path = args.output_dir / f"{args.output_prefix}_{i + 1}.srt"
             srt_output_path.write_text(format_srt(sliced), encoding="utf-8")
             print(f"Wrote {srt_output_path} ({len(sliced)} cue(s))")
+
+            if args.burn_subtitles:
+                burned_output_path = args.output_dir / f"{args.output_prefix}_{i + 1}_burned.mp4"
+                print(f"Burning {srt_output_path} into {output_path} -> {burned_output_path} ...")
+                burn_subtitles_into_video(
+                    output_path, srt_output_path, burned_output_path,
+                    bar_width_px=args.bar_width,
+                    bar_height_px=args.bar_height,
+                    bar_bottom_offset_px=args.bar_bottom_offset,
+                    font_name=args.font_name,
+                    font_size=args.font_size,
+                    margin_v=args.margin_v,
+                    crf=args.burn_crf,
+                )
+                print(f"Wrote {burned_output_path}")
 
     print(f"\nDone: {len(boundaries) - 1} segment(s) in {args.output_dir}")
 

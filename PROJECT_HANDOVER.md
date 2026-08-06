@@ -208,6 +208,19 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - **v0.6.1 第四輪修正新增 `global_scale_correction` 參數（`locate_slide_start_times()`、`locate_slide_start_and_end_times()` 均有）**：在真實 2 小時 40 分鐘 deck 上，逐頁用真實播放時間核對後發現，這個模組回傳的量測時間本身帶有一個跟已播放時間成正比、環境相依的系統性偏差（約 0.12%，整份 deck 累積到 12 秒等級）——已個別排除「PowerPoint 匯出加速音訊」（原本 v0.6.1 第一輪修正的假設，交叉驗證後證實從未存在）、「匯出檔案本身音畫不同步」、「本模組 ffmpeg/pydub 重取樣造成的浮點誤差」這三個候選成因，但確切是 `find_best_offset_seconds()` 互相關比對內部哪個環節造成的，**尚未定位到程式碼層級**。`global_scale_correction`（預設 `1.0`，不修正）是經驗校準的因應措施：直接乘上每一個回傳的時間值，套用後在真實 deck 上把殘差壓到 RMS 0.27 秒、全 deck 最大 0.53 秒。**這不是通用常數**，換一份 deck 或換一台機器，理論上都需要重新校準——校準方法見 `DEFAULT_GLOBAL_SCALE_CORRECTION` 的 docstring 或 CHANGELOG v0.6.1 第四輪修正的完整記錄。如果之後要接手定位確切成因，`find_best_offset_seconds()`（本模組）的 FFT 互相關實作是第一個該深入的地方。
 - **`scripts/calibrate_scale.py`（未發布，見 CHANGELOG）**：把上面「換一份 deck 或換一台機器都需要重新校準」的流程腳本化——輸入幾個使用者自己用播放器精確核對過的真實時間點，內部重跑一次 `locate_slide_start_times(..., global_scale_correction=1.0)` 取得對應的未校正量測值，用跟原始 k=1.00121 相同的最小平方回歸（強制過原點）算出建議值並回報殘差。這支工具本身不解決「偏差是否為 PowerPoint 通用特性」這個未決問題（見 TODO.md），但不論答案是哪一種，都需要有這個工具讓每個環境能各自產生自己的校正值；未來如果要驗證通用性，也是靠比較不同機器跑這支工具得到的 k 值是否收斂。設計上刻意選擇「單一全域係數」而非 per-slide 校正值——原始 20 點回歸的殘差沒有隨頁數發散或在特定頁面異常偏高，是「這是單一比例關係、不是逐頁各自獨立」的直接證據，per-slide 校正只會用更少資料點擬合更多自由度、雜訊更大，見 TODO.md「已評估、決定不做」。
 
+### 4.7a subtitle_burner.py（未發布，本次新增）
+
+**Input**：一份 `.mp4` + 對應的一份 `.srt`
+**Output**：燒好字幕的 `.mp4`（ffmpeg 執行的副作用，函式本身不回傳資料）
+**主要依賴**：`ffmpeg`（含 `libass`/`subtitles` filter，需在 PATH）
+
+負責：把字幕以「固定寬高、固定位置的黑色長條 + 白色無外框文字」燒進影片畫面（`burn_subtitles_into_video()`），而不是 libass 內建 `BorderStyle=3` 那種隨每行文字長短自動縮放寬度的貼字黑底框。背景：專案負責人想要的效果是「畫面下方一條固定寬度的黑 bar，不管這行字幕多長，黑 bar 大小都一樣」，並且黑 bar 的位置要能避開投影片模板本身的頁尾元素（logo、頁碼），這兩點都不是 libass 自動貼字框能做到的，因此改用 ffmpeg 的 `drawbox` 濾鏡先畫一條獨立的黑色長條，再疊上 `subtitles` 濾鏡渲染純白、無外框無陰影的文字（`BorderStyle=1,Outline=0,Shadow=0`）。
+- 黑條的預設寬高／位置（`w=650,h=38`，頂邊距畫面底部 40px）、字型（`Noto Sans CJK TC`）、字級（`15`）、文字距底部距離（`MarginV=1`）都是專案負責人對照一份真實 1280x720 匯出投影片、實際目測反覆調整校正出來的數值——**不是通用常數**，換一個匯出解析度、換字型、或改動字幕斷行長度（`subtitle_segmenter.DEFAULT_MAX_DISPLAY_WIDTH`）都可能需要重新校正，見 `docs/SPLIT_VIDEO.md`「想把字幕直接燒進畫面」一節。
+- `build_burn_filter()` 刻意拆成獨立函式，只組字串、不執行 ffmpeg，方便不需要裝 ffmpeg 就能單元測試濾鏡字串本身的正確性（見 `tests/test_subtitle_burner.py`）。
+- `_escape_path_for_ffmpeg_filter()`：ffmpeg 的 filtergraph 語法裡 `:` 是分隔 filter 參數用的、`'` 是引號——Windows 絕對路徑裡的磁碟機代號冒號（例如 `C:\...`）如果不跳脫，會被誤判成新的 filter 參數而整串解析失敗（不是「檔案找不到」這種好懂的錯誤），所以這裡統一把反斜線換成正斜線、`:` 跳脫成 `\:`、`'` 跳脫成 `\'`。
+- 燒字幕一定要重新編碼影片（`-c:v libx264`，因為是把像素畫進每一幀），音軌完全沒被動到、一律 `-c:a copy` 直接複製、不重新編碼。
+- **`scripts/burn_subtitles.py`**：獨立 CLI，燒任一組 `.mp4`/`.srt`（完整版 deck 或已切好的某一段都可以）。**`scripts/split_video_by_slides.py` 的 `--burn-subtitles`**：切分段的同時，對每一段剛切出來的 `segment_N.mp4`/`segment_N.srt` 立刻呼叫同一個 `burn_subtitles_into_video()`，多產生 `segment_N_burned.mp4`；原本的 `segment_N.mp4`（未燒）跟 `segment_N.srt`（軟字幕）依然保留。兩個進入點呼叫的是同一份實作，不會分頭維護出兩套邏輯。
+
 ### 4.8 exceptions.py
 
 **Input／Output**：不適用——這是共用的例外類別定義，不處理資料流，供其他模組拋出、`main.py` 統一捕捉
@@ -344,6 +357,7 @@ pptx2video/
 │   ├── subtitle_pipeline.py      # 字幕合併：多投影片依實際時間軸合併成一份完整 SRT
 │   ├── ppt_automation.py         # PowerPoint COM 自動化：插入音訊、匯出 MP4
 │   ├── audio_position_locator.py # 對匯出好的 mp4 做音訊互相關比對，量出每頁真實起始時間
+│   ├── subtitle_burner.py        # 把字幕燒進畫面：固定寬高的黑條 + 白色無外框文字（ffmpeg drawbox + subtitles filter）
 │   ├── exceptions.py             # 自訂例外階層
 │   ├── logging_config.py         # 統一 Logging 設定
 │   └── __init__.py
@@ -361,7 +375,8 @@ pptx2video/
 │   ├── dump_slide_bounds.py
 │   ├── calibrate_scale.py                # 從幾個「手動」核對過的真實播放時間，回歸推算出 --global-scale-correction 的建議值（有人耳驗證，較可信但較費工）
 │   ├── check_narration_gaps.py           # 離線版疑似漏講偵測，不呼叫 edge-tts
-│   ├── split_video_by_slides.py          # 把已匯出的 mp4 依換頁邊界切成多段，加 --subtitles 可同步切出對應的 segment_N.srt
+│   ├── split_video_by_slides.py          # 把已匯出的 mp4 依換頁邊界切成多段，加 --subtitles 可同步切出對應的 segment_N.srt，加 --burn-subtitles 可再順便燒字幕
+│   ├── burn_subtitles.py                 # 獨立燒字幕工具：任一組 .mp4/.srt 燒成硬字幕版本，跟 split_video_by_slides.py --burn-subtitles 共用同一套 src/subtitle_burner.py 邏輯
 │   └── sample_notes_for_smoke_test.txt   # 上面腳本用的範例備忘稿文字
 ├── examples/            # 範例腳本與範例簡報
 ├── output/              # 輸出檔案（已加入 .gitignore，不進版控）

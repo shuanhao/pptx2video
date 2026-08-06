@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import shutil
 import subprocess
 import sys
@@ -6,8 +7,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+from pydub import AudioSegment
+
 ROOT = Path(__file__).resolve().parent.parent
 _FFMPEG_AVAILABLE = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
+_FFMPEG_HAS_LIBASS = _FFMPEG_AVAILABLE and "subtitles" in subprocess.run(
+    ["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True
+).stdout
 
 # scripts/ isn't a package (no __init__.py), so load by path - same approach
 # tests/test_calibrate_scale.py uses for calibrate_scale.py.
@@ -157,6 +164,116 @@ class FfmpegSegmentEndToEndTests(unittest.TestCase):
         split_video_by_slides._run_ffmpeg_segment(self.video, 20.0, None, out, reencode=False)
         self.assertTrue(out.exists())
         self.assertAlmostEqual(split_video_by_slides._probe_duration_seconds(out), 10.0, delta=0.5)
+
+
+class BurnSubtitlesFlagValidationTests(unittest.TestCase):
+    @unittest.skipUnless(_FFMPEG_AVAILABLE, "ffmpeg/ffprobe not available")
+    def test_burn_subtitles_without_subtitles_flag_errors_out(self):
+        # Doesn't need a real video/manifest - argparse-level validation
+        # should reject this combination before touching any files.
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            result = subprocess.run(
+                [
+                    sys.executable, str(ROOT / "scripts" / "split_video_by_slides.py"),
+                    "--video", str(tmp_path / "nonexistent.mp4"),
+                    "--manifest", str(tmp_path / "nonexistent_manifest.json"),
+                    "--slides-json", str(tmp_path / "nonexistent_slides.json"),
+                    "--output-dir", str(tmp_path / "out"),
+                    "--num-segments", "2",
+                    "--burn-subtitles",
+                ],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("--burn-subtitles requires --subtitles", result.stderr)
+
+
+@unittest.skipUnless(_FFMPEG_HAS_LIBASS, "ffmpeg without libass/subtitles filter support")
+class BurnSubtitlesEndToEndTests(unittest.TestCase):
+    def test_cli_produces_burned_segments_alongside_soft_ones(self):
+        # Build a small synthetic 2-slide deck (real correlated audio, like
+        # test_calibrate_scale.py's fixture) with a picture track, then run
+        # the CLI with --num-segments 2 --subtitles ... --burn-subtitles and
+        # confirm both the untouched segment_N.mp4/.srt pair AND the new
+        # segment_N_burned.mp4 come out the other end.
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            audio_dir = tmp_path
+
+            def _tone_segment(duration_seconds, freq, seed):
+                rng = np.random.default_rng(seed)
+                n = int(duration_seconds * 8000)
+                t = np.arange(n) / 8000
+                samples = (np.sin(2 * np.pi * freq * t) * 3000 + rng.standard_normal(n) * 50).astype(np.int16)
+                return AudioSegment(samples.tobytes(), frame_rate=8000, sample_width=2, channels=1)
+
+            clip1 = _tone_segment(4.0, 300, seed=21)
+            clip2 = _tone_segment(4.0, 600, seed=22)
+            clip1.export(audio_dir / "slide_001.mp3", format="mp3")
+            clip2.export(audio_dir / "slide_002.mp3", format="mp3")
+
+            full = clip1 + AudioSegment.silent(duration=500) + clip2
+            full_wav = tmp_path / "full.wav"
+            full.export(full_wav, format="wav")
+
+            full_mp4 = tmp_path / "full.mp4"
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-loglevel", "error",
+                    "-f", "lavfi", "-i", f"color=c=blue:s=320x240:d={full.duration_seconds:.2f}",
+                    "-i", str(full_wav),
+                    "-c:v", "libx264", "-c:a", "aac", "-shortest", str(full_mp4),
+                ],
+                check=True,
+            )
+
+            slides = [{"slide_num": 1, "notes": "one"}, {"slide_num": 2, "notes": "two"}]
+            manifest = {
+                "output_dir": str(audio_dir),
+                "slides": [
+                    {"slide_num": 1, "audio_file": "slide_001.mp3"},
+                    {"slide_num": 2, "audio_file": "slide_002.mp3"},
+                ],
+            }
+            slides_json = tmp_path / "slides.json"
+            slides_json.write_text(json.dumps(slides), encoding="utf-8")
+            manifest_json = tmp_path / "manifest.json"
+            manifest_json.write_text(json.dumps(manifest), encoding="utf-8")
+
+            captions_srt = tmp_path / "captions.srt"
+            captions_srt.write_text(
+                "1\n00:00:00,000 --> 00:00:03,500\n第一句字幕\n\n"
+                "2\n00:00:04,500 --> 00:00:08,000\n第二句字幕\n",
+                encoding="utf-8",
+            )
+
+            output_dir = tmp_path / "segments"
+            result = subprocess.run(
+                [
+                    sys.executable, str(ROOT / "scripts" / "split_video_by_slides.py"),
+                    "--video", str(full_mp4),
+                    "--manifest", str(manifest_json),
+                    "--slides-json", str(slides_json),
+                    "--output-dir", str(output_dir),
+                    "--num-segments", "2",
+                    "--search-window-seconds", "5",
+                    "--subtitles", str(captions_srt),
+                    "--burn-subtitles",
+                ],
+                check=True, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            )
+
+            self.assertTrue((output_dir / "segment_1.mp4").exists())
+            self.assertTrue((output_dir / "segment_1.srt").exists())
+            self.assertTrue((output_dir / "segment_2.mp4").exists())
+            self.assertTrue((output_dir / "segment_2.srt").exists())
+            burned_1 = output_dir / "segment_1_burned.mp4"
+            burned_2 = output_dir / "segment_2_burned.mp4"
+            self.assertTrue(burned_1.exists(), result.stdout + result.stderr)
+            self.assertTrue(burned_2.exists(), result.stdout + result.stderr)
+            self.assertGreater(burned_1.stat().st_size, 0)
+            self.assertGreater(burned_2.stat().st_size, 0)
 
 
 if __name__ == "__main__":

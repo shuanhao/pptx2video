@@ -347,6 +347,7 @@ python src/main.py output/deck_with_audio.pptx --export-video --video-output out
 
 - **字幕/切點對不準、需要校準**：[docs/CALIBRATION.md](docs/CALIBRATION.md)（`--global-scale-correction` 怎麼校準、免動手自動估算 vs 手動校準）
 - **匯出的 MP4 太長，想依換頁邊界切成多段**：[docs/SPLIT_VIDEO.md](docs/SPLIT_VIDEO.md)（`scripts/split_video_by_slides.py`）
+- **想把字幕直接燒進畫面（硬字幕）**：[docs/SPLIT_VIDEO.md](docs/SPLIT_VIDEO.md)（`scripts/burn_subtitles.py`、或 `split_video_by_slides.py --burn-subtitles` 切分段時順便燒）
 
 開發者/架構向的內容（專案結構總覽、例外階層、Skip vs Abort 錯誤處理策略、如何執行測試、系統架構圖）都整理在 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md)，一般使用不需要看這份文件。
 
