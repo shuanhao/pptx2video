@@ -368,6 +368,7 @@ pptx2video/
 ├── logs/                # 帶日期的 log 檔案（已加入 .gitignore，不進版控）
 ├── temp/                # 暫存資料夾
 ├── requirements.txt     # Python 相依套件
+├── requirements-dev.txt # 選用：只有跑/開發測試套件才需要（目前只有 pytest；unittest 本身不需要額外安裝）
 ├── pyproject.toml       # 專案設定
 ├── LICENSE              # 授權條款
 ├── CHANGELOG.md         # 版本歷史
@@ -412,6 +413,17 @@ python -m unittest tests.test_cli_end_to_end -v
 > `test_cli_end_to_end.py` 直接呼叫 `src.main.main()`（跟真正的 CLI 入口一樣的路徑），涵蓋解析、`--generate-audio`（mock 掉 edge-tts 網路呼叫）、字幕產生、`--strict`、`--pretty`、錯誤處理等完整流程，補足其他測試模組只測個別函式、沒有測過 `main()` 本身的缺口。同樣因為需要真的 Windows + PowerPoint，`--insert-audio`/`--export-video` 不在這個模組的涵蓋範圍內。
 >
 > `test_tts_word_boundaries.py`、`test_subtitle_segmenter.py`、`test_subtitle_alignment.py`、`test_subtitle_pipeline.py` 涵蓋的是逐字時間擷取、字幕斷句、時間對齊、多投影片合併這幾個各自獨立的環節，都用假資料（不需要真的連網或裝 PowerPoint）；實際對真實 edge-tts/PowerPoint 輸出的驗證見 `scripts/` 底下的手動驗證腳本。
+
+### 選用：用 pytest 執行測試
+
+上面的 `python -m unittest discover -s tests -v` 不需要安裝任何額外套件即可執行，是最基本、保證能跑的方式。如果想要更精簡的輸出、或需要 `-k` 依名稱篩選測試等功能，可以另外安裝 `pytest`（純屬個人偏好，不是必要相依套件）：
+
+```powershell
+pip install -r requirements-dev.txt
+# 或：pip install -e ".[dev]"
+
+python -m pytest tests/ -q
+```
 
 ---
 

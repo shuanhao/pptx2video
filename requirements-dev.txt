@@ -1,0 +1,9 @@
+# Extra dependencies for running/developing the test suite - NOT required
+# to run pptx2video itself. The test suite works fine with the stdlib
+# `unittest` (python -m unittest discover -s tests -v) without any of this;
+# pytest is just a more convenient optional runner (shorter output, `-k`
+# test filtering, etc.).
+#
+# Install alongside the base requirements with:
+#   pip install -r requirements.txt -r requirements-dev.txt
+pytest>=7.0

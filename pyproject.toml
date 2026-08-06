@@ -21,6 +21,16 @@ dependencies = [
   "audioop-lts; python_version >= '3.13'",
 ]
 
+[project.optional-dependencies]
+# Not required to run pptx2video itself - only for running/developing the
+# test suite. tests/ currently work fine with the stdlib `unittest`
+# (`python -m unittest discover -s tests -v`); pytest is an optional,
+# more convenient runner (shorter output, `-k` test filtering, etc.), not
+# a hard requirement. Install with: pip install -e ".[dev]"
+dev = [
+  "pytest>=7.0",
+]
+
 [tool.setuptools]
 packages = ["src", "pptx2video"]
 
