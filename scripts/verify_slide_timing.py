@@ -65,6 +65,7 @@ from src.audio_position_locator import (
     locate_slide_start_times,
 )
 from src.pptx_parser import extract_notes
+from src.logging_config import ensure_utf8_console
 
 # A delta beyond this is flagged as a likely dead-space/drift symptom rather
 # than ordinary correlation noise.
@@ -72,6 +73,12 @@ DRIFT_WARNING_THRESHOLD_SECONDS = 0.5
 
 
 def main():
+    # Reconfigure stdout/stderr to UTF-8 before any print() - Windows can
+    # otherwise crash printing CJK slide text when stdout/stderr is piped
+    # rather than an interactive console (see ensure_utf8_console()'s
+    # docstring for the confirmed real-world crash this fixes).
+    ensure_utf8_console()
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("video_path", type=Path)
     parser.add_argument("manifest_path", type=Path)

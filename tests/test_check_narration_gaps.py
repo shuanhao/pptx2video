@@ -76,6 +76,16 @@ class CheckNarrationGapsEndToEndTests(unittest.TestCase):
         return subprocess.run(
             [sys.executable, str(ROOT / "scripts" / "check_narration_gaps.py")] + args,
             capture_output=True, text=True,
+            # Must match the UTF-8 the child process now writes with (see
+            # ensure_utf8_console() in src/logging_config.py) - without this,
+            # subprocess.run() decodes the captured bytes using this
+            # *parent* process's own default encoding
+            # (locale.getpreferredencoding()), which on a non-Unicode-default
+            # Windows install is a legacy codepage like cp1252 that can't
+            # decode UTF-8 multi-byte sequences for CJK text, raising
+            # UnicodeDecodeError here instead of the UnicodeEncodeError this
+            # was meant to fix.
+            encoding="utf-8", errors="replace",
         )
 
     def test_detects_real_shaped_drop_and_exits_1(self):

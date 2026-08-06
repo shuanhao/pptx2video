@@ -1,9 +1,11 @@
+import io
 import logging
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from src.logging_config import setup_logging, shutdown_logging
+from src.logging_config import ensure_utf8_console, setup_logging, shutdown_logging
 
 class LoggingConfigTests(unittest.TestCase):
 
@@ -145,6 +147,90 @@ class LoggingConfigTests(unittest.TestCase):
             self.assertEqual(len(logger.handlers), 1)
             self.assertIsInstance(logger.handlers[0], logging.StreamHandler)
             shutdown_logging(logger)
+
+
+class FakeStream:
+    """Minimal stand-in for sys.stdout/sys.stderr with a configurable
+    ``encoding`` attribute and a mockable ``reconfigure()`` method, so tests
+    don't have to touch the real process streams."""
+
+    def __init__(self, encoding, support_reconfigure=True, raise_on_reconfigure=None):
+        self.encoding = encoding
+        if support_reconfigure:
+            self.reconfigure = mock.Mock(side_effect=raise_on_reconfigure)
+        # else: no `.reconfigure` attribute at all, like older Python.
+
+
+class EnsureUtf8ConsoleTests(unittest.TestCase):
+
+    def test_reconfigures_non_utf8_stdout_and_stderr(self):
+        fake_out = FakeStream(encoding="cp1252")
+        fake_err = FakeStream(encoding="cp1252")
+
+        with mock.patch("sys.stdout", fake_out), mock.patch("sys.stderr", fake_err):
+            ensure_utf8_console()
+
+        fake_out.reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
+        fake_err.reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
+
+    def test_skips_stream_already_utf8(self):
+        # Also covers the case-insensitive/hyphen-insensitive match (e.g.
+        # "UTF-8" reported by some platforms rather than "utf-8").
+        fake_out = FakeStream(encoding="UTF-8")
+
+        with mock.patch("sys.stdout", fake_out), mock.patch("sys.stderr", fake_out):
+            ensure_utf8_console()
+
+        fake_out.reconfigure.assert_not_called()
+
+    def test_skips_stream_without_reconfigure_method(self):
+        fake_out = FakeStream(encoding="cp1252", support_reconfigure=False)
+
+        with mock.patch("sys.stdout", fake_out), mock.patch("sys.stderr", fake_out):
+            # Must not raise even though .reconfigure doesn't exist.
+            ensure_utf8_console()
+
+        self.assertFalse(hasattr(fake_out, "reconfigure"))
+
+    def test_swallows_value_error_from_reconfigure(self):
+        fake_out = FakeStream(encoding="cp1252", raise_on_reconfigure=ValueError("closed"))
+        fake_err = FakeStream(encoding="cp1252")
+
+        with mock.patch("sys.stdout", fake_out), mock.patch("sys.stderr", fake_err):
+            # Must not propagate - this is a defensive helper and should
+            # never itself crash a run. The failure on stdout also must not
+            # prevent stderr from still being reconfigured.
+            ensure_utf8_console()
+
+        fake_out.reconfigure.assert_called_once()
+        fake_err.reconfigure.assert_called_once()
+
+    def test_swallows_os_error_from_reconfigure(self):
+        fake_out = FakeStream(encoding="cp1252", raise_on_reconfigure=OSError("detached"))
+        fake_err = FakeStream(encoding="cp1252")
+
+        with mock.patch("sys.stdout", fake_out), mock.patch("sys.stderr", fake_err):
+            ensure_utf8_console()
+
+        fake_out.reconfigure.assert_called_once()
+        fake_err.reconfigure.assert_called_once()
+
+    def test_skips_none_stream(self):
+        # e.g. `python -OO` with PYTHONIOENCODING weirdness, or a stream
+        # explicitly set to None by some embedding host - must not crash
+        # on attribute access.
+        with mock.patch("sys.stdout", None), mock.patch("sys.stderr", None):
+            ensure_utf8_console()
+
+    def test_real_stringio_stream_is_left_alone_without_crashing(self):
+        # io.StringIO has no .reconfigure() at all (it's not a text-wrapper
+        # around a buffer) - exercise the real object, not just a mock, to
+        # confirm getattr(..., None) handles it rather than raising
+        # AttributeError.
+        fake_out = io.StringIO()
+
+        with mock.patch("sys.stdout", fake_out), mock.patch("sys.stderr", fake_out):
+            ensure_utf8_console()  # Must not raise.
 
 
 if __name__ == "__main__":

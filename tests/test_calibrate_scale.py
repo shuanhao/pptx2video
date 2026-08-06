@@ -114,7 +114,13 @@ class CalibrateScaleEndToEndTests(unittest.TestCase):
                     "--search-window-seconds", "5",
                     "--report", str(report_json),
                 ],
+                # encoding="utf-8" matches what the child now writes with
+                # (see ensure_utf8_console() in src/logging_config.py) -
+                # without it, decoding the captured bytes falls back to this
+                # parent process's own default encoding, which can be a
+                # non-UTF-8 codepage on Windows.
                 check=True, capture_output=True, text=True,
+                encoding="utf-8", errors="replace",
             )
             self.assertIn("Suggested --global-scale-correction", result.stdout)
 

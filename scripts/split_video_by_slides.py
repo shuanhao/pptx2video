@@ -96,6 +96,7 @@ from src.audio_position_locator import (
 )
 from src.pptx_parser import extract_notes
 from src.subtitle_alignment import format_srt
+from src.logging_config import ensure_utf8_console
 
 _SRT_TIMESTAMP_RE = re.compile(
     r"(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})"
@@ -248,6 +249,12 @@ def _run_ffmpeg_segment(video_path: Path, start: float, end, output_path: Path, 
 
 
 def main() -> None:
+    # Reconfigure stdout/stderr to UTF-8 before any print() - Windows can
+    # otherwise crash printing CJK slide text when stdout/stderr is piped
+    # rather than an interactive console (see ensure_utf8_console()'s
+    # docstring for the confirmed real-world crash this fixes).
+    ensure_utf8_console()
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--video", required=True, type=Path, help="The exported MP4 (ppt_automation.export_video()'s output)")
     parser.add_argument("--manifest", required=True, type=Path, help="Path to manifest.json (from --generate-audio)")

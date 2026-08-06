@@ -45,6 +45,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.subtitle_alignment import align_segments_with_word_boundaries, format_srt
 from src.subtitle_segmenter import segment_notes_for_subtitles
 from src.tts import synthesize_with_word_boundaries
+from src.logging_config import ensure_utf8_console
 
 DEFAULT_TEXT = (
     "這是一段測試文字，用來確認字幕的斷句與時間軸對齊是否正確。\n"
@@ -67,6 +68,12 @@ def _read_text_from_args(argv):
 
 
 def main():
+    # Reconfigure stdout/stderr to UTF-8 before any print() - Windows can
+    # otherwise crash printing CJK slide text when stdout/stderr is piped
+    # rather than an interactive console (see ensure_utf8_console()'s
+    # docstring for the confirmed real-world crash this fixes).
+    ensure_utf8_console()
+
     text = _read_text_from_args(sys.argv[1:])
     output_dir = Path(__file__).resolve().parent
     audio_path = output_dir / "smoke_test_alignment_output.mp3"

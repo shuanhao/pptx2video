@@ -6,7 +6,16 @@
 
 ## [未發布]
 
-（目前沒有尚未發布的變更——下一批新功能/修正會累積在這裡，發布時再依慣例改成帶版號與日期的章節。）
+### Added
+
+- **新增選用的 `requirements-dev.txt`（`pytest`）**：測試套件原本就能用 stdlib 的 `unittest`（`python -m unittest discover -s tests -v`）完整執行，不需要安裝任何額外套件；這次追查 Windows 編碼問題時另外驗證用 `pytest tests/ -q` 跑同一套測試，輸出比較精簡、之後也可能需要 `-k` 篩選單一測試，因此把它列為選用開發相依套件，避免以後需要用的時候又要重新想「這個要裝什麼」。`pyproject.toml` 同步新增 `[project.optional-dependencies] dev = ["pytest>=7.0"]`，可用 `pip install -e ".[dev]"` 或 `pip install -r requirements-dev.txt` 安裝；不裝也完全不影響專案本身或既有 `unittest` 測試方式。
+
+### Fixed
+
+- **修正在 Windows 上、當 stdout/stderr 被導向管線（pipe）或檔案時，印出中文字會讓程式直接崩潰的問題**：使用者在自己的 Windows 機器上執行 `pytest`（會用 `subprocess.run(..., capture_output=True, text=True)` 呼叫 `scripts/check_narration_gaps.py`）時，`test_detects_real_shaped_drop_and_exits_1` 測試失敗——起初懷疑跟同一時間調整 `DEFAULT_MAX_DISPLAY_WIDTH` 有關，追查後確認兩者無關；真正原因是 `check_narration_gaps.py` 印出「疑似漏講內容」預覽（含中文）時，`print()` 底層用的是 `sys.stdout` 當下解析出的編碼。互動式終端機通常會拿到 UTF-8（或作業系統目前使用中的主控台字碼頁），但**被導向管線或重新導向到檔案的 stdout/stderr**，Python 會改用 `locale.getpreferredencoding()`，在使用者這台非 Unicode 預設的 Windows 安裝上解析出來的是 `cp1252`——一個完全無法表示任何中文字元的舊式單位元組字碼頁。實際重現後拿到的錯誤是 `UnicodeEncodeError: 'charmap' codec can't encode characters ...: character maps to <undefined>`，程式在印出任何東西之前就直接崩潰，測試因為 stdout 是空字串而斷言失敗；同一份指令直接在互動式終端機執行卻完全正常，一開始因此容易誤判成跟其他變更有關。
+  修正方式：`src/logging_config.py` 新增 `ensure_utf8_console()`，在 `sys.stdout`／`sys.stderr` 尚未是 UTF-8 時呼叫 `.reconfigure(encoding="utf-8", errors="replace")`；已經是 UTF-8、或該串流不支援 `.reconfigure()`（較舊版 Python 或非標準串流物件）時安全地略過，`ValueError`／`OSError` 也會被吞掉，確保這個防禦性工具本身永遠不會變成讓整支程式崩潰的原因。`setup_logging()`（`src/main.py` 主流程會呼叫）在建立 console handler 之前會先呼叫這個函式；另外 10 支獨立腳本（`scripts/calibrate_scale.py`、`check_narration_gaps.py`、`dump_slide_bounds.py`、`regenerate_srt_from_export.py`、`smoke_test_alignment.py`、`smoke_test_word_boundaries.py`、`split_video_by_slides.py`、`verify_slide_timing.py`、`verify_srt_accuracy.py`、`verify_tts_alignment.py`）的 `main()` 一開始也都各自呼叫，因為這些腳本不一定會經過 `setup_logging()`。
+  新增測試：`tests/test_logging_config.py::EnsureUtf8ConsoleTests`（非 UTF-8 串流會被重新設定、已是 UTF-8 的串流會略過、不支援 `.reconfigure()` 的串流不會崩潰、`.reconfigure()` 拋出 `ValueError`/`OSError` 會被安全吞掉且不影響另一個串流、`sys.stdout`/`sys.stderr` 為 `None` 不會崩潰、對真實的 `io.StringIO()` 物件也不會崩潰）。這個問題是使用者在自己機器上實際重現、並提供完整 traceback 後才確認根因。
+  **後續追加修正（同一輪、使用者套用上述修正後在自己機器上重新驗證時發現）**：把 `check_narration_gaps.py` 的 stdout 改成 UTF-8 之後，透過 `subprocess.run(capture_output=True, text=True)` 呼叫它的測試（`tests/test_check_narration_gaps.py`、`tests/test_calibrate_scale.py`）改成崩潰在**父行程**這一端——`subprocess.run()` 在 `text=True` 但沒有明確指定 `encoding=` 時，是用父行程自己的預設編碼（一樣是 `locale.getpreferredencoding()`）去解碼子行程捕捉到的 bytes；子行程現在寫出的是合法 UTF-8 多位元組序列，父行程卻還是拿 `cp1252` 去解，變成 `UnicodeDecodeError: 'charmap' codec can't decode byte ...`，跟原本的 `UnicodeEncodeError` 是同一個根因（雙方對「這個管線該用什麼編碼」沒有共識）的另一種呈現方式。修正方式：兩份測試檔的 `subprocess.run(...)` 呼叫都明確加上 `encoding="utf-8", errors="replace"`，讓父子兩端的編碼假設一致，不再各自依賴系統 locale 猜測。
 
 ## [0.8.0] - 2026-08-04
 

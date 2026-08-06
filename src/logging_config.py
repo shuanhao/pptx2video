@@ -24,6 +24,55 @@ from typing import Optional
 LOGGER_NAME = "pptx2video"
 
 
+def ensure_utf8_console() -> None:
+    """Reconfigure ``sys.stdout``/``sys.stderr`` to UTF-8 if they aren't
+    already, so printing Chinese text (slide notes/titles, "skipped text"
+    previews, etc.) never crashes the process.
+
+    Why this is needed: Python's default encoding for stdout/stderr on
+    Windows depends on *how* the stream is connected, not just the system
+    locale. An interactive console session typically gets UTF-8 (or the
+    active console codepage) via the Windows Console API - but a *piped*
+    stdout/stderr (subprocess capture, ``> file.txt`` redirection, CI
+    runners) falls back to ``locale.getpreferredencoding()``, which on a
+    non-Unicode-default Windows install can be a legacy single-byte
+    codepage (e.g. ``cp1252``) that cannot represent CJK characters at
+    all. Confirmed as a real crash, not a theoretical one: a user hit this
+    running ``scripts/check_narration_gaps.py`` via
+    ``subprocess.run(capture_output=True)`` (exactly what
+    ``tests/test_check_narration_gaps.py`` does) on a Windows machine
+    whose system locale is English/``cp1252`` - printing a Traditional
+    Chinese "skipped text" preview raised
+    ``UnicodeEncodeError: 'charmap' codec can't encode characters ...
+    character maps to <undefined>`` and crashed the script before it
+    could print anything, even though the exact same command run directly
+    in an interactive terminal (not piped) worked fine.
+
+    Safe to call more than once, and safe even if stdout/stderr have been
+    replaced with something unusual (e.g. under some test harnesses):
+    silently does nothing for a stream that's already UTF-8, or that
+    doesn't support ``.reconfigure()`` (older Python, or a non-standard
+    stream object) - this is a defensive nicety and should never itself
+    be the thing that crashes a run.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if stream is None:
+            continue
+        encoding = getattr(stream, "encoding", None)
+        if encoding and encoding.lower().replace("-", "") == "utf8":
+            continue
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            # Reconfiguring failed for some stream-specific reason (e.g.
+            # already detached/closed) - leave it alone rather than
+            # letting this defensive helper itself crash the program.
+            pass
+
+
 def setup_logging(
     verbose: bool = False,
     log_dir: Optional[Path | str] = "logs",
@@ -78,6 +127,13 @@ def setup_logging(
         for handler in list(logger.handlers):
             handler.close()
             logger.removeHandler(handler)
+
+    # Reconfigure stdout/stderr to UTF-8 *before* wiring up the console
+    # handler below, which writes to sys.stdout directly - see
+    # ensure_utf8_console()'s docstring for why this matters (a real,
+    # confirmed crash printing Chinese slide text on Windows when
+    # stdout/stderr is piped rather than an interactive console).
+    ensure_utf8_console()
 
     # Console output mirrors the plain style the CLI already used with
     # print() - no timestamp/level clutter for the person watching it run.

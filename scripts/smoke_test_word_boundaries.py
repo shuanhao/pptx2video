@@ -47,6 +47,7 @@ import edge_tts
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.tts import synthesize_with_word_boundaries
+from src.logging_config import ensure_utf8_console
 
 DEFAULT_TEXT = (
     "這是一段測試文字，用來確認word boundary的顆粒度。\n"
@@ -70,6 +71,12 @@ def _read_text_from_args(argv):
 
 
 def main():
+    # Reconfigure stdout/stderr to UTF-8 before any print() - Windows can
+    # otherwise crash printing CJK slide text when stdout/stderr is piped
+    # rather than an interactive console (see ensure_utf8_console()'s
+    # docstring for the confirmed real-world crash this fixes).
+    ensure_utf8_console()
+
     text = _read_text_from_args(sys.argv[1:])
     output_path = Path(__file__).resolve().parent / "smoke_test_output.mp3"
 

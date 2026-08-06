@@ -54,6 +54,7 @@ from src.subtitle_alignment import (
     DEFAULT_SUSPECTED_DROP_PACE_RATIO,
     find_suspected_dropped_narration,
 )
+from src.logging_config import ensure_utf8_console
 
 
 def parse_slide_selector(value: str) -> set:
@@ -82,6 +83,12 @@ def parse_slide_selector(value: str) -> set:
 
 
 def main() -> int:
+    # Reconfigure stdout/stderr to UTF-8 before any print() - Windows can
+    # otherwise crash printing CJK slide text when stdout/stderr is piped
+    # rather than an interactive console (see ensure_utf8_console()'s
+    # docstring for the confirmed real-world crash this fixes).
+    ensure_utf8_console()
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--manifest", required=True, type=Path, help="Path to manifest.json (from --generate-audio)")
     parser.add_argument(
