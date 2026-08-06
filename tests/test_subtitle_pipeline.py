@@ -20,6 +20,15 @@ def _parse_srt_start_seconds(srt_text: str, cue_start_index: int) -> float:
     # cue_start_index should point at (or before) a "HH:MM:SS,mmm -->" line.
     import re
     match = re.search(r"(\d\d):(\d\d):(\d\d),(\d\d\d) -->", srt_text[cue_start_index:])
+    # re.search() returns Optional[Match] - assert narrows it to Match for
+    # both the type checker (Pylance's "groups is not a known attribute of
+    # None" warning) and, more importantly, at runtime: if a test ever
+    # passes a cue_start_index that isn't actually pointing at a timestamp
+    # line, this fails loudly here with a clear message instead of letting
+    # `None.groups()` raise a cryptic AttributeError two lines down.
+    assert match is not None, (
+        f"No SRT timestamp found at/after index {cue_start_index} in: {srt_text[cue_start_index:cue_start_index + 60]!r}"
+    )
     h, m, s, ms = (int(g) for g in match.groups())
     return h * 3600 + m * 60 + s + ms / 1000.0
 
