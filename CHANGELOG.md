@@ -6,6 +6,21 @@
 
 ## [未發布]
 
+### Added
+
+- **`slides.json` 裡原本就有、但從未真正被使用過的 `subtitle_text` 欄位，現在會實際影響字幕內容**：`src/main.py` 的 `build_payload()` 早就會替每一頁寫入 `"subtitle_text": notes if notes else None`，但 `src/subtitle_pipeline.py`（不論預測路徑 `generate_srt_for_deck()` 還是真實起始時間路徑 `generate_srt_from_true_starts()`，兩者共用的 `_build_slide_captions()`）一直都是直接讀 `slide["notes"]`，`subtitle_text` 欄位形同虛設。
+  背景：使用者測試把長句拆成不超過字幕行寬上限的斷句流程時，發現靠 `subtitle_segmenter.py` 自動斷句仍會偶爾在沒有標點的長句上，透過 jieba 硬斷字誤切到詞的中間（見 `docs/SUBTITLE_OVERLAP_INCIDENT.md` 第 10 節「廣泛」案例，以及後續分析中在同一份 deck 另外抓到的「內部」「整個」「期間」「執行」「許多」「最重要」等真實案例）。討論後確認一個更根本的解法：把備忘稿丟給 AI chatbot 預先重新標點、依相同行寬上限預先分行，這樣每一段送進 `subtitle_segmenter.py` 時就已經在行寬限制內，`_hard_split()`／jieba 那條路徑根本不會被觸發。但這個處理**只能用在字幕文字上，不能連帶影響送進 edge-tts 的旁白文字**——旁白音檔已經生成好，不該因為调整字幕斷句就要重新合成語音。`subtitle_text` 欄位正是為了這個情境設計的（`notes` 永遠是送進 edge-tts、決定音檔/`wordboundaries.json` 內容的文字；`subtitle_text` 是獨立的字幕內容來源，預設等於 `notes`，但可以在不動 `notes`、不重新生成音檔的情況下被覆寫），只是原本沒有真的接上。
+  修正方式：`_build_slide_captions()` 改成優先讀取 `slide.get("subtitle_text")`（存在且非空時），沒有才退回 `slide.get("notes")`——這個 fallback 保證所有既有呼叫方式（例如直接用 `pptx_parser.extract_notes()` 讀出的、完全沒有 `subtitle_text` 這個 key 的 slide 清單）行為完全不變。這個覆寫之所以安全，是因為 `subtitle_alignment.py` 的比對邏輯是拿每個 WordBoundary 事件的**實際發音文字**，用游標往前搜尋在給定文字裡的位置（見其模組說明），不是依賴綁定在特定字串上的固定數字位移量——只要新文字裡沒有真的新增、刪除、或更動任何一個字（只有插入標點符號和換行），搜尋比對完全不受影響，時間軸依然正確，不需要重新呼叫 edge-tts、`--insert-audio`、或 `--export-video`，只要重新執行 `scripts/regenerate_srt_from_export.py`（用 `--slides-json` 指向一份 `subtitle_text` 已更新過的 slides.json 複本，`--manifest`／`--video` 都沿用既有檔案）就能拿到套用新斷句的 `.srt`。
+  新增測試：`tests/test_subtitle_pipeline.py` 新增 `test_subtitle_text_overrides_notes_for_line_breaking_and_alignment`（驗證有 `subtitle_text` 時字幕內容確實改用它、而不是 `notes`）、`test_missing_subtitle_text_falls_back_to_notes`（驗證完全沒有這個 key 時行為不變）。
+  新增 `scripts/verify_notes_preprocessing.py`：AI 處理過的備忘稿要拿來覆寫 `subtitle_text` 之前，先用這支工具驗證是不是真的可以安全套用上述「不必重新生成音檔」的捷徑——比對「內容有沒有被 AI 偷改」（逐字元 diff，只允許新增標點符號和換行）、「行寬是否真的合格」（直接呼叫 `subtitle_segmenter.segment_notes_for_subtitles()` 跑一遍，而不是另外重寫一套寬度計算邏輯）、「有沒有把詞拆成兩半」（中文詞典比對 + 英文單字無空格相接偵測，兩者都在真實測試中實際發生過）、「段落空白行分隔數量是否一致」，四項都通過才建議套用。
+  新增 `scripts/apply_subtitle_text.py`：AI chatbot 回覆的是一般多行純文字（真正的換行字元），不是已經跳脫成 `\n` 的 JSON 字串——直接手動貼進 JSON 檔案的 `subtitle_text` 欄位會產生不合法的 JSON，或者被編輯器悄悄用非預期的方式重新格式化。這支腳本讀取一份純文字檔，透過 `json.dump()`（而不是自己手刻字串拼接）正確跳脫寫入指定 `slide_num` 的 `subtitle_text` 欄位，其餘所有頁面、所有欄位原封不動，`--slides-json` 跟 `--output` 可以指向同一份檔案以便連續套用多頁。
+  新增測試：`tests/test_apply_subtitle_text.py`（驗證覆寫正確、其他頁面/欄位不受影響、輸出仍是合法 JSON、`slide_num` 找不到時明確報錯而不是靜默不做事、可以用同一個路徑連續處理多頁）。
+
+### Fixed
+
+- **修正 `test_parses_pptx_and_writes_json_and_srt_without_audio` 沒有隔離 `--audio-output-dir`，在真實工作目錄下執行測試會失敗的問題**：這個測試想驗證的是「沒有音檔 manifest 時，`.srt` 應該輸出空字串」，但呼叫 CLI 時沒有帶 `--audio-output-dir`，因此用的是這個參數的預設值（相對路徑 `output/audio`）——同一份測試檔裡其他每一個會用到音檔 manifest 的測試都有明確指定一個暫存目錄，只有這一個沒有。在乾淨的檢出（例如全新 clone、或這次交付用的沙盒環境）裡跑測試，`output/audio/` 根本不存在，`_resolve_audio_manifest()` 正確地回傳 `None`，測試如預期通過；但在一份「真的拿來執行過 CLI」的工作目錄（例如專案負責人自己的 `D:\WorkingCopy\pptx2video`）跑測試時，`output/audio/manifest.json` 上還留著先前真實執行留下的音檔 manifest，測試會意外把它讀進來，用這份跟測試假資料完全對不上的真實時間軸/音檔資料去產生字幕，得到夾雜真實時間戳、內容卻對不上（因此逐字比對搜尋不到、退化成零時長）的 `.srt`，而不是預期的空字串。
+  修正方式：跟同檔案裡其他測試一致，明確傳入 `--audio-output-dir` 指向一個只在這次測試執行期間存在的暫存目錄，讓這個測試不再依賴、也不會受目前工作目錄底下**剛好有什麼**影響，變成真正可重複執行（hermetic）的測試。這不是這次新增功能造成的迴歸，是既有測試本來就有的隔離缺口，只是這次因為使用者在自己真實使用中的專案目錄下執行測試套件才被踩到。
+
 ## [0.9.0] - 2026-08-06
 
 ### Changed

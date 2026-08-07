@@ -88,11 +88,25 @@ class CliEndToEndTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             json_path = Path(tmp) / "slides.json"
             srt_path = Path(tmp) / "captions.srt"
+            # Point --audio-output-dir at an empty tempdir explicitly. This
+            # test asserts that *no* audio manifest means an empty .srt is
+            # written - but the flag defaults to the relative "output/audio",
+            # which resolves against whatever the test runner's cwd happens
+            # to be. Every other test in this file isolates this same way;
+            # this one didn't, so on a real checkout that's actually been
+            # used to run the CLI for real (i.e. one with a genuine
+            # output/audio/manifest.json left over on disk from a previous
+            # run), this test would pick that manifest up, resolve real
+            # (mismatched) timing data against these fixture slides, and
+            # write a non-empty .srt full of zero-duration/misaligned cues -
+            # exactly the failure this isolation prevents.
+            audio_dir = Path(tmp) / "audio"
 
             _, _, exit_code = self._invoke([
                 str(pptx_path),
                 "--output", str(json_path),
                 "--subtitles-output", str(srt_path),
+                "--audio-output-dir", str(audio_dir),
                 "--no-file-log",
             ])
 

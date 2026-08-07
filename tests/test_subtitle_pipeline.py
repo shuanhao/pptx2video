@@ -74,6 +74,67 @@ class GenerateSrtForDeckTests(unittest.TestCase):
             self.assertTrue(srt_text.startswith("1\n"))
             self.assertIn("\n2\n", srt_text)
 
+    def test_subtitle_text_overrides_notes_for_line_breaking_and_alignment(self):
+        # "notes" is what was actually sent to edge-tts (and is what the
+        # word_boundaries.json below represents) - "subtitle_text" is an
+        # independent override for subtitle content only, e.g. an
+        # AI-repunctuated version of the same words with no wording changed
+        # (see docs/SUBTITLE_OVERLAP_INCIDENT.md). The SRT should reflect
+        # subtitle_text, not notes, without needing new audio.
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_dir = Path(tmp)
+
+            _write_silent_mp3(audio_dir / "slide_001.mp3", 600)
+            _write_word_boundaries(audio_dir / "slide_001.wordboundaries.json", [
+                {"text": "早", "offset_seconds": 0.0, "duration_seconds": 0.3},
+                {"text": "安", "offset_seconds": 0.3, "duration_seconds": 0.3},
+            ])
+
+            slides = [
+                {"slide_num": 1, "title": "A", "notes": "早安", "subtitle_text": "早，安"},
+            ]
+            manifest = {
+                "output_dir": str(audio_dir),
+                "slides": [
+                    {"slide_num": 1, "audio_file": "slide_001.mp3", "word_boundaries_file": "slide_001.wordboundaries.json"},
+                ],
+            }
+
+            srt_text, warnings = generate_srt_for_deck(slides, manifest, audio_dir)
+
+            self.assertEqual(warnings, [])
+            # The comma inserted only into subtitle_text shows up in the SRT
+            # - the alignment still located "早" and "安" correctly by
+            # searching for each WordBoundary event's text, unaffected by
+            # the extra punctuation between them.
+            self.assertIn("早，安", srt_text)
+
+    def test_missing_subtitle_text_falls_back_to_notes(self):
+        # A slide dict with no "subtitle_text" key at all (e.g. slides
+        # freshly parsed from a .pptx via extract_notes(), which never sets
+        # this key) must behave exactly as before this field existed.
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_dir = Path(tmp)
+
+            _write_silent_mp3(audio_dir / "slide_001.mp3", 600)
+            _write_word_boundaries(audio_dir / "slide_001.wordboundaries.json", [
+                {"text": "早", "offset_seconds": 0.0, "duration_seconds": 0.3},
+                {"text": "安", "offset_seconds": 0.3, "duration_seconds": 0.3},
+            ])
+
+            slides = [{"slide_num": 1, "title": "A", "notes": "早安"}]
+            manifest = {
+                "output_dir": str(audio_dir),
+                "slides": [
+                    {"slide_num": 1, "audio_file": "slide_001.mp3", "word_boundaries_file": "slide_001.wordboundaries.json"},
+                ],
+            }
+
+            srt_text, warnings = generate_srt_for_deck(slides, manifest, audio_dir)
+
+            self.assertEqual(warnings, [])
+            self.assertIn("早安", srt_text)
+
     def test_slide_without_notes_advances_timeline_by_default_duration(self):
         with tempfile.TemporaryDirectory() as tmp:
             audio_dir = Path(tmp)

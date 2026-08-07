@@ -137,6 +137,17 @@ def _build_slide_captions(
     ``generate_srt_for_deck``'s predicted cumulative sum, or
     ``generate_srt_from_true_starts``'s measured positions).
 
+    Each slide's subtitle lines are built from ``slide["subtitle_text"]``
+    if present and non-empty, falling back to ``slide["notes"]`` otherwise -
+    NOT always ``notes``. ``notes`` is what was actually sent to edge-tts
+    and must match the audio/word_boundaries.json on disk; ``subtitle_text``
+    is an independent, optional override for subtitle line-breaking only
+    (see the inline comment where it's read, below, for the full
+    rationale). Most callers never set ``subtitle_text`` explicitly -
+    ``main.py``'s ``build_payload()`` defaults it to a copy of ``notes``,
+    so behavior is unchanged unless something has deliberately overwritten
+    it.
+
     Returns ``(per_slide, warnings)`` where ``per_slide`` is one dict per
     *ordered* input slide (including silent ones, so callers can walk a
     single list to reconstruct the full timeline):
@@ -214,13 +225,30 @@ def _build_slide_captions(
             })
             continue
 
-        notes_text = str(slide.get("notes") or "")
-        segments = segment_notes_for_subtitles(notes_text, max_display_width=max_display_width)
+        # ``subtitle_text`` (when present and non-empty) is the text used
+        # for the *subtitle line breaking/timing* below - ``notes`` is what
+        # was actually sent to edge-tts (see tts.py) and is what the audio
+        # + word_boundaries.json on disk were generated from, so it must
+        # never change without re-running --generate-audio. ``subtitle_text``
+        # defaults to a copy of ``notes`` in main.py's build_payload(), but
+        # can be overwritten afterwards (e.g. with an AI-repunctuated,
+        # pre-broken version - see docs/SUBTITLE_OVERLAP_INCIDENT.md) to
+        # change subtitle line breaks without touching the narration at
+        # all. This only works because align_segments_with_word_boundaries()
+        # locates each WordBoundary event by *searching* for its spoken text
+        # within the given text (see subtitle_alignment.py's module
+        # docstring), not by a fixed numeric offset tied to a specific
+        # string - so inserting extra punctuation/line breaks between words
+        # doesn't break the match, as long as no actual word was added,
+        # removed, or changed (verify with
+        # scripts/verify_notes_preprocessing.py before relying on this).
+        subtitle_text = str(slide.get("subtitle_text") or slide.get("notes") or "")
+        segments = segment_notes_for_subtitles(subtitle_text, max_display_width=max_display_width)
 
         captions: List[Dict[str, Any]] = []
         if segments:
             aligned, slide_warnings = align_segments_with_word_boundaries(
-                notes_text, segments, word_boundaries, trailing_gap_seconds=trailing_gap_seconds
+                subtitle_text, segments, word_boundaries, trailing_gap_seconds=trailing_gap_seconds
             )
             warnings.extend(f"slide {slide_num}: {w}" for w in slide_warnings)
             captions = [
