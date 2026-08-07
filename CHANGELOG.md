@@ -6,6 +6,8 @@
 
 ## [未發布]
 
+## [0.10.0] - 2026-08-07
+
 ### Added
 
 - **`slides.json` 裡原本就有、但從未真正被使用過的 `subtitle_text` 欄位，現在會實際影響字幕內容**：`src/main.py` 的 `build_payload()` 早就會替每一頁寫入 `"subtitle_text": notes if notes else None`，但 `src/subtitle_pipeline.py`（不論預測路徑 `generate_srt_for_deck()` 還是真實起始時間路徑 `generate_srt_from_true_starts()`，兩者共用的 `_build_slide_captions()`）一直都是直接讀 `slide["notes"]`，`subtitle_text` 欄位形同虛設。
