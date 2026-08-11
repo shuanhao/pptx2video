@@ -14,13 +14,17 @@ different question, deliberately left to later phases.
     Structural Spans + Context Facts
         |
         v
-    Phase 2 - Boundary Feature Analysis            (not implemented yet)
+    Phase 2A - Boundary Observation Layer     (implemented - see
+                                                src/boundary_observation.py)
         |
         v
-    Phase 3 - Candidate Boundary Engine             (not implemented yet)
+    Phase 2B - Boundary Classification              (not implemented yet)
         |
         v
-    Phase 4 - Weighted Segmentation / DP            (not implemented yet)
+    Phase 2C - Weight / Scoring                     (not implemented yet)
+        |
+        v
+    Phase 2D - Segmentation Integration             (not implemented yet)
         |
         v
     Subtitle Segments -> existing subtitle_alignment.py -> Edge-TTS WordBoundary
@@ -225,7 +229,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
-from typing import Any, Dict, FrozenSet, List, Mapping, Optional, Pattern, Sequence, Tuple
+from typing import Any, Callable, Dict, FrozenSet, List, Mapping, Optional, Pattern, Sequence, Tuple
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -669,9 +673,23 @@ _ATOMIC_PATTERNS: Tuple[Tuple[str, Pattern[str]], ...] = (
 )
 
 
+#: A matcher tries to match starting exactly at `pos` and returns the offset
+#: just past its match (`> pos`), or `None` if it doesn't match there - the
+#: shared interface every entry in `_ATOMIC_PATTERNS`/`_TECHNICAL_MATCHERS_DEFS`
+#: is adapted to (via `_regex_matcher`, or directly for `_match_identifier_token`).
+#: This was previously referenced as a bare forward-reference string
+#: (`"_Matcher"`) with no corresponding definition anywhere in the module -
+#: harmless at runtime (this file has `from __future__ import annotations`,
+#: so annotations are never evaluated), but a genuine undefined-name error
+#: under static type checking (confirmed via Pylance/pyright). Fixed by
+#: actually defining the alias, rather than continuing to reference a name
+#: that never existed.
+_Matcher = Callable[[str, int], Optional[int]]
+
+
 def _scan_with_priority_matchers(
     text: str,
-    matchers: Sequence[Tuple[str, "_Matcher"]],
+    matchers: Sequence[Tuple[str, _Matcher]],
     structural_type: str,
     source: str,
 ) -> List[Span]:
