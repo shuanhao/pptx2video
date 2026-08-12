@@ -415,17 +415,23 @@ def _walk_terminal_chain(cur: int, siblings: Sequence[Span], source_text: str) -
     match = next((s for s in siblings if s.end == cur), None)
 
     if match is None:
-        # Base case: no structural span ends exactly here. The only
-        # remaining question is whether the single literal character
-        # immediately before `cur` is itself explicit sentence-final
-        # punctuation - unavoidable for a lone, un-spanned terminal mark
-        # (see module docstring). "Ordinary content terminates the chain":
-        # any other character here simply means False. Uses
-        # `_SENTENCE_FINAL_CHARS_BARE` (includes ASCII ".") since a single,
-        # un-spanned "." here can only be an ordinary full stop, never part
-        # of an ellipsis run (a 2+-character "." run always gets its own
-        # punctuation_sequence span from Phase 1, handled by the branch
-        # below instead).
+        # Base case: no structural span *ends* exactly here. That alone is
+        # NOT sufficient to conclude the character immediately before `cur`
+        # is genuinely unspanned - it may still be strictly *interior* to a
+        # technical/atomic/punctuation_sequence span (e.g. the first "." in
+        # "3.14", or any non-final "." in an ASCII ellipsis run like
+        # "......" - see Phase 2C ASCII Period Upstream Correction Decision,
+        # Round A/B). Only when no span in `siblings` covers that character
+        # at all does the bare, single-literal-character check apply - see
+        # module docstring's "no span to look up" justification, which is
+        # specifically about a mark with no span of any kind. Any span
+        # covering the character - regardless of type - means this is
+        # ordinary structured content, exactly like the explicit
+        # non-transparent-span branch below; the walk must not
+        # independently re-decide the question by looking at the bare
+        # character in that case.
+        if any(s.start <= cur - 1 < s.end for s in siblings):
+            return False
         ch = source_text[cur - 1] if cur > 0 else ""
         return ch in _SENTENCE_FINAL_CHARS_BARE
 

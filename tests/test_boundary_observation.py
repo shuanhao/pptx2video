@@ -345,6 +345,64 @@ class SentenceFinalEvidenceTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# ASCII "." bare-fallback correction (Phase 2C ASCII Period Upstream
+# Correction, Round A/B - see
+# docs/phase2c/decisions/PHASE_2C_ASCII_PERIOD_UPSTREAM_CORRECTION_DECISION.md).
+#
+# `_walk_terminal_chain()`'s base case previously treated "no span ends
+# exactly at this boundary" as equivalent to "this character is completely
+# unspanned" - those are not the same thing for a "." that is strictly
+# *interior* to a technical/atomic/punctuation_sequence span (e.g. the "."
+# in "3.14" or a non-final "." in "......"). The corrected rule: the bare
+# sentence-final fallback applies only when no span at all covers the
+# character immediately before the boundary.
+# ---------------------------------------------------------------------------
+
+
+class AsciiPeriodBareFallbackCorrectionTests(unittest.TestCase):
+    def test_ascii_ellipsis_interior_position_is_not_sentence_final(self):
+        # "......" is one punctuation_sequence span [0, 6). Position 3 is
+        # strictly interior to it (no span ends there), so before the
+        # correction this leaked True via the bare fallback purely because
+        # the character to the left is ".". Must now be False.
+        candidates = _observe("......")
+        candidate = _candidate_at(candidates, 3)
+        assert candidate is not None
+        self.assertFalse(candidate.features.contains_sentence_final_punctuation)
+
+    def test_decimal_interior_period_is_not_sentence_final(self):
+        # "3.14" is one atomic/numeric span [0, 4). Position 2 (right after
+        # the ".") is strictly interior to it - must now be False.
+        candidates = _observe("3.14")
+        candidate = _candidate_at(candidates, 2)
+        assert candidate is not None
+        self.assertFalse(candidate.features.contains_sentence_final_punctuation)
+
+    def test_version_string_interior_periods_are_not_sentence_final(self):
+        # "v1.2.3" is one technical/version span [0, 6) (with atomic/numeric
+        # sub-observations at [1,4) and [5,6)). Positions 3 and 5 (right
+        # after each interior ".") are both strictly interior to the
+        # technical span - must now be False.
+        candidates = _observe("v1.2.3")
+        for position in (3, 5):
+            candidate = _candidate_at(candidates, position)
+            assert candidate is not None
+            self.assertFalse(
+                candidate.features.contains_sentence_final_punctuation,
+                f"position {position}",
+            )
+
+    def test_genuine_bare_ascii_full_stop_still_sentence_final(self):
+        # "Done. Next" - the "." after "Done" has no covering span of any
+        # kind (a single, un-spanned ASCII period). The correction must not
+        # change this: it remains genuine bare sentence-final evidence.
+        candidates = _observe("Done. Next")
+        candidate = _candidate_at(candidates, 5)
+        assert candidate is not None
+        self.assertTrue(candidate.features.contains_sentence_final_punctuation)
+
+
+# ---------------------------------------------------------------------------
 # Determinism / no hidden state
 # ---------------------------------------------------------------------------
 

@@ -231,6 +231,36 @@ class TechnicalProtectionTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# E2. ASCII "." bare-fallback correction (Phase 2C ASCII Period Upstream
+# Correction, Round A/B - see
+# docs/phase2c/decisions/PHASE_2C_ASCII_PERIOD_UPSTREAM_CORRECTION_DECISION.md).
+#
+# These positions previously misclassified as SENTENCE_FINAL because Phase
+# 2A's bare fallback leaked `contains_sentence_final_punctuation = True` for
+# a "." strictly interior to a technical/atomic/punctuation_sequence span.
+# With that upstream evidence corrected, Phase 2B's own classification logic
+# is unchanged and now naturally resolves these to OTHER (not SENTENCE_FINAL,
+# not CLAUSE - "." is never a clause character; not ELLIPSIS - these
+# positions are not at the END of a punctuation_sequence).
+# ---------------------------------------------------------------------------
+
+
+class AsciiPeriodBareFallbackClassificationCorrectionTests(unittest.TestCase):
+    def test_ascii_ellipsis_interior_position_is_other_not_sentence_final(self):
+        self.assertEqual(_classify_at("......", 3), BoundaryClass.OTHER)
+
+    def test_decimal_interior_period_is_other_not_sentence_final(self):
+        self.assertEqual(_classify_at("3.14", 2), BoundaryClass.OTHER)
+
+    def test_version_string_interior_periods_are_other_not_sentence_final(self):
+        self.assertEqual(_classify_at("v1.2.3", 3), BoundaryClass.OTHER)
+        self.assertEqual(_classify_at("v1.2.3", 5), BoundaryClass.OTHER)
+
+    def test_genuine_bare_ascii_full_stop_still_classifies_sentence_final(self):
+        self.assertEqual(_classify_at("Done. Next", 5), BoundaryClass.SENTENCE_FINAL)
+
+
+# ---------------------------------------------------------------------------
 # F. Colon
 # ---------------------------------------------------------------------------
 
