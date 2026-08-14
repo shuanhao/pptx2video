@@ -1,7 +1,7 @@
 # Phase 2C Protection Calibration Matrix v0.1
 
-**Status:** Focused Calibration Specification
-**Phase:** Phase 2C Ã¢â‚¬â€ Numeric Calibration
+**Status:** Focused Calibration Specification  
+**Phase:** Phase 2C — Numeric Calibration  
 **Purpose:** Calibrate Technical / Atomic protection and Punctuation Sequence INTERNAL suppression
 
 ## 1. Purpose
@@ -58,8 +58,8 @@ Does not cover:
 
 | Evidence | Score |
 |---|---:|
-| CJK Ã¢â€ â€™ Latin | +15 |
-| Latin Ã¢â€ â€™ CJK | +15 |
+| CJK → Latin | +15 |
+| Latin → CJK | +15 |
 | Whitespace | +10 |
 | Technical | -30 |
 | Atomic | -30 |
@@ -130,16 +130,16 @@ Not part of this experiment. Do not choose final subtitle cuts.
 
 Each case receives exactly one status:
 
-- **PASS** Ã¢â‚¬â€ reachable and intended relationship holds.
-- **CALIBRATION REVIEW** Ã¢â‚¬â€ reachable but provisional numeric model produces a questionable ranking.
-- **UPSTREAM ISSUE** Ã¢â‚¬â€ problem originates in Phase 1 / 2A / 2B.
-- **CASE ISSUE** Ã¢â‚¬â€ intended candidate/evidence combination is not representable by the current pipeline.
+- **PASS** — reachable and intended relationship holds.
+- **CALIBRATION REVIEW** — reachable but provisional numeric model produces a questionable ranking.
+- **UPSTREAM ISSUE** — problem originates in Phase 1 / 2A / 2B.
+- **CASE ISSUE** — intended candidate/evidence combination is not representable by the current pipeline.
 
 Do not turn CASE ISSUE or UPSTREAM ISSUE into numeric failures.
 
 ## 7. Calibration Cases
 
-### P01 Ã¢â‚¬â€ Plain OTHER Baseline
+### P01 — Plain OTHER Baseline
 
 Find a genuine candidate with:
 
@@ -160,12 +160,12 @@ Score = 0
 
 Do not create a synthetic candidate merely to obtain this baseline. If none exists, mark `CASE ISSUE`.
 
-### P02 Ã¢â‚¬â€ Technical OTHER
+### P02 — Technical OTHER
 
 Use a realistic technical expression such as:
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¦â€¢Â¸Ã¥â‚¬Â¼Ã¦ËœÂ¯ 1,000Ã¯Â¼Å’Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã§Â¹Â¼Ã§ÂºÅ’Ã£â‚¬â€š
+這個數值是 1,000，接下來我們繼續。
 ```
 
 Inspect the actual candidate around the internal technical boundary, such as `1,|000`.
@@ -184,12 +184,12 @@ Expected:
 P02 < P01
 ```
 
-### P03 Ã¢â‚¬â€ Atomic OTHER
+### P03 — Atomic OTHER
 
 Use a realistic atomic expression such as:
 
 ```text
-Ã§â€ºÂ®Ã¥â€°ÂÃ§â€°Ë†Ã¦Å“Â¬Ã¦ËœÂ¯ v1.2.3Ã¯Â¼Å’Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¤Â»â€¹Ã§Â´Â¹Ã¦â€“Â°Ã§â€°Ë†Ã£â‚¬â€š
+目前版本是 v1.2.3，接下來介紹新版。
 ```
 
 If represented:
@@ -206,7 +206,7 @@ Expected:
 P03 < P01
 ```
 
-### P04 Ã¢â‚¬â€ Technical + Atomic
+### P04 — Technical + Atomic
 
 Use an expression such as `v1.2.3` only if the real pipeline reports both Technical and Atomic on the same candidate.
 
@@ -226,7 +226,7 @@ P04 = P02 = P03
 
 If the combination is not observable, mark `CASE ISSUE`.
 
-### P05 Ã¢â‚¬â€ Transition vs Technical
+### P05 — Transition vs Technical
 
 Compare real candidates:
 
@@ -243,7 +243,7 @@ Transition > Technical
 
 Expected delta: `45`.
 
-### P06 Ã¢â‚¬â€ CLAUSE vs Technical
+### P06 — CLAUSE vs Technical
 
 Compare:
 
@@ -260,7 +260,7 @@ CLAUSE > Technical
 
 Expected delta: `65`.
 
-### P07 Ã¢â‚¬â€ CLAUSE vs Atomic
+### P07 — CLAUSE vs Atomic
 
 Compare:
 
@@ -277,7 +277,7 @@ CLAUSE > Atomic
 
 Expected delta: `65`.
 
-### P08 Ã¢â‚¬â€ Plain OTHER vs INTERNAL
+### P08 — Plain OTHER vs INTERNAL
 
 Identify a genuine candidate with:
 
@@ -298,7 +298,7 @@ Expected:
 OTHER > INTERNAL
 ```
 
-### P09 Ã¢â‚¬â€ Transition vs INTERNAL
+### P09 — Transition vs INTERNAL
 
 Expected:
 
@@ -310,7 +310,7 @@ Transition > INTERNAL
 
 Expected delta: `35`.
 
-### P10 Ã¢â‚¬â€ CLAUSE vs INTERNAL
+### P10 — CLAUSE vs INTERNAL
 
 Expected:
 
@@ -322,7 +322,7 @@ CLAUSE > INTERNAL
 
 Expected delta: `55`.
 
-### P11 Ã¢â‚¬â€ Technical + INTERNAL
+### P11 — Technical + INTERNAL
 
 Only if the real pipeline exposes both on the same candidate.
 
@@ -340,7 +340,7 @@ Technical + INTERNAL < Technical
 
 Otherwise `CASE ISSUE`.
 
-### P12 Ã¢â‚¬â€ Atomic + INTERNAL
+### P12 — Atomic + INTERNAL
 
 Only if the real pipeline exposes both on the same candidate.
 
@@ -358,7 +358,7 @@ Atomic + INTERNAL < Atomic
 
 Otherwise `CASE ISSUE`.
 
-### P13 Ã¢â‚¬â€ Technical vs Atomic Symmetry
+### P13 — Technical vs Atomic Symmetry
 
 Compare real Technical-only and Atomic-only candidates.
 
@@ -376,7 +376,7 @@ Technical == Atomic
 
 This is a factor-model symmetry check, not a requirement that the raw text be identical.
 
-### P14 Ã¢â‚¬â€ Transition vs Technical Reversal Test
+### P14 — Transition vs Technical Reversal Test
 
 Expected:
 
@@ -384,7 +384,7 @@ Expected:
 Transition (+15) > Technical (-30)
 ```
 
-### P15 Ã¢â‚¬â€ CLAUSE vs Technical Reversal Test
+### P15 — CLAUSE vs Technical Reversal Test
 
 Expected:
 
@@ -468,7 +468,7 @@ For upstream problems explicitly record `UPSTREAM ISSUE`.
 
 The calibration report must contain:
 
-1. Reachability for P01Ã¢â‚¬â€œP15.
+1. Reachability for P01–P15.
 2. Score table for all reachable candidates.
 3. Pairwise ranking: expected, observed, delta, status.
 4. Protection interaction analysis:
@@ -504,8 +504,8 @@ Do not change the values during the experiment.
 ## 13. Completion Criteria
 
 Complete only when:
-- P01Ã¢â‚¬â€œP15 are evaluated or explicitly marked unreachable
-- actual Phase 1 Ã¢â€ â€™ 2A Ã¢â€ â€™ 2B output is used
+- P01–P15 are evaluated or explicitly marked unreachable
+- actual Phase 1 → 2A → 2B output is used
 - no production module is modified
 - no provisional weight is changed
 - Technical / Atomic interaction is analyzed

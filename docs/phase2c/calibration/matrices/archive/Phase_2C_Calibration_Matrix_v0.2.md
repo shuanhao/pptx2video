@@ -1,9 +1,9 @@
 # Phase 2C Calibration Matrix v0.2
 
-**Status:** Design / Calibration Draft
-**Supersedes:** Phase 2C Calibration Matrix v0.1
-**Scope:** Phase 2C numeric calibration only
-**Purpose:** Provide a calibration dataset whose cases are actually observable through the current Phase 1 Ã¢â€ â€™ Phase 2A Ã¢â€ â€™ Phase 2B pipeline.
+**Status:** Design / Calibration Draft  
+**Supersedes:** Phase 2C Calibration Matrix v0.1  
+**Scope:** Phase 2C numeric calibration only  
+**Purpose:** Provide a calibration dataset whose cases are actually observable through the current Phase 1 → Phase 2A → Phase 2B pipeline.
 
 ---
 
@@ -15,7 +15,7 @@ The purpose of v0.2 is therefore **not to change numeric weights yet**.
 
 The purpose is to make every calibration case:
 
-- representable by the current Phase 1 Ã¢â€ â€™ 2A Ã¢â€ â€™ 2B pipeline,
+- representable by the current Phase 1 → 2A → 2B pipeline,
 - explicit about the boundary being evaluated,
 - explicit about whether the case tests a score, a ranking, or an upstream representation issue,
 - free from assumptions about combinations of modifiers that cannot coexist on the same candidate.
@@ -24,11 +24,11 @@ The calibration process remains:
 
 ```text
 Phase 1
-    Ã¢â€ â€œ
+    ↓
 Phase 2A Boundary Observation
-    Ã¢â€ â€œ
+    ↓
 Phase 2B Boundary Classification
-    Ã¢â€ â€œ
+    ↓
 Phase 2C Calibration-only scoring
 ```
 
@@ -55,8 +55,8 @@ They are **not frozen**.
 
 | Evidence | Score |
 |---|---:|
-| CJK Ã¢â€ â€™ Latin transition | +15 |
-| Latin Ã¢â€ â€™ CJK transition | +15 |
+| CJK → Latin transition | +15 |
+| Latin → CJK transition | +15 |
 | Boundary whitespace | +10 |
 
 ## Negative Modifiers
@@ -89,24 +89,24 @@ The current pipeline does not expose a boundary after the final character of the
 Therefore this is **not** a valid direct calibration case:
 
 ```text
-Ã¤Â»Å Ã¥Â¤Â©Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¤Â»â€¹Ã§Â´Â¹ CPUÃ£â‚¬â€š
+今天我們介紹 CPU。
 ```
 
-when the intended boundary is after `Ã£â‚¬â€š`.
+when the intended boundary is after `。`.
 
 Instead use an internal sentence-final boundary:
 
 ```text
-Ã¤Â»Å Ã¥Â¤Â©Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¤Â»â€¹Ã§Â´Â¹ CPUÃ£â‚¬â€šÃ¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã§Å“â€¹ GPUÃ£â‚¬â€š
+今天我們介紹 CPU。接下來我們看 GPU。
 ```
 
 The intended candidate is:
 
 ```text
-CPUÃ£â‚¬â€š|Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+CPU。|接下來
 ```
 
-This allows Phase 1 Ã¢â€ â€™ 2A Ã¢â€ â€™ 2B to observe the actual boundary.
+This allows Phase 1 → 2A → 2B to observe the actual boundary.
 
 String-final behavior remains an architectural consideration for a later stage and is not modified by Phase 2C.
 
@@ -121,7 +121,7 @@ Therefore v0.2 does not assume that the same candidate can simultaneously be:
 ```text
 CLAUSE
 +
-CJK Ã¢â€ â€™ Latin transition
+CJK → Latin transition
 +
 whitespace
 ```
@@ -135,7 +135,7 @@ Such combinations are removed from the calibration model unless the real pipelin
 For:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡ | English
+中文 | English
 ```
 
 do not assume a single candidate receives both:
@@ -211,22 +211,22 @@ The expected relation is more important than the absolute score during calibrati
 
 ---
 
-# 5. Group A Ã¢â‚¬â€ Base Boundary Classes
+# 5. Group A — Base Boundary Classes
 
 These cases establish the base hierarchy using boundaries that actually exist inside the input.
 
-## A01 Ã¢â‚¬â€ Sentence Final
+## A01 — Sentence Final
 
 Input:
 
 ```text
-Ã¤Â»Å Ã¥Â¤Â©Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¤Â»â€¹Ã§Â´Â¹ CPUÃ£â‚¬â€šÃ¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã§Å“â€¹ GPUÃ£â‚¬â€š
+今天我們介紹 CPU。接下來我們看 GPU。
 ```
 
 Target:
 
 ```text
-CPUÃ£â‚¬â€š|Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+CPU。|接下來
 ```
 
 Expected class:
@@ -248,18 +248,18 @@ Purpose:
 
 ---
 
-## A02 Ã¢â‚¬â€ Ellipsis
+## A02 — Ellipsis
 
 Input:
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¥â€¢ÂÃ©Â¡Å’Ã¥Ëœâ€ºÃ¢â‚¬Â¦Ã¢â‚¬Â¦Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¥â€ ÂÃ¨Â¨Å½Ã¨Â«â€“Ã£â‚¬â€š
+這個問題嘛……接下來我們再討論。
 ```
 
 Target:
 
 ```text
-Ã¥Ëœâ€ºÃ¢â‚¬Â¦Ã¢â‚¬Â¦|Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+嘛……|接下來
 ```
 
 Expected class:
@@ -281,18 +281,18 @@ Purpose:
 
 ---
 
-## A03 Ã¢â‚¬â€ Clause
+## A03 — Clause
 
 Input:
 
 ```text
-Ã©Â¦â€“Ã¥â€¦Ë†Ã¯Â¼Å’Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¤Â»â€¹Ã§Â´Â¹ CPUÃ¯Â¼Å’Ã¦Å½Â¥Ã¨â€˜â€”Ã¥â€ ÂÃ§Å“â€¹ GPUÃ£â‚¬â€š
+首先，我們介紹 CPU，接著再看 GPU。
 ```
 
 Target:
 
 ```text
-Ã©Â¦â€“Ã¥â€¦Ë†Ã¯Â¼Å’|Ã¦Ë†â€˜Ã¥â‚¬â€˜
+首先，|我們
 ```
 
 Expected class:
@@ -313,18 +313,18 @@ Purpose:
 
 ---
 
-## A04 Ã¢â‚¬â€ Plain OTHER
+## A04 — Plain OTHER
 
 Input:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡English
+中文English
 ```
 
 Target:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡|English
+中文|English
 ```
 
 Expected class:
@@ -336,7 +336,7 @@ OTHER
 Expected evidence:
 
 ```text
-CJK Ã¢â€ â€™ Latin
+CJK → Latin
 ```
 
 This case is therefore not a pure `OTHER = 0` case.
@@ -353,27 +353,27 @@ Do not invent one.
 
 ---
 
-# 6. Group B Ã¢â‚¬â€ Base Pairwise Hierarchy
+# 6. Group B — Base Pairwise Hierarchy
 
 These cases compare base classes.
 
-## B01 Ã¢â‚¬â€ Sentence Final vs Clause
+## B01 — Sentence Final vs Clause
 
 ```text
-Ã¤Â»Å Ã¥Â¤Â©Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¤Â»â€¹Ã§Â´Â¹ CPUÃ£â‚¬â€šÃ¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã§Å“â€¹ GPUÃ¯Â¼Å’
-Ã§â€žÂ¶Ã¥Â¾Å’Ã¥â€ ÂÃ¨ÂªÂªÃ¦ËœÅ½ NPUÃ£â‚¬â€š
+今天我們介紹 CPU。接下來我們看 GPU，
+然後再說明 NPU。
 ```
 
 Compare:
 
 ```text
-CPUÃ£â‚¬â€š|Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+CPU。|接下來
 ```
 
 against:
 
 ```text
-GPUÃ¯Â¼Å’|Ã§â€žÂ¶Ã¥Â¾Å’
+GPU，|然後
 ```
 
 Expected:
@@ -390,24 +390,24 @@ Baseline:
 
 ---
 
-## B02 Ã¢â‚¬â€ Sentence Final vs Ellipsis
+## B02 — Sentence Final vs Ellipsis
 
 Input:
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¥â€¢ÂÃ©Â¡Å’Ã¥Ëœâ€ºÃ¢â‚¬Â¦Ã¢â‚¬Â¦Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¥â€¦Ë†Ã¦Å¡Â«Ã¥ÂÅ“Ã¤Â¸â‚¬Ã¤Â¸â€¹Ã£â‚¬â€šÃ¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã§Â¹Â¼Ã§ÂºÅ’Ã£â‚¬â€š
+這個問題嘛……我們先暫停一下。接下來繼續。
 ```
 
 Compare:
 
 ```text
-Ã¥Ëœâ€ºÃ¢â‚¬Â¦Ã¢â‚¬Â¦|Ã¦Ë†â€˜Ã¥â‚¬â€˜
+嘛……|我們
 ```
 
 and:
 
 ```text
-Ã¤Â¸â‚¬Ã¤Â¸â€¹Ã£â‚¬â€š|Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+一下。|接下來
 ```
 
 Expected:
@@ -424,24 +424,24 @@ Baseline:
 
 ---
 
-## B03 Ã¢â‚¬â€ Ellipsis vs Clause
+## B03 — Ellipsis vs Clause
 
 Input:
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¥â€¢ÂÃ©Â¡Å’Ã¥Ëœâ€ºÃ¢â‚¬Â¦Ã¢â‚¬Â¦Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¥â€ ÂÃ¨Â¨Å½Ã¨Â«â€“Ã¯Â¼Å’Ã§ÂÂ¾Ã¥Å“Â¨Ã¥â€¦Ë†Ã§Å“â€¹ CPUÃ£â‚¬â€š
+這個問題嘛……接下來再討論，現在先看 CPU。
 ```
 
 Compare:
 
 ```text
-Ã¥Ëœâ€ºÃ¢â‚¬Â¦Ã¢â‚¬Â¦|Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+嘛……|接下來
 ```
 
 and:
 
 ```text
-Ã¨Â¨Å½Ã¨Â«â€“Ã¯Â¼Å’|Ã§ÂÂ¾Ã¥Å“Â¨
+討論，|現在
 ```
 
 Expected:
@@ -458,22 +458,22 @@ Baseline:
 
 ---
 
-# 7. Group C Ã¢â‚¬â€ Language Transition
+# 7. Group C — Language Transition
 
 These cases isolate language-transition evidence.
 
-## C01 Ã¢â‚¬â€ CJK Ã¢â€ â€™ Latin
+## C01 — CJK → Latin
 
 Input:
 
 ```text
-Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¤Â½Â¿Ã§â€Â¨ LinuxÃ£â‚¬â€š
+我們使用 Linux。
 ```
 
 Target:
 
 ```text
-Ã¤Â½Â¿Ã§â€Â¨ | Linux
+使用 | Linux
 ```
 
 Important:
@@ -490,18 +490,18 @@ Expected modifier when applicable:
 
 ---
 
-## C02 Ã¢â‚¬â€ Latin Ã¢â€ â€™ CJK
+## C02 — Latin → CJK
 
 Input:
 
 ```text
-Linux Ã§Â³Â»Ã§ÂµÂ±Ã©Å“â‚¬Ã¨Â¦ÂÃ©â€¡ÂÃ¦â€“Â°Ã¨Â¨Â­Ã¥Â®Å¡Ã£â‚¬â€š
+Linux 系統需要重新設定。
 ```
 
 Target:
 
 ```text
-Linux | Ã§Â³Â»Ã§ÂµÂ±
+Linux | 系統
 ```
 
 Expected modifier when applicable:
@@ -513,12 +513,12 @@ Expected modifier when applicable:
 Expected symmetry:
 
 ```text
-CJK Ã¢â€ â€™ Latin = Latin Ã¢â€ â€™ CJK
+CJK → Latin = Latin → CJK
 ```
 
 ---
 
-## C03 Ã¢â‚¬â€ Transition vs ordinary CLAUSE
+## C03 — Transition vs ordinary CLAUSE
 
 Compare an actual language-transition candidate with an actual ordinary clause candidate.
 
@@ -540,34 +540,34 @@ Purpose:
 
 ---
 
-# 8. Group D Ã¢â‚¬â€ Whitespace Topology
+# 8. Group D — Whitespace Topology
 
 Whitespace is tested as a boundary-local observation rather than automatically stacked with language transition.
 
-## D01 Ã¢â‚¬â€ Whitespace before boundary
+## D01 — Whitespace before boundary
 
 Input:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡ English
+中文 English
 ```
 
 Inspect the actual candidates around:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡ | English
+中文 | English
 ```
 
 Record which candidate receives whitespace evidence.
 
 ---
 
-## D02 Ã¢â‚¬â€ Whitespace after boundary
+## D02 — Whitespace after boundary
 
 Use:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡ English
+中文 English
 ```
 
 and inspect the boundary on the other side of the whitespace.
@@ -576,12 +576,12 @@ Record actual candidate topology.
 
 ---
 
-## D03 Ã¢â‚¬â€ Whitespace on both sides
+## D03 — Whitespace on both sides
 
 Input:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡  English
+中文  English
 ```
 
 Inspect all exposed candidates.
@@ -593,18 +593,18 @@ Purpose:
 
 ---
 
-## D04 Ã¢â‚¬â€ Transition without whitespace vs whitespace variant
+## D04 — Transition without whitespace vs whitespace variant
 
 Compare:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡|English
+中文|English
 ```
 
 with:
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡ | English
+中文 | English
 ```
 
 but compare the **actual candidate positions separately**.
@@ -621,14 +621,14 @@ This case exists specifically to resolve the topology discovered in Round 1.
 
 ---
 
-# 9. Group E Ã¢â‚¬â€ Technical / Atomic Protection
+# 9. Group E — Technical / Atomic Protection
 
-## E01 Ã¢â‚¬â€ Technical numeric expression
+## E01 — Technical numeric expression
 
 Input:
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¥â‚¬Â¼Ã¦ËœÂ¯ 1,000Ã¯Â¼Å’Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã§Â¹Â¼Ã§ÂºÅ’Ã£â‚¬â€š
+這個值是 1,000，接下來繼續。
 ```
 
 Inspect candidate(s) inside:
@@ -649,12 +649,12 @@ Purpose:
 
 ---
 
-## E02 Ã¢â‚¬â€ Version / atomic expression
+## E02 — Version / atomic expression
 
 Input:
 
 ```text
-Ã§â€ºÂ®Ã¥â€°ÂÃ¤Â½Â¿Ã§â€Â¨ v1.2.3Ã¯Â¼Å’Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¤Â»â€¹Ã§Â´Â¹Ã¦â€“Â°Ã§â€°Ë†Ã£â‚¬â€š
+目前使用 v1.2.3，接下來介紹新版。
 ```
 
 Inspect internal candidates inside:
@@ -670,7 +670,7 @@ Expected:
 
 ---
 
-## E03 Ã¢â‚¬â€ Technical candidate vs ordinary clause
+## E03 — Technical candidate vs ordinary clause
 
 Compare:
 
@@ -694,7 +694,7 @@ The exact score difference is intentionally left open for calibration.
 
 ---
 
-## E04 Ã¢â‚¬â€ Technical candidate vs language-transition candidate
+## E04 — Technical candidate vs language-transition candidate
 
 Compare a real technical-protected candidate against a real language-transition candidate.
 
@@ -705,20 +705,20 @@ Purpose:
 
 ---
 
-# 10. Group F Ã¢â‚¬â€ Punctuation Sequence
+# 10. Group F — Punctuation Sequence
 
-## F01 Ã¢â‚¬â€ Ellipsis END
+## F01 — Ellipsis END
 
 Input:
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¥â€¢ÂÃ©Â¡Å’Ã¥Ëœâ€ºÃ¢â‚¬Â¦Ã¢â‚¬Â¦Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¥â€ ÂÃ¨Â¨Å½Ã¨Â«â€“Ã£â‚¬â€š
+這個問題嘛……接下來再討論。
 ```
 
 Target:
 
 ```text
-Ã¢â‚¬Â¦Ã¢â‚¬Â¦|Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+……|接下來
 ```
 
 Expected:
@@ -736,12 +736,12 @@ Baseline:
 
 ---
 
-## F02 Ã¢â‚¬â€ Ellipsis INTERNAL
+## F02 — Ellipsis INTERNAL
 
 Input:
 
 ```text
-Ã¢â‚¬Â¦Ã¢â‚¬Â¦Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+……接下來
 ```
 
 Inspect any candidate inside the ellipsis sequence.
@@ -764,7 +764,7 @@ Purpose:
 
 ---
 
-## F03 Ã¢â‚¬â€ END vs INTERNAL
+## F03 — END vs INTERNAL
 
 Compare an actual END candidate with an actual INTERNAL candidate.
 
@@ -776,22 +776,22 @@ END > INTERNAL
 
 ---
 
-# 11. Group G Ã¢â‚¬â€ Sentence-Final / Ellipsis Composition
+# 11. Group G — Sentence-Final / Ellipsis Composition
 
 These cases ensure punctuation composition is not incorrectly treated as a simple character lookup.
 
-## G01 Ã¢â‚¬â€ Ellipsis followed by question
+## G01 — Ellipsis followed by question
 
 Input:
 
 ```text
-Ã§Å“Å¸Ã§Å¡â€žÃ¢â‚¬Â¦Ã¢â‚¬Â¦Ã¯Â¼Å¸Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¨ÂªÂªÃ¦ËœÅ½Ã£â‚¬â€š
+真的……？接下來我們說明。
 ```
 
 Target:
 
 ```text
-Ã¢â‚¬Â¦Ã¢â‚¬Â¦Ã¯Â¼Å¸|Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ 
+……？|接下來
 ```
 
 Expected:
@@ -808,10 +808,10 @@ Purpose:
 
 ---
 
-## G02 Ã¢â‚¬â€ Ellipsis followed by exclamation
+## G02 — Ellipsis followed by exclamation
 
 ```text
-Ã§Å“Å¸Ã§Å¡â€žÃ¢â‚¬Â¦Ã¢â‚¬Â¦Ã¯Â¼ÂÃ¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¨ÂªÂªÃ¦ËœÅ½Ã£â‚¬â€š
+真的……！接下來我們說明。
 ```
 
 Expected:
@@ -822,10 +822,10 @@ SENTENCE_FINAL
 
 ---
 
-## G03 Ã¢â‚¬â€ ASCII ellipsis run
+## G03 — ASCII ellipsis run
 
 ```text
-Ã§Å“Å¸Ã§Å¡â€ž......Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¨ÂªÂªÃ¦ËœÅ½Ã£â‚¬â€š
+真的......接下來我們說明。
 ```
 
 This is an **upstream observation probe**, not a numeric calibration case.
@@ -836,14 +836,14 @@ Do not adjust Phase 2C weights based on this case.
 
 ---
 
-# 12. Group H Ã¢â‚¬â€ Realistic Mixed-Language Cases
+# 12. Group H — Realistic Mixed-Language Cases
 
 These cases are designed to observe actual score distribution rather than force a predetermined formula.
 
 ## H01
 
 ```text
-Ã¤Â»Å Ã¥Â¤Â©Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¥â€¦Ë†Ã¤Â»â€¹Ã§Â´Â¹ CPU Ã§Å¡â€žÃ¥Å¸ÂºÃ¦Å“Â¬Ã¦Å¾Â¶Ã¦Â§â€¹Ã¯Â¼Å’Ã¦Å½Â¥Ã¨â€˜â€”Ã¥â€ ÂÃ¨ÂªÂªÃ¦ËœÅ½ GPU Ã¨Ë†â€¡ NPU Ã§Å¡â€žÃ¥Â·Â®Ã§â€¢Â°Ã£â‚¬â€š
+今天我們先介紹 CPU 的基本架構，接著再說明 GPU 與 NPU 的差異。
 ```
 
 Inspect:
@@ -863,7 +863,7 @@ sentence final should be strongest
 ## H02
 
 ```text
-Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¤Â½Â¿Ã§â€Â¨ ARM Cortex-A Ã§Â³Â»Ã¥Ë†â€” CPUÃ¯Â¼Å’Ã¤Â¸Â¦Ã¦ÂÂ­Ã©â€¦Â Linux OSÃ£â‚¬â€š
+我們使用 ARM Cortex-A 系列 CPU，並搭配 Linux OS。
 ```
 
 Inspect:
@@ -884,7 +884,7 @@ sentence final > ordinary clause
 ## H03
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¦Å¾Â¶Ã¦Â§â€¹Ã¤Â¸Â»Ã¨Â¦ÂÃ¥Å’â€¦Ã¥ÂÂ« CPUÃ£â‚¬ÂGPUÃ£â‚¬ÂNPU Ã¤Â¸â€°Ã¥â‚¬â€¹Ã¤Â¸Â»Ã¨Â¦ÂÃ©Ââ€¹Ã§Â®â€”Ã¥â€“Â®Ã¥â€¦Æ’Ã¯Â¼Å’Ã¥â€¦Â¶Ã¤Â¸Â­ CPU Ã¨Â²Â Ã¨Â²Â¬Ã¤Â¸â‚¬Ã¨Ë†Â¬Ã©Ââ€¹Ã§Â®â€”Ã£â‚¬â€š
+這個架構主要包含 CPU、GPU、NPU 三個主要運算單元，其中 CPU 負責一般運算。
 ```
 
 Inspect:
@@ -903,7 +903,7 @@ Purpose:
 ## H04
 
 ```text
-CPU / GPU / NPU Ã¦ËœÂ¯Ã§â€ºÂ®Ã¥â€°ÂÃ¥Â¸Â¸Ã¨Â¦â€¹Ã§Å¡â€ž AI acceleratorÃ£â‚¬â€š
+CPU / GPU / NPU 是目前常見的 AI accelerator。
 ```
 
 Inspect:
@@ -921,7 +921,7 @@ Purpose:
 ## H05
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¥Å Å¸Ã¨Æ’Â½Ã¥ÂÂ¯Ã¤Â»Â¥Ã¥Å“Â¨ Linux OS Ã¤Â¸Å Ã¥Å¸Â·Ã¨Â¡Å’Ã¯Â¼Å’Windows Ã§â€°Ë†Ã¦Å“Â¬Ã¥â€°â€¡Ã©Å“â‚¬Ã¨Â¦ÂÃ¥ÂÂ¦Ã¥Â¤â€“Ã¨Â¨Â­Ã¥Â®Å¡Ã£â‚¬â€š
+這個功能可以在 Linux OS 上執行，Windows 版本則需要另外設定。
 ```
 
 Inspect:
@@ -939,7 +939,7 @@ Purpose:
 ## H06
 
 ```text
-Ã©Â¦â€“Ã¥â€¦Ë†Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¤Â¾â€ Ã§Å“â€¹ API Ã§Å¡â€žÃ¥Å¸ÂºÃ¦Å“Â¬Ã¦Å¾Â¶Ã¦Â§â€¹Ã¯Â¼Å’Ã§â€žÂ¶Ã¥Â¾Å’Ã¥â€ ÂÃ¨ÂªÂªÃ¦ËœÅ½ SDK Ã§Å¡â€žÃ¤Â½Â¿Ã§â€Â¨Ã¦â€“Â¹Ã¥Â¼ÂÃ£â‚¬â€š
+首先我們來看 API 的基本架構，然後再說明 SDK 的使用方式。
 ```
 
 Expected qualitative hierarchy:
@@ -953,7 +953,7 @@ sentence final > clause
 ## H07
 
 ```text
-Ã¤Â¾â€¹Ã¥Â¦â€šÃ¦Ë†â€˜Ã¥â‚¬â€˜Ã¥ÂÂ¯Ã¤Â»Â¥Ã¤Â½Â¿Ã§â€Â¨ Python API Ã¥â€˜Â¼Ã¥ÂÂ«Ã©â‚¬â„¢Ã¥â‚¬â€¹ functionÃ¯Â¼Å’Ã¦Å½Â¥Ã¨â€˜â€”Ã¥â€ ÂÃ¨â„¢â€¢Ã§Ââ€ Ã¥â€ºÅ¾Ã¥â€šÂ³Ã§ÂµÂÃ¦Å¾Å“Ã£â‚¬â€š
+例如我們可以使用 Python API 呼叫這個 function，接著再處理回傳結果。
 ```
 
 Inspect:
@@ -968,7 +968,7 @@ Inspect:
 ## H08
 
 ```text
-Ã©â‚¬â„¢Ã¥â‚¬â€¹Ã¥â€¢ÂÃ©Â¡Å’Ã¥Ëœâ€ºÃ¢â‚¬Â¦Ã¢â‚¬Â¦Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã§Â¨ÂÃ¥Â¾Å’Ã¥â€ ÂÃ¥â€ºÅ¾Ã¤Â¾â€ Ã¨Â¨Å½Ã¨Â«â€“Ã£â‚¬â€š
+這個問題嘛……我們稍後再回來討論。
 ```
 
 Expected:
@@ -979,14 +979,14 @@ sentence final > ellipsis
 
 ---
 
-# 13. Group X Ã¢â‚¬â€ Upstream Representation Probes
+# 13. Group X — Upstream Representation Probes
 
 These cases are intentionally excluded from numeric weight tuning.
 
-## X01 Ã¢â‚¬â€ Decimal
+## X01 — Decimal
 
 ```text
-3.14 Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¨ÂªÂªÃ¦ËœÅ½Ã£â‚¬â€š
+3.14 接下來我們說明。
 ```
 
 Inspect:
@@ -1003,10 +1003,10 @@ Does an internal decimal period incorrectly become SENTENCE_FINAL?
 
 ---
 
-## X02 Ã¢â‚¬â€ Version
+## X02 — Version
 
 ```text
-v1.2.3-beta Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¤Â»â€¹Ã§Â´Â¹Ã¦â€“Â°Ã§â€°Ë†Ã£â‚¬â€š
+v1.2.3-beta 接下來介紹新版。
 ```
 
 Question:
@@ -1017,10 +1017,10 @@ Does an internal period incorrectly become SENTENCE_FINAL?
 
 ---
 
-## X03 Ã¢â‚¬â€ URL
+## X03 — URL
 
 ```text
-Ã¨Â«â€¹Ã¥ÂÆ’Ã¨â‚¬Æ’ http://example.com Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã§Å¡â€žÃ¨ÂªÂªÃ¦ËœÅ½Ã£â‚¬â€š
+請參考 http://example.com 接下來的說明。
 ```
 
 Question:
@@ -1031,10 +1031,10 @@ Does punctuation inside URL receive inappropriate sentence-final evidence?
 
 ---
 
-## X04 Ã¢â‚¬â€ ASCII ellipsis
+## X04 — ASCII ellipsis
 
 ```text
-Ã§Å“Å¸Ã§Å¡â€ž......Ã¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¨ÂªÂªÃ¦ËœÅ½Ã£â‚¬â€š
+真的......接下來我們說明。
 ```
 
 Question:
@@ -1045,10 +1045,10 @@ Is the entire ASCII ellipsis run treated as a sequence rather than individual se
 
 ---
 
-## X05 Ã¢â‚¬â€ Mixed punctuation
+## X05 — Mixed punctuation
 
 ```text
-Ã§Å“Å¸Ã§Å¡â€žÃ¯Â¼Å¸Ã¯Â¼ÂÃ¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¨ÂªÂªÃ¦ËœÅ½Ã£â‚¬â€š
+真的？！接下來我們說明。
 ```
 
 Question:
@@ -1059,10 +1059,10 @@ Is the sequence represented consistently as sentence-final evidence?
 
 ---
 
-## X06 Ã¢â‚¬â€ Punctuation inside paired delimiter
+## X06 — Punctuation inside paired delimiter
 
 ```text
-Ã£â‚¬Å’Ã§Å“Å¸Ã§Å¡â€žÃ¯Â¼Å¸Ã¯Â¼ÂÃ£â‚¬ÂÃ¦Å½Â¥Ã¤Â¸â€¹Ã¤Â¾â€ Ã¦Ë†â€˜Ã¥â‚¬â€˜Ã¨ÂªÂªÃ¦ËœÅ½Ã£â‚¬â€š
+「真的？！」接下來我們說明。
 ```
 
 Question:
@@ -1080,7 +1080,7 @@ The following v0.1 assumptions are explicitly removed.
 ### Removed assumption 1
 
 ```text
-CLAUSE + CJKÃ¢â€ â€™LATIN + whitespace
+CLAUSE + CJK→LATIN + whitespace
 ```
 
 Reason:
@@ -1092,10 +1092,10 @@ Current candidate topology does not demonstrate that these are simultaneously at
 ### Removed assumption 2
 
 ```text
-Ã¤Â¸Â­Ã¦â€“â€¡ | English
-Ã¢â€ â€™ one candidate
-Ã¢â€ â€™ transition + whitespace
-Ã¢â€ â€™ +25
+中文 | English
+→ one candidate
+→ transition + whitespace
+→ +25
 ```
 
 Reason:
@@ -1108,7 +1108,7 @@ Round 1 demonstrated that the current pipeline may expose separate candidate pos
 
 ```text
 technical CLAUSE
-Ã¢â€ â€™ 35 - 30
+→ 35 - 30
 ```
 
 Reason:
@@ -1123,7 +1123,7 @@ The real Phase 2B output must determine the scoring path.
 
 ```text
 string-final punctuation
-Ã¢â€ â€™ automatically has a candidate after it
+→ automatically has a candidate after it
 ```
 
 Reason:
@@ -1253,17 +1253,17 @@ The next execution step is:
 
 ```text
 Calibration Matrix v0.2
-        Ã¢â€ â€œ
+        ↓
 Calibration Round 2
-        Ã¢â€ â€œ
-Real Phase 1 Ã¢â€ â€™ 2A Ã¢â€ â€™ 2B output
-        Ã¢â€ â€œ
+        ↓
+Real Phase 1 → 2A → 2B output
+        ↓
 Apply unchanged provisional numeric baseline
-        Ã¢â€ â€œ
+        ↓
 Compare actual ranking
-        Ã¢â€ â€œ
+        ↓
 Identify genuine numeric calibration issues
-        Ã¢â€ â€œ
+        ↓
 Numeric Strategy v1
 ```
 
