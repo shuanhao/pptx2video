@@ -1,0 +1,10 @@
+各位同仁，歡迎參加 MCU 基礎知識培訓計畫。
+我是本課程的講師，在接下來的課程中，我們將一起建立 MCU，也就是 Microcontroller Unit，微控制器 的基礎知識，並了解它在現代電子產品與 Embedded System 中所扮演的重要角色。
+本系列課程主要對象為 非 MCU／MPU FAE，課程將以系統層級的觀點介紹 MCU 的基本概念，協助大家建立共同的技術語言，而不是學習特定晶片的程式設計或暫存器操作。
+在 Week 1，我們將先回答幾個最基本，也是最重要的問題。
+什麼是 MCU？
+MCU 與 CPU 有什麼不同？
+為什麼現在幾乎所有電子產品，都離不開 MCU？
+以及 MCU 在整個 Embedded System 中，到底扮演什麼角色？
+透過本週課程，希望各位不只是認識一顆 MCU，而是建立對整個 Embedded System 的第一個整體觀念，為後續的 Architecture、Memory、Communication Interface、Interrupt、Timer、ADC，以及 Industrial Communication 等課程奠定基礎。
+現在，就讓我們開始 Week 1：MCU 簡介。

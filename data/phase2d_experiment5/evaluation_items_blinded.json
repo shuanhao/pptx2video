@@ -1,0 +1,1603 @@
+[
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0001",
+  "paragraph_end_offset": 354,
+  "paragraph_index": 10,
+  "paragraph_start_offset": 302,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "MCU 真正的重要性，",
+   "不只是它是一顆晶片",
+   "，而是它扮演了整個",
+   " Embedded System",
+   " 的控制核心。"
+  ],
+  "segmentation_2": [
+   "MCU ",
+   "真正的重要性，",
+   "不只是它是",
+   "一顆晶片，",
+   "而是它扮演了整個",
+   " Embedded",
+   " System ",
+   "的控制核心。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_02.txt",
+  "source_text": "MCU 真正的重要性，不只是它是一顆晶片，而是它扮演了整個 Embedded System 的控制核心。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0002",
+  "paragraph_end_offset": 2279,
+  "paragraph_index": 89,
+  "paragraph_start_offset": 2230,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "站在",
+   " FAE ",
+   "的角度，",
+   "這一頁最重",
+   "要的收穫，",
+   "不只是知道",
+   " MCU ",
+   "是什麼，",
+   "而是開始建立「",
+   "系統」的觀點。"
+  ],
+  "segmentation_2": [
+   "站在 FAE 的角度，",
+   "這一頁最重要的收穫",
+   "，不只是知道 MCU ",
+   "是什麼，而是開始建",
+   "立「系統」的觀點。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_02.txt",
+  "source_text": "站在 FAE 的角度，這一頁最重要的收穫，不只是知道 MCU 是什麼，而是開始建立「系統」的觀點。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0003",
+  "paragraph_end_offset": 2383,
+  "paragraph_index": 90,
+  "paragraph_start_offset": 2280,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "未來當客戶介紹產品",
+   "架構時，您看到的不",
+   "應只是單一顆 IC，",
+   "而是整個系統之間",
+   "的互動關係。例如，",
+   "感測器如何將資料送",
+   "給 MCU、MCU 如何透",
+   "過軟體做出決策、再",
+   "透過通訊介面與其他",
+   "設備交換資料，最後",
+   "控制整個產品運作。"
+  ],
+  "segmentation_2": [
+   "未來當客戶介",
+   "紹產品架構時，",
+   "您看到的不",
+   "應只是單一顆",
+   " IC，",
+   "而是整個系統之",
+   "間的互動關係。",
+   "例如，",
+   "感測器如何",
+   "將資料送給",
+   " MCU、",
+   "MCU ",
+   "如何透過軟",
+   "體做出決策、",
+   "再透過通訊介面與",
+   "其他設備交換資料，",
+   "最後控制整",
+   "個產品運作。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_02.txt",
+  "source_text": "未來當客戶介紹產品架構時，您看到的不應只是單一顆 IC，而是整個系統之間的互動關係。例如，感測器如何將資料送給 MCU、MCU 如何透過軟體做出決策、再透過通訊介面與其他設備交換資料，最後控制整個產品運作。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0004",
+  "paragraph_end_offset": 1505,
+  "paragraph_index": 65,
+  "paragraph_start_offset": 1473,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "它需要控制紙張",
+   "進紙、墨水噴印、",
+   "馬達運轉，以及與",
+   "電腦進行資料傳輸。"
+  ],
+  "segmentation_2": [
+   "它需要控制紙張",
+   "進紙、墨水噴印、",
+   "馬達運轉，",
+   "以及與電腦進",
+   "行資料傳輸。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_03.txt",
+  "source_text": "它需要控制紙張進紙、墨水噴印、馬達運轉，以及與電腦進行資料傳輸。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0005",
+  "paragraph_end_offset": 1675,
+  "paragraph_index": 72,
+  "paragraph_start_offset": 1641,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "可能包括牙刷、",
+   "手錶、",
+   "耳機、",
+   "汽車、",
+   "冷氣、",
+   "電梯、",
+   "門禁、",
+   "咖啡機、",
+   "印表機……"
+  ],
+  "segmentation_2": [
+   "可能包括牙刷、",
+   "手錶、耳機、汽車、",
+   "冷氣、電梯、門禁、",
+   "咖啡機、印表機……"
+  ],
+  "source_file": "examples/notes/mcu1_slide_03.txt",
+  "source_text": "可能包括牙刷、手錶、耳機、汽車、冷氣、電梯、門禁、咖啡機、印表機……"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0006",
+  "paragraph_end_offset": 1704,
+  "paragraph_index": 73,
+  "paragraph_start_offset": 1676,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "一天之中，",
+   "我們可能接",
+   "觸二十種、",
+   "三十種，",
+   "甚至更多電子設備。"
+  ],
+  "segmentation_2": [
+   "一天之中，",
+   "我們可能接觸二",
+   "十種、三十種，",
+   "甚至更多電子設備。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_03.txt",
+  "source_text": "一天之中，我們可能接觸二十種、三十種，甚至更多電子設備。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0007",
+  "paragraph_end_offset": 1848,
+  "paragraph_index": 78,
+  "paragraph_start_offset": 1816,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "所以，",
+   "我們每天其實都在與",
+   " MCU 互動，只是平",
+   "常沒有注意到而已。"
+  ],
+  "segmentation_2": [
+   "所以，",
+   "我們每天其實都在與",
+   " MCU 互動，",
+   "只是平常沒有",
+   "注意到而已。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_03.txt",
+  "source_text": "所以，我們每天其實都在與 MCU 互動，只是平常沒有注意到而已。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0008",
+  "paragraph_end_offset": 102,
+  "paragraph_index": 3,
+  "paragraph_start_offset": 92,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "MCU 到底是什麼？"
+  ],
+  "segmentation_2": [
+   "MCU ",
+   "到底是什麼？"
+  ],
+  "source_file": "examples/notes/mcu1_slide_04.txt",
+  "source_text": "MCU 到底是什麼？"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0009",
+  "paragraph_end_offset": 2327,
+  "paragraph_index": 119,
+  "paragraph_start_offset": 2279,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "這也是 MCU Funda",
+   "mentals Training",
+   " Program 希望建",
+   "立的系統思維。"
+  ],
+  "segmentation_2": [
+   "這也是 MCU ",
+   "Fundamentals",
+   " Training ",
+   "Program 希望建",
+   "立的系統思維。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_04.txt",
+  "source_text": "這也是 MCU Fundamentals Training Program 希望建立的系統思維。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0010",
+  "paragraph_end_offset": 2502,
+  "paragraph_index": 123,
+  "paragraph_start_offset": 2395,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "它的工作流程可以",
+   "簡化為三個步驟：感",
+   "知環境、做出判斷、",
+   "控制設備。而 MCU",
+   " 之所以能夠廣泛應",
+   "用在各種產品中，",
+   "是因為它將 CPU、",
+   "Memory 與各種 Pe",
+   "ripheral 整合在同",
+   "一顆晶片內，形成一",
+   "個完整的控制單元。"
+  ],
+  "segmentation_2": [
+   "它的工作流程可",
+   "以簡化為三個步",
+   "驟：感知環境、",
+   "做出判斷、",
+   "控制設備。",
+   "而 MCU ",
+   "之所以能夠廣泛應",
+   "用在各種產品中，",
+   "是因為它將",
+   " CPU、",
+   "Memory ",
+   "與各種 ",
+   "Peripheral",
+   " 整合在同一",
+   "顆晶片內，",
+   "形成一個完整",
+   "的控制單元。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_04.txt",
+  "source_text": "它的工作流程可以簡化為三個步驟：感知環境、做出判斷、控制設備。而 MCU 之所以能夠廣泛應用在各種產品中，是因為它將 CPU、Memory 與各種 Peripheral 整合在同一顆晶片內，形成一個完整的控制單元。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0011",
+  "paragraph_end_offset": 2613,
+  "paragraph_index": 124,
+  "paragraph_start_offset": 2503,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "希望大家從今天開",
+   "始，不再把 MCU 看",
+   "成一顆單純的晶片，",
+   "而是把它視為整個 ",
+   "Embedded System 的",
+   "控制核心。後續課程",
+   "介紹 MCU 的內部架",
+   "構、運作流程與各種",
+   "周邊功能時，都將圍",
+   "繞著今天建立的這個",
+   "核心概念逐步展開。"
+  ],
+  "segmentation_2": [
+   "希望大家從",
+   "今天開始，",
+   "不再把 MCU",
+   " 看成一顆單",
+   "純的晶片，",
+   "而是把它視為整個",
+   " Embedded System",
+   " 的控制核心。",
+   "後續課程介紹 ",
+   "MCU 的內部架構、",
+   "運作流程與各",
+   "種周邊功能時，",
+   "都將圍繞著今天",
+   "建立的這個核心",
+   "概念逐步展開。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_04.txt",
+  "source_text": "希望大家從今天開始，不再把 MCU 看成一顆單純的晶片，而是把它視為整個 Embedded System 的控制核心。後續課程介紹 MCU 的內部架構、運作流程與各種周邊功能時，都將圍繞著今天建立的這個核心概念逐步展開。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0012",
+  "paragraph_end_offset": 327,
+  "paragraph_index": 11,
+  "paragraph_start_offset": 297,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "理解它們各",
+   "自的定位，",
+   "也是未來協助",
+   "客戶進行產品選",
+   "型的重要基礎。"
+  ],
+  "segmentation_2": [
+   "理解它們各自的",
+   "定位，也是未來",
+   "協助客戶進行產品",
+   "選型的重要基礎。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_05.txt",
+  "source_text": "理解它們各自的定位，也是未來協助客戶進行產品選型的重要基礎。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0013",
+  "paragraph_end_offset": 761,
+  "paragraph_index": 28,
+  "paragraph_start_offset": 710,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "它把 ",
+   "CPU、",
+   "GPU、",
+   "影像處理器、",
+   "AI 加速器、",
+   "通訊模組、",
+   "記憶體控制器",
+   "等許多功能，",
+   "整合在同一",
+   "顆晶片裡。"
+  ],
+  "segmentation_2": [
+   "它把 CPU、GPU、",
+   "影像處理器、",
+   "AI 加速器、",
+   "通訊模組、記憶體控",
+   "制器等許多功能，整",
+   "合在同一顆晶片裡。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_05.txt",
+  "source_text": "它把 CPU、GPU、影像處理器、AI 加速器、通訊模組、記憶體控制器等許多功能，整合在同一顆晶片裡。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0014",
+  "paragraph_end_offset": 1020,
+  "paragraph_index": 44,
+  "paragraph_start_offset": 1004,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "因此，",
+   "MCU ",
+   "強調的是控制能力。"
+  ],
+  "segmentation_2": [
+   "因此，MCU ",
+   "強調的是控制能力。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_05.txt",
+  "source_text": "因此，MCU 強調的是控制能力。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0015",
+  "paragraph_end_offset": 102,
+  "paragraph_index": 2,
+  "paragraph_start_offset": 81,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "不過，到目前為止，",
+   "我們談的還比",
+   "較偏向概念。"
+  ],
+  "segmentation_2": [
+   "不過，",
+   "到目前為止，",
+   "我們談的還比",
+   "較偏向概念。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_06.txt",
+  "source_text": "不過，到目前為止，我們談的還比較偏向概念。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0016",
+  "paragraph_end_offset": 1509,
+  "paragraph_index": 86,
+  "paragraph_start_offset": 1479,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "所以，MCU ",
+   "不只是開關冷氣，",
+   "而是不斷進行監測、",
+   "判斷與控制。"
+  ],
+  "segmentation_2": [
+   "所以，",
+   "MCU ",
+   "不只是開關冷氣，",
+   "而是不斷進行監測、",
+   "判斷與控制。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_06.txt",
+  "source_text": "所以，MCU 不只是開關冷氣，而是不斷進行監測、判斷與控制。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0017",
+  "paragraph_end_offset": 153,
+  "paragraph_index": 5,
+  "paragraph_start_offset": 131,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "答案就在於",
+   " MCU ",
+   "具備完整的資",
+   "訊處理能力。"
+  ],
+  "segmentation_2": [
+   "答案就在於 MCU",
+   " 具備完整的資",
+   "訊處理能力。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_08.txt",
+  "source_text": "答案就在於 MCU 具備完整的資訊處理能力。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0018",
+  "paragraph_end_offset": 1351,
+  "paragraph_index": 82,
+  "paragraph_start_offset": 1337,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "MCU ",
+   "將控制訊號",
+   "送給馬達。"
+  ],
+  "segmentation_2": [
+   "MCU 將控制訊",
+   "號送給馬達。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_08.txt",
+  "source_text": "MCU 將控制訊號送給馬達。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0019",
+  "paragraph_end_offset": 537,
+  "paragraph_index": 20,
+  "paragraph_start_offset": 513,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "第一個，是智慧生活",
+   "（Smart Living）。"
+  ],
+  "segmentation_2": [
+   "第一個，",
+   "是智慧生活（Smart",
+   " Living）。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_10.txt",
+  "source_text": "第一個，是智慧生活（Smart Living）。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0020",
+  "paragraph_end_offset": 1066,
+  "paragraph_index": 42,
+  "paragraph_start_offset": 1043,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "一輛汽車裡，",
+   "可能搭載數十顆",
+   "甚至上百顆 MCU。"
+  ],
+  "segmentation_2": [
+   "一輛汽車裡，",
+   "可能搭載數十",
+   "顆甚至上百顆",
+   " MCU。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_10.txt",
+  "source_text": "一輛汽車裡，可能搭載數十顆甚至上百顆 MCU。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0021",
+  "paragraph_end_offset": 513,
+  "paragraph_index": 23,
+  "paragraph_start_offset": 495,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "否則可能造",
+   "成設備損壞，",
+   "甚至人員受傷。"
+  ],
+  "segmentation_2": [
+   "否則可能造成設備損",
+   "壞，甚至人員受傷。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_11.txt",
+  "source_text": "否則可能造成設備損壞，甚至人員受傷。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0022",
+  "paragraph_end_offset": 1246,
+  "paragraph_index": 59,
+  "paragraph_start_offset": 1198,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "如果 MCU 已經把 ",
+   "CPU、Memory 以及",
+   "許多 Peripheral 整",
+   "合在同一顆晶片內。"
+  ],
+  "segmentation_2": [
+   "如果 MCU ",
+   "已經把 CPU、",
+   "Memory 以及許多",
+   " Peripheral 整合",
+   "在同一顆晶片內。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_11.txt",
+  "source_text": "如果 MCU 已經把 CPU、Memory 以及許多 Peripheral 整合在同一顆晶片內。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0023",
+  "paragraph_end_offset": 1246,
+  "paragraph_index": 59,
+  "paragraph_start_offset": 1198,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "如果 MCU",
+   " 已經把",
+   " CPU、",
+   "Memory ",
+   "以及許多 ",
+   "Peripheral",
+   " 整合在同一",
+   "顆晶片內。"
+  ],
+  "segmentation_2": [
+   "如果 MCU 已經把 ",
+   "CPU、Memory 以及",
+   "許多 Peripheral 整",
+   "合在同一顆晶片內。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_11.txt",
+  "source_text": "如果 MCU 已經把 CPU、Memory 以及許多 Peripheral 整合在同一顆晶片內。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0024",
+  "paragraph_end_offset": 1439,
+  "paragraph_index": 72,
+  "paragraph_start_offset": 1414,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "這也是許多消費",
+   "性電子產品選擇",
+   " MCU ",
+   "的重要原因。"
+  ],
+  "segmentation_2": [
+   "這也是許多消費",
+   "性電子產品選擇 ",
+   "MCU 的重要原因。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_11.txt",
+  "source_text": "這也是許多消費性電子產品選擇 MCU 的重要原因。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0025",
+  "paragraph_end_offset": 1319,
+  "paragraph_index": 70,
+  "paragraph_start_offset": 1294,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "同時，",
+   "也需要低功耗模式，",
+   "在沒有工作時",
+   "降低能源消耗。"
+  ],
+  "segmentation_2": [
+   "同時，也需要低功",
+   "耗模式，在沒有工",
+   "作時降低能源消耗。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_14.txt",
+  "source_text": "同時，也需要低功耗模式，在沒有工作時降低能源消耗。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0026",
+  "paragraph_end_offset": 1627,
+  "paragraph_index": 88,
+  "paragraph_start_offset": 1611,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "DAC，",
+   "將數位資料轉",
+   "成類比輸出。"
+  ],
+  "segmentation_2": [
+   "DAC，將數位資料",
+   "轉成類比輸出。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_14.txt",
+  "source_text": "DAC，將數位資料轉成類比輸出。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0027",
+  "paragraph_end_offset": 336,
+  "paragraph_index": 9,
+  "paragraph_start_offset": 300,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Embedded System ",
+   "並不是封閉運作的，",
+   "它需要持續",
+   "與外界互動。"
+  ],
+  "segmentation_2": [
+   "Embedded",
+   " System ",
+   "並不是封閉運作的，",
+   "它需要持續",
+   "與外界互動。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_15.txt",
+  "source_text": "Embedded System 並不是封閉運作的，它需要持續與外界互動。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0028",
+  "paragraph_end_offset": 1395,
+  "paragraph_index": 77,
+  "paragraph_start_offset": 1388,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "ADC 取樣。"
+  ],
+  "segmentation_2": [
+   "ADC ",
+   "取樣。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_15.txt",
+  "source_text": "ADC 取樣。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0029",
+  "paragraph_end_offset": 2199,
+  "paragraph_index": 118,
+  "paragraph_start_offset": 2162,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "這就是一顆 MCU 在",
+   " Embedded System ",
+   "中完整的運作流程。"
+  ],
+  "segmentation_2": [
+   "這就是一顆 MCU",
+   " 在 Embedded",
+   " System ",
+   "中完整的運作流程。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_15.txt",
+  "source_text": "這就是一顆 MCU 在 Embedded System 中完整的運作流程。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0030",
+  "paragraph_end_offset": 1919,
+  "paragraph_index": 123,
+  "paragraph_start_offset": 1908,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Power ",
+   "提供能源。"
+  ],
+  "segmentation_2": [
+   "Power 提供能源。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_16.txt",
+  "source_text": "Power 提供能源。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0031",
+  "paragraph_end_offset": 1995,
+  "paragraph_index": 128,
+  "paragraph_start_offset": 1981,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Actuator",
+   " ",
+   "完成動作。"
+  ],
+  "segmentation_2": [
+   "Actuator ",
+   "完成動作。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_16.txt",
+  "source_text": "Actuator 完成動作。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0032",
+  "paragraph_end_offset": 2278,
+  "paragraph_index": 134,
+  "paragraph_start_offset": 2204,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "因此，FAE 的價值，",
+   "不只是介紹晶片功能",
+   "，而是協助客戶整合",
+   "整個系統架構，讓所",
+   "有元件彼此配合，完",
+   "成產品功能。這也是",
+   "系統思維比單一晶片",
+   "知識更重要的原因。"
+  ],
+  "segmentation_2": [
+   "因此，FAE 的價值，",
+   "不只是介紹",
+   "晶片功能，",
+   "而是協助客戶整",
+   "合整個系統架構，",
+   "讓所有元件",
+   "彼此配合，",
+   "完成產品功能。",
+   "這也是系統思維",
+   "比單一晶片知識",
+   "更重要的原因。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_16.txt",
+  "source_text": "因此，FAE 的價值，不只是介紹晶片功能，而是協助客戶整合整個系統架構，讓所有元件彼此配合，完成產品功能。這也是系統思維比單一晶片知識更重要的原因。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0033",
+  "paragraph_end_offset": 2278,
+  "paragraph_index": 134,
+  "paragraph_start_offset": 2204,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "因此，",
+   "FAE 的價值，",
+   "不只是介紹",
+   "晶片功能，",
+   "而是協助客戶整",
+   "合整個系統架構，",
+   "讓所有元件",
+   "彼此配合，",
+   "完成產品功能。",
+   "這也是系統思維",
+   "比單一晶片知識",
+   "更重要的原因。"
+  ],
+  "segmentation_2": [
+   "因此，FAE 的價值，",
+   "不只是介紹晶片功能",
+   "，而是協助客戶整合",
+   "整個系統架構，讓所",
+   "有元件彼此配合，完",
+   "成產品功能。這也是",
+   "系統思維比單一晶片",
+   "知識更重要的原因。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_16.txt",
+  "source_text": "因此，FAE 的價值，不只是介紹晶片功能，而是協助客戶整合整個系統架構，讓所有元件彼此配合，完成產品功能。這也是系統思維比單一晶片知識更重要的原因。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0034",
+  "paragraph_end_offset": 537,
+  "paragraph_index": 31,
+  "paragraph_start_offset": 521,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "因此，",
+   "MCU ",
+   "是整個系統的大腦。"
+  ],
+  "segmentation_2": [
+   "因此，MCU ",
+   "是整個系統的大腦。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_17.txt",
+  "source_text": "因此，MCU 是整個系統的大腦。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0035",
+  "paragraph_end_offset": 1360,
+  "paragraph_index": 103,
+  "paragraph_start_offset": 1329,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "但是，MCU ",
+   "永遠位於系統中央，",
+   "負責協調所有元",
+   "件共同完成工作。"
+  ],
+  "segmentation_2": [
+   "但是，",
+   "MCU ",
+   "永遠位於系統中央，",
+   "負責協調所有元",
+   "件共同完成工作。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_17.txt",
+  "source_text": "但是，MCU 永遠位於系統中央，負責協調所有元件共同完成工作。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0036",
+  "paragraph_end_offset": 1456,
+  "paragraph_index": 79,
+  "paragraph_start_offset": 1425,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "當客戶規劃",
+   "智慧家電時，",
+   "可以思考是否",
+   "需要將馬達控制",
+   "與主控制分開。"
+  ],
+  "segmentation_2": [
+   "當客戶規劃智慧",
+   "家電時，可以思考",
+   "是否需要將馬達控",
+   "制與主控制分開。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_18.txt",
+  "source_text": "當客戶規劃智慧家電時，可以思考是否需要將馬達控制與主控制分開。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0037",
+  "paragraph_end_offset": 120,
+  "paragraph_index": 2,
+  "paragraph_start_offset": 42,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "從認識 MCU",
+   " 是什麼，",
+   "到了解 MCU ",
+   "在產品中的角色、",
+   "系統架構，",
+   "以及各種應用場景，",
+   "我們已經建立了",
+   " MCU 與 ",
+   "Embedded",
+   " System ",
+   "的基本認知。"
+  ],
+  "segmentation_2": [
+   "從認識 MCU 是什麼",
+   "，到了解 MCU 在產",
+   "品中的角色、系統架",
+   "構，以及各種應用場",
+   "景，我們已經建立了",
+   " MCU 與 Embedded S",
+   "ystem 的基本認知。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_19.txt",
+  "source_text": "從認識 MCU 是什麼，到了解 MCU 在產品中的角色、系統架構，以及各種應用場景，我們已經建立了 MCU 與 Embedded System 的基本認知。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0038",
+  "paragraph_end_offset": 426,
+  "paragraph_index": 16,
+  "paragraph_start_offset": 409,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "MCU ",
+   "負責協調這些",
+   "元件彼此合作。"
+  ],
+  "segmentation_2": [
+   "MCU 負責協調這",
+   "些元件彼此合作。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_19.txt",
+  "source_text": "MCU 負責協調這些元件彼此合作。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0039",
+  "paragraph_end_offset": 914,
+  "paragraph_index": 42,
+  "paragraph_start_offset": 895,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "理解 MCU，",
+   "有助於快速掌",
+   "握客戶需求。"
+  ],
+  "segmentation_2": [
+   "理解 MCU，有助於",
+   "快速掌握客戶需求。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_19.txt",
+  "source_text": "理解 MCU，有助於快速掌握客戶需求。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0040",
+  "paragraph_end_offset": 1277,
+  "paragraph_index": 61,
+  "paragraph_start_offset": 1227,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "這也是後續學習 GPI",
+   "O、Timer、UART、AD",
+   "C，以及 Interrupt ",
+   "等課程的重要基礎。"
+  ],
+  "segmentation_2": [
+   "這也是後續學習",
+   " GPIO、",
+   "Timer、",
+   "UART、",
+   "ADC，",
+   "以及 ",
+   "Interrupt ",
+   "等課程的重要基礎。"
+  ],
+  "source_file": "examples/notes/mcu1_slide_19.txt",
+  "source_text": "這也是後續學習 GPIO、Timer、UART、ADC，以及 Interrupt 等課程的重要基礎。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0041",
+  "paragraph_end_offset": 1979,
+  "paragraph_index": 69,
+  "paragraph_start_offset": 1969,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "MCU ",
+   "裡面有什麼？"
+  ],
+  "segmentation_2": [
+   "MCU 裡面有什麼？"
+  ],
+  "source_file": "examples/notes/mcu2_slide_02.txt",
+  "source_text": "MCU 裡面有什麼？"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0042",
+  "paragraph_end_offset": 2176,
+  "paragraph_index": 75,
+  "paragraph_start_offset": 2126,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "這樣的安排，",
+   "可以讓大家在理解",
+   "每一個功能模組時，",
+   "都知道它在整個",
+   "系統中的位置，",
+   "而不是只學習",
+   "零散的知識點。"
+  ],
+  "segmentation_2": [
+   "這樣的安排，",
+   "可以讓大家在理解",
+   "每一個功能模組時，",
+   "都知道它在整個系統",
+   "中的位置，而不是只",
+   "學習零散的知識點。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_02.txt",
+  "source_text": "這樣的安排，可以讓大家在理解每一個功能模組時，都知道它在整個系統中的位置，而不是只學習零散的知識點。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0043",
+  "paragraph_end_offset": 1216,
+  "paragraph_index": 64,
+  "paragraph_start_offset": 1196,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "有些",
+   " MCU ",
+   "使用 ",
+   "Cortex-M0。"
+  ],
+  "segmentation_2": [
+   "有些 MCU 使用",
+   " Cortex-M0。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_03.txt",
+  "source_text": "有些 MCU 使用 Cortex-M0。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0044",
+  "paragraph_end_offset": 1362,
+  "paragraph_index": 73,
+  "paragraph_start_offset": 1350,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "有人提供更多",
+   " UART。"
+  ],
+  "segmentation_2": [
+   "有人提供更多",
+   " ",
+   "UART。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_03.txt",
+  "source_text": "有人提供更多 UART。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0045",
+  "paragraph_end_offset": 416,
+  "paragraph_index": 16,
+  "paragraph_start_offset": 392,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "它負責執行",
+   "程式指令、",
+   "進行資料運算，",
+   "以及邏輯判斷。"
+  ],
+  "segmentation_2": [
+   "它負責執行程式指",
+   "令、進行資料運算，",
+   "以及邏輯判斷。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_04.txt",
+  "source_text": "它負責執行程式指令、進行資料運算，以及邏輯判斷。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0046",
+  "paragraph_end_offset": 216,
+  "paragraph_index": 5,
+  "paragraph_start_offset": 157,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "很多人在談到",
+   " MCU",
+   " 時，",
+   "常常會直接",
+   "說：「這顆",
+   " MCU",
+   " 是 ",
+   "Cortex-M4」、",
+   "「這顆",
+   " CPU",
+   " 跑 ",
+   "120MHz」。"
+  ],
+  "segmentation_2": [
+   "很多人在談到 MCU ",
+   "時，常常會直接說：",
+   "「這顆 MCU 是 Cor",
+   "tex-M4」、「這顆 ",
+   "CPU 跑 120MHz」。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_06.txt",
+  "source_text": "很多人在談到 MCU 時，常常會直接說：「這顆 MCU 是 Cortex-M4」、「這顆 CPU 跑 120MHz」。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0047",
+  "paragraph_end_offset": 679,
+  "paragraph_index": 28,
+  "paragraph_start_offset": 667,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "感測器量測到",
+   " 32 度。"
+  ],
+  "segmentation_2": [
+   "感測器量測到",
+   " 32 ",
+   "度。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_06.txt",
+  "source_text": "感測器量測到 32 度。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0048",
+  "paragraph_end_offset": 1494,
+  "paragraph_index": 76,
+  "paragraph_start_offset": 1447,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "CPU、",
+   "Memory",
+   " 與 ",
+   "Peripheral",
+   " 中間，",
+   "都透過",
+   " System",
+   " Bus ",
+   "相互連接。"
+  ],
+  "segmentation_2": [
+   "CPU、Memory 與 ",
+   "Peripheral 中間，",
+   "都透過 System ",
+   "Bus 相互連接。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_06.txt",
+  "source_text": "CPU、Memory 與 Peripheral 中間，都透過 System Bus 相互連接。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0049",
+  "paragraph_end_offset": 35,
+  "paragraph_index": 1,
+  "paragraph_start_offset": 10,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "上一頁，",
+   "我們認識了",
+   " CPU",
+   " 在 ",
+   "MCU ",
+   "中的角色。"
+  ],
+  "segmentation_2": [
+   "上一頁，",
+   "我們認識了 CPU ",
+   "在 MCU 中的角色。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_07.txt",
+  "source_text": "上一頁，我們認識了 CPU 在 MCU 中的角色。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0050",
+  "paragraph_end_offset": 1458,
+  "paragraph_index": 86,
+  "paragraph_start_offset": 1405,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Fetch → Decode → ",
+   "Execute → Fetch → ",
+   "Decode → Execute……"
+  ],
+  "segmentation_2": [
+   "Fetch → ",
+   "Decode → ",
+   "Execute →",
+   " Fetch → ",
+   "Decode → ",
+   "Execute……"
+  ],
+  "source_file": "examples/notes/mcu2_slide_07.txt",
+  "source_text": "Fetch → Decode → Execute → Fetch → Decode → Execute……"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0051",
+  "paragraph_end_offset": 1738,
+  "paragraph_index": 106,
+  "paragraph_start_offset": 1729,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "第二，",
+   "是循序執行。"
+  ],
+  "segmentation_2": [
+   "第二，是循序執行。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_07.txt",
+  "source_text": "第二，是循序執行。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0052",
+  "paragraph_end_offset": 368,
+  "paragraph_index": 11,
+  "paragraph_start_offset": 336,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "可以說，沒有 Memo",
+   "ry，就沒有辦法完成",
+   "任何 MCU 的工作。"
+  ],
+  "segmentation_2": [
+   "可以說，",
+   "沒有 ",
+   "Memory，",
+   "就沒有辦法完成任何",
+   " MCU ",
+   "的工作。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_08.txt",
+  "source_text": "可以說，沒有 Memory，就沒有辦法完成任何 MCU 的工作。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0053",
+  "paragraph_end_offset": 966,
+  "paragraph_index": 52,
+  "paragraph_start_offset": 950,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "因此，即使重新開",
+   "機，也不會遺失。"
+  ],
+  "segmentation_2": [
+   "因此，",
+   "即使重新開機，",
+   "也不會遺失。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_09.txt",
+  "source_text": "因此，即使重新開機，也不會遺失。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0054",
+  "paragraph_end_offset": 1097,
+  "paragraph_index": 62,
+  "paragraph_start_offset": 1073,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "很多產品的",
+   "重要資料，",
+   "也都保存在",
+   " Flash",
+   " 裡。"
+  ],
+  "segmentation_2": [
+   "很多產品的重要",
+   "資料，也都保存在",
+   " Flash 裡。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_09.txt",
+  "source_text": "很多產品的重要資料，也都保存在 Flash 裡。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0055",
+  "paragraph_end_offset": 1838,
+  "paragraph_index": 116,
+  "paragraph_start_offset": 1816,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "SRAM",
+   " ",
+   "則是存放變數以及",
+   "執行中的暫存資料。"
+  ],
+  "segmentation_2": [
+   "SRAM ",
+   "則是存放變數以及",
+   "執行中的暫存資料。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_09.txt",
+  "source_text": "SRAM 則是存放變數以及執行中的暫存資料。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0056",
+  "paragraph_end_offset": 1859,
+  "paragraph_index": 118,
+  "paragraph_start_offset": 1843,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Flash ",
+   "斷電後資料",
+   "仍然存在。"
+  ],
+  "segmentation_2": [
+   "Flash 斷電後",
+   "資料仍然存在。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_09.txt",
+  "source_text": "Flash 斷電後資料仍然存在。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0057",
+  "paragraph_end_offset": 604,
+  "paragraph_index": 36,
+  "paragraph_start_offset": 585,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "CPU 會持續與 ",
+   "SRAM 交換資料。"
+  ],
+  "segmentation_2": [
+   "CPU ",
+   "會持續與",
+   " SRAM ",
+   "交換資料。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_11.txt",
+  "source_text": "CPU 會持續與 SRAM 交換資料。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0058",
+  "paragraph_end_offset": 1273,
+  "paragraph_index": 83,
+  "paragraph_start_offset": 1265,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "第四項，是速度。"
+  ],
+  "segmentation_2": [
+   "第四項，",
+   "是速度。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_11.txt",
+  "source_text": "第四項，是速度。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0059",
+  "paragraph_end_offset": 2269,
+  "paragraph_index": 146,
+  "paragraph_start_offset": 2230,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Flash",
+   " 與 ",
+   "SRAM ",
+   "雖然都屬於",
+   " MCU ",
+   "的記憶體，",
+   "但負責的任",
+   "務完全不同。"
+  ],
+  "segmentation_2": [
+   "Flash 與 SRAM ",
+   "雖然都屬於 MCU ",
+   "的記憶體，但負責",
+   "的任務完全不同。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_11.txt",
+  "source_text": "Flash 與 SRAM 雖然都屬於 MCU 的記憶體，但負責的任務完全不同。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0060",
+  "paragraph_end_offset": 181,
+  "paragraph_index": 8,
+  "paragraph_start_offset": 153,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "例如，",
+   "CPU ",
+   "如何知道程式放在",
+   " Flash ",
+   "的哪個位置？"
+  ],
+  "segmentation_2": [
+   "例如，CPU ",
+   "如何知道程式放在 ",
+   "Flash 的哪個位置？"
+  ],
+  "source_file": "examples/notes/mcu2_slide_12.txt",
+  "source_text": "例如，CPU 如何知道程式放在 Flash 的哪個位置？"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0061",
+  "paragraph_end_offset": 932,
+  "paragraph_index": 34,
+  "paragraph_start_offset": 916,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "哪一個模組",
+   "現在可以使用",
+   " Bus？"
+  ],
+  "segmentation_2": [
+   "哪一個模組現在",
+   "可以使用 Bus？"
+  ],
+  "source_file": "examples/notes/mcu2_slide_12.txt",
+  "source_text": "哪一個模組現在可以使用 Bus？"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0062",
+  "paragraph_end_offset": 1298,
+  "paragraph_index": 56,
+  "paragraph_start_offset": 1283,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "控制 GPIO ",
+   "點亮 LED。"
+  ],
+  "segmentation_2": [
+   "控制 ",
+   "GPIO ",
+   "點亮 ",
+   "LED。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_13.txt",
+  "source_text": "控制 GPIO 點亮 LED。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0063",
+  "paragraph_end_offset": 1894,
+  "paragraph_index": 85,
+  "paragraph_start_offset": 1854,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "最後，",
+   "再把結果送到",
+   " Display ",
+   "顯示目前的溫度，",
+   "例如畫面上的",
+   " 25.6",
+   " 度。"
+  ],
+  "segmentation_2": [
+   "最後，再把結果送到",
+   " Display 顯示目",
+   "前的溫度，例如畫",
+   "面上的 25.6 度。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_13.txt",
+  "source_text": "最後，再把結果送到 Display 顯示目前的溫度，例如畫面上的 25.6 度。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0064",
+  "paragraph_end_offset": 70,
+  "paragraph_index": 1,
+  "paragraph_start_offset": 24,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "各位同仁，",
+   "前面幾頁課程中，",
+   "我們已經認識了",
+   " CPU、",
+   "Memory，",
+   "以及 ",
+   "System",
+   " Bus。"
+  ],
+  "segmentation_2": [
+   "各位同仁，前面幾頁",
+   "課程中，我們已經認",
+   "識了 CPU、Memory，",
+   "以及 System Bus。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_14.txt",
+  "source_text": "各位同仁，前面幾頁課程中，我們已經認識了 CPU、Memory，以及 System Bus。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0065",
+  "paragraph_end_offset": 2108,
+  "paragraph_index": 67,
+  "paragraph_start_offset": 2078,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Peripheral 是 ",
+   "MCU 與外部世界",
+   "互動的重要介面。"
+  ],
+  "segmentation_2": [
+   "Peripheral",
+   " 是 ",
+   "MCU ",
+   "與外部世界互",
+   "動的重要介面。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_14.txt",
+  "source_text": "Peripheral 是 MCU 與外部世界互動的重要介面。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0066",
+  "paragraph_end_offset": 683,
+  "paragraph_index": 24,
+  "paragraph_start_offset": 639,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "所以，我們可以把",
+   " MCU 看成是一台專",
+   "門負責控制工作的",
+   "迷你電腦，而不是",
+   "縮小版的個人電腦。"
+  ],
+  "segmentation_2": [
+   "所以，",
+   "我們可以把 MCU 看",
+   "成是一台專門負責控",
+   "制工作的迷你電腦，",
+   "而不是縮小版",
+   "的個人電腦。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_15.txt",
+  "source_text": "所以，我們可以把 MCU 看成是一台專門負責控制工作的迷你電腦，而不是縮小版的個人電腦。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0067",
+  "paragraph_end_offset": 284,
+  "paragraph_index": 7,
+  "paragraph_start_offset": 257,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "接著，",
+   "資料透過 System ",
+   "Bus 傳送到 CPU。"
+  ],
+  "segmentation_2": [
+   "接著，",
+   "資料透過",
+   " System ",
+   "Bus 傳送到",
+   " CPU。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_17.txt",
+  "source_text": "接著，資料透過 System Bus 傳送到 CPU。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0068",
+  "paragraph_end_offset": 631,
+  "paragraph_index": 20,
+  "paragraph_start_offset": 607,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Memory",
+   " 又分成",
+   " Flash",
+   " 與 ",
+   "SRAM。"
+  ],
+  "segmentation_2": [
+   "Memory 又分成 ",
+   "Flash 與 SRAM。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_17.txt",
+  "source_text": "Memory 又分成 Flash 與 SRAM。"
+ },
+ {
+  "is_repeat_item": false,
+  "item_id": "exp5-0069",
+  "paragraph_end_offset": 863,
+  "paragraph_index": 29,
+  "paragraph_start_offset": 835,
+  "repeat_of_item_id": null,
+  "segmentation_1": [
+   "Peripheral 是",
+   " MCU 與外部世",
+   "界互動的橋樑。"
+  ],
+  "segmentation_2": [
+   "Peripheral",
+   " 是 MCU ",
+   "與外部世界",
+   "互動的橋樑。"
+  ],
+  "source_file": "examples/notes/mcu2_slide_17.txt",
+  "source_text": "Peripheral 是 MCU 與外部世界互動的橋樑。"
+ }
+]

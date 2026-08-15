@@ -1,0 +1,189 @@
+PHASE 2D EXPERIMENT 5A - BLINDED PREVIEW (first 10 items)
+============================================================================
+
+Item: exp5-0001  (examples/notes/mcu1_slide_02.txt, paragraph 10)
+Source text: MCU 真正的重要性，不只是它是一顆晶片，而是它扮演了整個 Embedded System 的控制核心。
+Segmentation 1:
+  [ MCU 真正的重要性， ]
+  [ 不只是它是一顆晶片 ]
+  [ ，而是它扮演了整個 ]
+  [  Embedded System ]
+  [  的控制核心。 ]
+Segmentation 2:
+  [ MCU  ]
+  [ 真正的重要性， ]
+  [ 不只是它是 ]
+  [ 一顆晶片， ]
+  [ 而是它扮演了整個 ]
+  [  Embedded ]
+  [  System  ]
+  [ 的控制核心。 ]
+
+Item: exp5-0002  (examples/notes/mcu1_slide_02.txt, paragraph 89)
+Source text: 站在 FAE 的角度，這一頁最重要的收穫，不只是知道 MCU 是什麼，而是開始建立「系統」的觀點。
+Segmentation 1:
+  [ 站在 ]
+  [  FAE  ]
+  [ 的角度， ]
+  [ 這一頁最重 ]
+  [ 要的收穫， ]
+  [ 不只是知道 ]
+  [  MCU  ]
+  [ 是什麼， ]
+  [ 而是開始建立「 ]
+  [ 系統」的觀點。 ]
+Segmentation 2:
+  [ 站在 FAE 的角度， ]
+  [ 這一頁最重要的收穫 ]
+  [ ，不只是知道 MCU  ]
+  [ 是什麼，而是開始建 ]
+  [ 立「系統」的觀點。 ]
+
+Item: exp5-0003  (examples/notes/mcu1_slide_02.txt, paragraph 90)
+Source text: 未來當客戶介紹產品架構時，您看到的不應只是單一顆 IC，而是整個系統之間的互動關係。例如，感測器如何將資料送給 MCU、MCU 如何透過軟體做出決策、再透過通訊介面與其他設備交換資料，最後控制整個產品運作。
+Segmentation 1:
+  [ 未來當客戶介紹產品 ]
+  [ 架構時，您看到的不 ]
+  [ 應只是單一顆 IC， ]
+  [ 而是整個系統之間 ]
+  [ 的互動關係。例如， ]
+  [ 感測器如何將資料送 ]
+  [ 給 MCU、MCU 如何透 ]
+  [ 過軟體做出決策、再 ]
+  [ 透過通訊介面與其他 ]
+  [ 設備交換資料，最後 ]
+  [ 控制整個產品運作。 ]
+Segmentation 2:
+  [ 未來當客戶介 ]
+  [ 紹產品架構時， ]
+  [ 您看到的不 ]
+  [ 應只是單一顆 ]
+  [  IC， ]
+  [ 而是整個系統之 ]
+  [ 間的互動關係。 ]
+  [ 例如， ]
+  [ 感測器如何 ]
+  [ 將資料送給 ]
+  [  MCU、 ]
+  [ MCU  ]
+  [ 如何透過軟 ]
+  [ 體做出決策、 ]
+  [ 再透過通訊介面與 ]
+  [ 其他設備交換資料， ]
+  [ 最後控制整 ]
+  [ 個產品運作。 ]
+
+Item: exp5-0004  (examples/notes/mcu1_slide_03.txt, paragraph 65)
+Source text: 它需要控制紙張進紙、墨水噴印、馬達運轉，以及與電腦進行資料傳輸。
+Segmentation 1:
+  [ 它需要控制紙張 ]
+  [ 進紙、墨水噴印、 ]
+  [ 馬達運轉，以及與 ]
+  [ 電腦進行資料傳輸。 ]
+Segmentation 2:
+  [ 它需要控制紙張 ]
+  [ 進紙、墨水噴印、 ]
+  [ 馬達運轉， ]
+  [ 以及與電腦進 ]
+  [ 行資料傳輸。 ]
+
+Item: exp5-0005  (examples/notes/mcu1_slide_03.txt, paragraph 72)
+Source text: 可能包括牙刷、手錶、耳機、汽車、冷氣、電梯、門禁、咖啡機、印表機……
+Segmentation 1:
+  [ 可能包括牙刷、 ]
+  [ 手錶、 ]
+  [ 耳機、 ]
+  [ 汽車、 ]
+  [ 冷氣、 ]
+  [ 電梯、 ]
+  [ 門禁、 ]
+  [ 咖啡機、 ]
+  [ 印表機…… ]
+Segmentation 2:
+  [ 可能包括牙刷、 ]
+  [ 手錶、耳機、汽車、 ]
+  [ 冷氣、電梯、門禁、 ]
+  [ 咖啡機、印表機…… ]
+
+Item: exp5-0006  (examples/notes/mcu1_slide_03.txt, paragraph 73)
+Source text: 一天之中，我們可能接觸二十種、三十種，甚至更多電子設備。
+Segmentation 1:
+  [ 一天之中， ]
+  [ 我們可能接 ]
+  [ 觸二十種、 ]
+  [ 三十種， ]
+  [ 甚至更多電子設備。 ]
+Segmentation 2:
+  [ 一天之中， ]
+  [ 我們可能接觸二 ]
+  [ 十種、三十種， ]
+  [ 甚至更多電子設備。 ]
+
+Item: exp5-0007  (examples/notes/mcu1_slide_03.txt, paragraph 78)
+Source text: 所以，我們每天其實都在與 MCU 互動，只是平常沒有注意到而已。
+Segmentation 1:
+  [ 所以， ]
+  [ 我們每天其實都在與 ]
+  [  MCU 互動，只是平 ]
+  [ 常沒有注意到而已。 ]
+Segmentation 2:
+  [ 所以， ]
+  [ 我們每天其實都在與 ]
+  [  MCU 互動， ]
+  [ 只是平常沒有 ]
+  [ 注意到而已。 ]
+
+Item: exp5-0008  (examples/notes/mcu1_slide_04.txt, paragraph 3)
+Source text: MCU 到底是什麼？
+Segmentation 1:
+  [ MCU 到底是什麼？ ]
+Segmentation 2:
+  [ MCU  ]
+  [ 到底是什麼？ ]
+
+Item: exp5-0009  (examples/notes/mcu1_slide_04.txt, paragraph 119)
+Source text: 這也是 MCU Fundamentals Training Program 希望建立的系統思維。
+Segmentation 1:
+  [ 這也是 MCU Funda ]
+  [ mentals Training ]
+  [  Program 希望建 ]
+  [ 立的系統思維。 ]
+Segmentation 2:
+  [ 這也是 MCU  ]
+  [ Fundamentals ]
+  [  Training  ]
+  [ Program 希望建 ]
+  [ 立的系統思維。 ]
+
+Item: exp5-0010  (examples/notes/mcu1_slide_04.txt, paragraph 123)
+Source text: 它的工作流程可以簡化為三個步驟：感知環境、做出判斷、控制設備。而 MCU 之所以能夠廣泛應用在各種產品中，是因為它將 CPU、Memory 與各種 Peripheral 整合在同一顆晶片內，形成一個完整的控制單元。
+Segmentation 1:
+  [ 它的工作流程可以 ]
+  [ 簡化為三個步驟：感 ]
+  [ 知環境、做出判斷、 ]
+  [ 控制設備。而 MCU ]
+  [  之所以能夠廣泛應 ]
+  [ 用在各種產品中， ]
+  [ 是因為它將 CPU、 ]
+  [ Memory 與各種 Pe ]
+  [ ripheral 整合在同 ]
+  [ 一顆晶片內，形成一 ]
+  [ 個完整的控制單元。 ]
+Segmentation 2:
+  [ 它的工作流程可 ]
+  [ 以簡化為三個步 ]
+  [ 驟：感知環境、 ]
+  [ 做出判斷、 ]
+  [ 控制設備。 ]
+  [ 而 MCU  ]
+  [ 之所以能夠廣泛應 ]
+  [ 用在各種產品中， ]
+  [ 是因為它將 ]
+  [  CPU、 ]
+  [ Memory  ]
+  [ 與各種  ]
+  [ Peripheral ]
+  [  整合在同一 ]
+  [ 顆晶片內， ]
+  [ 形成一個完整 ]
+  [ 的控制單元。 ]

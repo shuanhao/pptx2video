@@ -1,0 +1,3391 @@
+[
+ {
+  "alternative_k": 8,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 3,
+  "delta_phase2d_score": 55.0,
+  "frontier_size": 8,
+  "item_id": "exp5-0001",
+  "k_min": 5,
+  "paragraph_index": 10,
+  "pareto_frontier": [
+   [
+    5,
+    55.0
+   ],
+   [
+    6,
+    90.0
+   ],
+   [
+    7,
+    100.0
+   ],
+   [
+    8,
+    110.0
+   ],
+   [
+    9,
+    120.0
+   ],
+   [
+    10,
+    130.0
+   ],
+   [
+    11,
+    140.0
+   ],
+   [
+    12,
+    150.0
+   ]
+  ],
+  "phase2d_score_alternative": 110.0,
+  "phase2d_score_k_min": 55.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_02.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_3",
+   "F_frontier_size_8",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 10,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 5,
+  "delta_phase2d_score": 100.0,
+  "frontier_size": 10,
+  "item_id": "exp5-0002",
+  "k_min": 5,
+  "paragraph_index": 89,
+  "pareto_frontier": [
+   [
+    5,
+    45.0
+   ],
+   [
+    6,
+    80.0
+   ],
+   [
+    7,
+    115.0
+   ],
+   [
+    8,
+    125.0
+   ],
+   [
+    9,
+    135.0
+   ],
+   [
+    10,
+    145.0
+   ],
+   [
+    11,
+    155.0
+   ],
+   [
+    12,
+    165.0
+   ],
+   [
+    13,
+    175.0
+   ],
+   [
+    14,
+    185.0
+   ]
+  ],
+  "phase2d_score_alternative": 145.0,
+  "phase2d_score_k_min": 45.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_02.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_10",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 18,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 7,
+  "delta_phase2d_score": 250.0,
+  "frontier_size": 11,
+  "item_id": "exp5-0003",
+  "k_min": 11,
+  "paragraph_index": 90,
+  "pareto_frontier": [
+   [
+    11,
+    70.0
+   ],
+   [
+    12,
+    150.0
+   ],
+   [
+    13,
+    220.0
+   ],
+   [
+    14,
+    255.0
+   ],
+   [
+    15,
+    290.0
+   ],
+   [
+    16,
+    300.0
+   ],
+   [
+    17,
+    310.0
+   ],
+   [
+    18,
+    320.0
+   ],
+   [
+    19,
+    330.0
+   ],
+   [
+    20,
+    340.0
+   ],
+   [
+    21,
+    350.0
+   ]
+  ],
+  "phase2d_score_alternative": 320.0,
+  "phase2d_score_k_min": 70.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_02.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_11",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0004",
+  "k_min": 4,
+  "paragraph_index": 65,
+  "pareto_frontier": [
+   [
+    4,
+    35.0
+   ],
+   [
+    5,
+    70.0
+   ],
+   [
+    6,
+    105.0
+   ]
+  ],
+  "phase2d_score_alternative": 70.0,
+  "phase2d_score_k_min": 35.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_03.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 9,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 5,
+  "delta_phase2d_score": 175.0,
+  "frontier_size": 6,
+  "item_id": "exp5-0005",
+  "k_min": 4,
+  "paragraph_index": 72,
+  "pareto_frontier": [
+   [
+    4,
+    105.0
+   ],
+   [
+    5,
+    140.0
+   ],
+   [
+    6,
+    175.0
+   ],
+   [
+    7,
+    210.0
+   ],
+   [
+    8,
+    245.0
+   ],
+   [
+    9,
+    280.0
+   ]
+  ],
+  "phase2d_score_alternative": 280.0,
+  "phase2d_score_k_min": 105.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_03.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_6",
+   "G_non_monotonic",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0006",
+  "k_min": 4,
+  "paragraph_index": 73,
+  "pareto_frontier": [
+   [
+    4,
+    70.0
+   ],
+   [
+    5,
+    105.0
+   ]
+  ],
+  "phase2d_score_alternative": 105.0,
+  "phase2d_score_k_min": 70.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_03.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 5,
+  "item_id": "exp5-0007",
+  "k_min": 4,
+  "paragraph_index": 78,
+  "pareto_frontier": [
+   [
+    4,
+    45.0
+   ],
+   [
+    5,
+    80.0
+   ],
+   [
+    6,
+    90.0
+   ],
+   [
+    7,
+    100.0
+   ],
+   [
+    8,
+    110.0
+   ]
+  ],
+  "phase2d_score_alternative": 80.0,
+  "phase2d_score_k_min": 45.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_03.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_5",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 2,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0008",
+  "k_min": 1,
+  "paragraph_index": 3,
+  "pareto_frontier": [
+   [
+    1,
+    0.0
+   ],
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 10.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_04.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 20.0,
+  "frontier_size": 9,
+  "item_id": "exp5-0009",
+  "k_min": 4,
+  "paragraph_index": 119,
+  "pareto_frontier": [
+   [
+    4,
+    10.0
+   ],
+   [
+    5,
+    30.0
+   ],
+   [
+    6,
+    40.0
+   ],
+   [
+    7,
+    50.0
+   ],
+   [
+    8,
+    60.0
+   ],
+   [
+    9,
+    70.0
+   ],
+   [
+    10,
+    80.0
+   ],
+   [
+    11,
+    90.0
+   ],
+   [
+    12,
+    100.0
+   ]
+  ],
+  "phase2d_score_alternative": 30.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_04.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_9"
+  ]
+ },
+ {
+  "alternative_k": 17,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 6,
+  "delta_phase2d_score": 190.0,
+  "frontier_size": 14,
+  "item_id": "exp5-0010",
+  "k_min": 11,
+  "paragraph_index": 123,
+  "pareto_frontier": [
+   [
+    11,
+    115.0
+   ],
+   [
+    12,
+    195.0
+   ],
+   [
+    13,
+    240.0
+   ],
+   [
+    14,
+    275.0
+   ],
+   [
+    15,
+    285.0
+   ],
+   [
+    16,
+    295.0
+   ],
+   [
+    17,
+    305.0
+   ],
+   [
+    18,
+    315.0
+   ],
+   [
+    19,
+    325.0
+   ],
+   [
+    20,
+    335.0
+   ],
+   [
+    21,
+    345.0
+   ],
+   [
+    22,
+    355.0
+   ],
+   [
+    23,
+    365.0
+   ],
+   [
+    24,
+    375.0
+   ]
+  ],
+  "phase2d_score_alternative": 305.0,
+  "phase2d_score_k_min": 115.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_04.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_14",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 15,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 4,
+  "delta_phase2d_score": 215.0,
+  "frontier_size": 15,
+  "item_id": "exp5-0011",
+  "k_min": 11,
+  "paragraph_index": 124,
+  "pareto_frontier": [
+   [
+    11,
+    45.0
+   ],
+   [
+    12,
+    180.0
+   ],
+   [
+    13,
+    215.0
+   ],
+   [
+    14,
+    250.0
+   ],
+   [
+    15,
+    260.0
+   ],
+   [
+    16,
+    270.0
+   ],
+   [
+    17,
+    280.0
+   ],
+   [
+    18,
+    290.0
+   ],
+   [
+    19,
+    300.0
+   ],
+   [
+    20,
+    310.0
+   ],
+   [
+    21,
+    320.0
+   ],
+   [
+    22,
+    330.0
+   ],
+   [
+    23,
+    340.0
+   ],
+   [
+    24,
+    350.0
+   ],
+   [
+    25,
+    360.0
+   ]
+  ],
+  "phase2d_score_alternative": 260.0,
+  "phase2d_score_k_min": 45.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_04.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_15",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0012",
+  "k_min": 4,
+  "paragraph_index": 11,
+  "pareto_frontier": [
+   [
+    4,
+    0.0
+   ],
+   [
+    5,
+    35.0
+   ]
+  ],
+  "phase2d_score_alternative": 35.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_05.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 10,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 4,
+  "delta_phase2d_score": 115.0,
+  "frontier_size": 8,
+  "item_id": "exp5-0013",
+  "k_min": 6,
+  "paragraph_index": 28,
+  "pareto_frontier": [
+   [
+    6,
+    105.0
+   ],
+   [
+    7,
+    140.0
+   ],
+   [
+    8,
+    175.0
+   ],
+   [
+    9,
+    210.0
+   ],
+   [
+    10,
+    220.0
+   ],
+   [
+    11,
+    230.0
+   ],
+   [
+    12,
+    240.0
+   ],
+   [
+    13,
+    250.0
+   ]
+  ],
+  "phase2d_score_alternative": 220.0,
+  "phase2d_score_k_min": 105.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_05.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_8",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0014",
+  "k_min": 2,
+  "paragraph_index": 44,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    45.0
+   ],
+   [
+    4,
+    55.0
+   ]
+  ],
+  "phase2d_score_alternative": 45.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_05.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0015",
+  "k_min": 3,
+  "paragraph_index": 2,
+  "pareto_frontier": [
+   [
+    3,
+    35.0
+   ],
+   [
+    4,
+    70.0
+   ]
+  ],
+  "phase2d_score_alternative": 70.0,
+  "phase2d_score_k_min": 35.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_06.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0016",
+  "k_min": 4,
+  "paragraph_index": 86,
+  "pareto_frontier": [
+   [
+    4,
+    80.0
+   ],
+   [
+    5,
+    115.0
+   ],
+   [
+    6,
+    125.0
+   ]
+  ],
+  "phase2d_score_alternative": 115.0,
+  "phase2d_score_k_min": 80.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_06.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 4,
+  "item_id": "exp5-0017",
+  "k_min": 3,
+  "paragraph_index": 5,
+  "pareto_frontier": [
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ],
+   [
+    5,
+    30.0
+   ],
+   [
+    6,
+    40.0
+   ]
+  ],
+  "phase2d_score_alternative": 20.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_08.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_4"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0018",
+  "k_min": 2,
+  "paragraph_index": 82,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 10.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_08.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": true,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 45.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0019",
+  "k_min": 2,
+  "paragraph_index": 20,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    45.0
+   ],
+   [
+    4,
+    55.0
+   ]
+  ],
+  "phase2d_score_alternative": 45.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_10.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": true,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0020",
+  "k_min": 3,
+  "paragraph_index": 42,
+  "pareto_frontier": [
+   [
+    3,
+    35.0
+   ],
+   [
+    4,
+    45.0
+   ],
+   [
+    5,
+    55.0
+   ]
+  ],
+  "phase2d_score_alternative": 45.0,
+  "phase2d_score_k_min": 35.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_10.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0021",
+  "k_min": 2,
+  "paragraph_index": 23,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    35.0
+   ]
+  ],
+  "phase2d_score_alternative": 35.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_11.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 45.0,
+  "frontier_size": 12,
+  "item_id": "exp5-0022",
+  "k_min": 4,
+  "paragraph_index": 59,
+  "pareto_frontier": [
+   [
+    4,
+    10.0
+   ],
+   [
+    5,
+    55.0
+   ],
+   [
+    6,
+    65.0
+   ],
+   [
+    7,
+    75.0
+   ],
+   [
+    8,
+    85.0
+   ],
+   [
+    9,
+    95.0
+   ],
+   [
+    10,
+    105.0
+   ],
+   [
+    11,
+    115.0
+   ],
+   [
+    12,
+    125.0
+   ],
+   [
+    13,
+    135.0
+   ],
+   [
+    14,
+    145.0
+   ],
+   [
+    15,
+    155.0
+   ]
+  ],
+  "phase2d_score_alternative": 55.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_11.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_12",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 8,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 4,
+  "delta_phase2d_score": 75.0,
+  "frontier_size": 12,
+  "item_id": "exp5-0023",
+  "k_min": 4,
+  "paragraph_index": 59,
+  "pareto_frontier": [
+   [
+    4,
+    10.0
+   ],
+   [
+    5,
+    55.0
+   ],
+   [
+    6,
+    65.0
+   ],
+   [
+    7,
+    75.0
+   ],
+   [
+    8,
+    85.0
+   ],
+   [
+    9,
+    95.0
+   ],
+   [
+    10,
+    105.0
+   ],
+   [
+    11,
+    115.0
+   ],
+   [
+    12,
+    125.0
+   ],
+   [
+    13,
+    135.0
+   ],
+   [
+    14,
+    145.0
+   ],
+   [
+    15,
+    155.0
+   ]
+  ],
+  "phase2d_score_alternative": 85.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_11.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_12",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 4,
+  "item_id": "exp5-0024",
+  "k_min": 3,
+  "paragraph_index": 72,
+  "pareto_frontier": [
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ],
+   [
+    5,
+    30.0
+   ],
+   [
+    6,
+    40.0
+   ]
+  ],
+  "phase2d_score_alternative": 20.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_11.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_4"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": true,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 70.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0025",
+  "k_min": 3,
+  "paragraph_index": 70,
+  "pareto_frontier": [
+   [
+    3,
+    0.0
+   ],
+   [
+    4,
+    70.0
+   ]
+  ],
+  "phase2d_score_alternative": 70.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_14.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0026",
+  "k_min": 2,
+  "paragraph_index": 88,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    35.0
+   ]
+  ],
+  "phase2d_score_alternative": 35.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_14.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 4,
+  "item_id": "exp5-0027",
+  "k_min": 4,
+  "paragraph_index": 9,
+  "pareto_frontier": [
+   [
+    4,
+    45.0
+   ],
+   [
+    5,
+    55.0
+   ],
+   [
+    6,
+    65.0
+   ],
+   [
+    7,
+    75.0
+   ]
+  ],
+  "phase2d_score_alternative": 55.0,
+  "phase2d_score_k_min": 45.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_15.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_4"
+  ]
+ },
+ {
+  "alternative_k": 2,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0028",
+  "k_min": 1,
+  "paragraph_index": 77,
+  "pareto_frontier": [
+   [
+    1,
+    0.0
+   ],
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 10.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_15.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 9,
+  "item_id": "exp5-0029",
+  "k_min": 3,
+  "paragraph_index": 118,
+  "pareto_frontier": [
+   [
+    3,
+    20.0
+   ],
+   [
+    4,
+    30.0
+   ],
+   [
+    5,
+    40.0
+   ],
+   [
+    6,
+    50.0
+   ],
+   [
+    7,
+    60.0
+   ],
+   [
+    8,
+    70.0
+   ],
+   [
+    9,
+    80.0
+   ],
+   [
+    10,
+    90.0
+   ],
+   [
+    11,
+    100.0
+   ]
+  ],
+  "phase2d_score_alternative": 30.0,
+  "phase2d_score_k_min": 20.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_15.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_9"
+  ]
+ },
+ {
+  "alternative_k": 2,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0030",
+  "k_min": 1,
+  "paragraph_index": 123,
+  "pareto_frontier": [
+   [
+    1,
+    0.0
+   ],
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 10.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_16.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": true,
+  "contains_extreme_narrow_segment": true,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0031",
+  "k_min": 2,
+  "paragraph_index": 128,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 20.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": false,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_16.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2"
+  ]
+ },
+ {
+  "alternative_k": 11,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 3,
+  "delta_phase2d_score": 185.0,
+  "frontier_size": 7,
+  "item_id": "exp5-0032",
+  "k_min": 8,
+  "paragraph_index": 134,
+  "pareto_frontier": [
+   [
+    8,
+    35.0
+   ],
+   [
+    9,
+    150.0
+   ],
+   [
+    10,
+    185.0
+   ],
+   [
+    11,
+    220.0
+   ],
+   [
+    12,
+    255.0
+   ],
+   [
+    13,
+    265.0
+   ],
+   [
+    14,
+    275.0
+   ]
+  ],
+  "phase2d_score_alternative": 220.0,
+  "phase2d_score_k_min": 35.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_16.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_3",
+   "F_frontier_size_7",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 12,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 4,
+  "delta_phase2d_score": 220.0,
+  "frontier_size": 7,
+  "item_id": "exp5-0033",
+  "k_min": 8,
+  "paragraph_index": 134,
+  "pareto_frontier": [
+   [
+    8,
+    35.0
+   ],
+   [
+    9,
+    150.0
+   ],
+   [
+    10,
+    185.0
+   ],
+   [
+    11,
+    220.0
+   ],
+   [
+    12,
+    255.0
+   ],
+   [
+    13,
+    265.0
+   ],
+   [
+    14,
+    275.0
+   ]
+  ],
+  "phase2d_score_alternative": 255.0,
+  "phase2d_score_k_min": 35.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_16.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_7",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0034",
+  "k_min": 2,
+  "paragraph_index": 31,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    45.0
+   ],
+   [
+    4,
+    55.0
+   ]
+  ],
+  "phase2d_score_alternative": 45.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_17.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0035",
+  "k_min": 4,
+  "paragraph_index": 103,
+  "pareto_frontier": [
+   [
+    4,
+    45.0
+   ],
+   [
+    5,
+    80.0
+   ],
+   [
+    6,
+    90.0
+   ]
+  ],
+  "phase2d_score_alternative": 80.0,
+  "phase2d_score_k_min": 45.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_17.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": true,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0036",
+  "k_min": 4,
+  "paragraph_index": 79,
+  "pareto_frontier": [
+   [
+    4,
+    0.0
+   ],
+   [
+    5,
+    35.0
+   ]
+  ],
+  "phase2d_score_alternative": 35.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_18.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 11,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 4,
+  "delta_phase2d_score": 190.0,
+  "frontier_size": 17,
+  "item_id": "exp5-0037",
+  "k_min": 7,
+  "paragraph_index": 2,
+  "pareto_frontier": [
+   [
+    7,
+    10.0
+   ],
+   [
+    8,
+    135.0
+   ],
+   [
+    9,
+    170.0
+   ],
+   [
+    10,
+    190.0
+   ],
+   [
+    11,
+    200.0
+   ],
+   [
+    12,
+    210.0
+   ],
+   [
+    13,
+    220.0
+   ],
+   [
+    14,
+    230.0
+   ],
+   [
+    15,
+    240.0
+   ],
+   [
+    16,
+    250.0
+   ],
+   [
+    17,
+    260.0
+   ],
+   [
+    18,
+    270.0
+   ],
+   [
+    19,
+    280.0
+   ],
+   [
+    20,
+    290.0
+   ],
+   [
+    21,
+    300.0
+   ],
+   [
+    22,
+    310.0
+   ],
+   [
+    23,
+    320.0
+   ]
+  ],
+  "phase2d_score_alternative": 200.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_19.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_17",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0038",
+  "k_min": 2,
+  "paragraph_index": 16,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 10.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_19.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 4,
+  "item_id": "exp5-0039",
+  "k_min": 2,
+  "paragraph_index": 42,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    35.0
+   ],
+   [
+    4,
+    45.0
+   ],
+   [
+    5,
+    55.0
+   ]
+  ],
+  "phase2d_score_alternative": 35.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu1_slide_19.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_4",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 8,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 4,
+  "delta_phase2d_score": 160.0,
+  "frontier_size": 8,
+  "item_id": "exp5-0040",
+  "k_min": 4,
+  "paragraph_index": 61,
+  "pareto_frontier": [
+   [
+    4,
+    10.0
+   ],
+   [
+    5,
+    90.0
+   ],
+   [
+    6,
+    125.0
+   ],
+   [
+    7,
+    160.0
+   ],
+   [
+    8,
+    170.0
+   ],
+   [
+    9,
+    180.0
+   ],
+   [
+    10,
+    190.0
+   ],
+   [
+    11,
+    200.0
+   ]
+  ],
+  "phase2d_score_alternative": 170.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu1_slide_19.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_8",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 2,
+  "alternative_k_substituted": true,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0041",
+  "k_min": 1,
+  "paragraph_index": 69,
+  "pareto_frontier": [
+   [
+    1,
+    0.0
+   ],
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 10.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_02.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 7,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0042",
+  "k_min": 6,
+  "paragraph_index": 75,
+  "pareto_frontier": [
+   [
+    6,
+    70.0
+   ],
+   [
+    7,
+    105.0
+   ]
+  ],
+  "phase2d_score_alternative": 105.0,
+  "phase2d_score_k_min": 70.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_02.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 2,
+  "delta_phase2d_score": 20.0,
+  "frontier_size": 6,
+  "item_id": "exp5-0043",
+  "k_min": 2,
+  "paragraph_index": 64,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ],
+   [
+    4,
+    30.0
+   ],
+   [
+    5,
+    40.0
+   ],
+   [
+    6,
+    50.0
+   ],
+   [
+    7,
+    60.0
+   ]
+  ],
+  "phase2d_score_alternative": 30.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_03.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_2",
+   "F_frontier_size_6",
+   "G_non_monotonic"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": true,
+  "contains_extreme_narrow_segment": true,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0044",
+  "k_min": 2,
+  "paragraph_index": 73,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 20.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": false,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_03.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0045",
+  "k_min": 3,
+  "paragraph_index": 16,
+  "pareto_frontier": [
+   [
+    3,
+    35.0
+   ],
+   [
+    4,
+    70.0
+   ]
+  ],
+  "phase2d_score_alternative": 70.0,
+  "phase2d_score_k_min": 35.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_04.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 12,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 7,
+  "delta_phase2d_score": 160.0,
+  "frontier_size": 16,
+  "item_id": "exp5-0046",
+  "k_min": 5,
+  "paragraph_index": 5,
+  "pareto_frontier": [
+   [
+    5,
+    -10.0
+   ],
+   [
+    6,
+    65.0
+   ],
+   [
+    7,
+    100.0
+   ],
+   [
+    8,
+    110.0
+   ],
+   [
+    9,
+    120.0
+   ],
+   [
+    10,
+    130.0
+   ],
+   [
+    11,
+    140.0
+   ],
+   [
+    12,
+    150.0
+   ],
+   [
+    13,
+    160.0
+   ],
+   [
+    14,
+    170.0
+   ],
+   [
+    15,
+    180.0
+   ],
+   [
+    16,
+    190.0
+   ],
+   [
+    17,
+    200.0
+   ],
+   [
+    18,
+    210.0
+   ],
+   [
+    19,
+    220.0
+   ],
+   [
+    20,
+    230.0
+   ]
+  ],
+  "phase2d_score_alternative": 150.0,
+  "phase2d_score_k_min": -10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_06.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_16",
+   "G_non_monotonic",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 4,
+  "item_id": "exp5-0047",
+  "k_min": 2,
+  "paragraph_index": 28,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ],
+   [
+    4,
+    30.0
+   ],
+   [
+    5,
+    40.0
+   ]
+  ],
+  "phase2d_score_alternative": 20.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_06.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_4",
+   "G_non_monotonic"
+  ]
+ },
+ {
+  "alternative_k": 9,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 5,
+  "delta_phase2d_score": 75.0,
+  "frontier_size": 12,
+  "item_id": "exp5-0048",
+  "k_min": 4,
+  "paragraph_index": 76,
+  "pareto_frontier": [
+   [
+    4,
+    55.0
+   ],
+   [
+    5,
+    90.0
+   ],
+   [
+    6,
+    100.0
+   ],
+   [
+    7,
+    110.0
+   ],
+   [
+    8,
+    120.0
+   ],
+   [
+    9,
+    130.0
+   ],
+   [
+    10,
+    140.0
+   ],
+   [
+    11,
+    150.0
+   ],
+   [
+    12,
+    160.0
+   ],
+   [
+    13,
+    170.0
+   ],
+   [
+    14,
+    180.0
+   ],
+   [
+    15,
+    190.0
+   ]
+  ],
+  "phase2d_score_alternative": 130.0,
+  "phase2d_score_k_min": 55.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_06.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_12",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 6,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 3,
+  "delta_phase2d_score": 30.0,
+  "frontier_size": 8,
+  "item_id": "exp5-0049",
+  "k_min": 3,
+  "paragraph_index": 1,
+  "pareto_frontier": [
+   [
+    3,
+    45.0
+   ],
+   [
+    4,
+    55.0
+   ],
+   [
+    5,
+    65.0
+   ],
+   [
+    6,
+    75.0
+   ],
+   [
+    7,
+    85.0
+   ],
+   [
+    8,
+    95.0
+   ],
+   [
+    9,
+    105.0
+   ],
+   [
+    10,
+    115.0
+   ]
+  ],
+  "phase2d_score_alternative": 75.0,
+  "phase2d_score_k_min": 45.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_07.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_3",
+   "F_frontier_size_8"
+  ]
+ },
+ {
+  "alternative_k": 6,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 3,
+  "delta_phase2d_score": 30.0,
+  "frontier_size": 19,
+  "item_id": "exp5-0050",
+  "k_min": 3,
+  "paragraph_index": 86,
+  "pareto_frontier": [
+   [
+    3,
+    20.0
+   ],
+   [
+    4,
+    30.0
+   ],
+   [
+    5,
+    40.0
+   ],
+   [
+    6,
+    50.0
+   ],
+   [
+    7,
+    60.0
+   ],
+   [
+    8,
+    70.0
+   ],
+   [
+    9,
+    80.0
+   ],
+   [
+    10,
+    90.0
+   ],
+   [
+    11,
+    100.0
+   ],
+   [
+    12,
+    110.0
+   ],
+   [
+    13,
+    120.0
+   ],
+   [
+    14,
+    130.0
+   ],
+   [
+    15,
+    140.0
+   ],
+   [
+    16,
+    150.0
+   ],
+   [
+    17,
+    160.0
+   ],
+   [
+    18,
+    170.0
+   ],
+   [
+    19,
+    180.0
+   ],
+   [
+    20,
+    190.0
+   ],
+   [
+    21,
+    200.0
+   ]
+  ],
+  "phase2d_score_alternative": 50.0,
+  "phase2d_score_k_min": 20.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_07.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_3",
+   "F_frontier_size_19",
+   "G_non_monotonic"
+  ]
+ },
+ {
+  "alternative_k": 2,
+  "alternative_k_substituted": true,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0051",
+  "k_min": 1,
+  "paragraph_index": 106,
+  "pareto_frontier": [
+   [
+    1,
+    0.0
+   ],
+   [
+    2,
+    35.0
+   ]
+  ],
+  "phase2d_score_alternative": 35.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_07.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 6,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 3,
+  "delta_phase2d_score": 100.0,
+  "frontier_size": 7,
+  "item_id": "exp5-0052",
+  "k_min": 3,
+  "paragraph_index": 11,
+  "pareto_frontier": [
+   [
+    3,
+    0.0
+   ],
+   [
+    4,
+    80.0
+   ],
+   [
+    5,
+    90.0
+   ],
+   [
+    6,
+    100.0
+   ],
+   [
+    7,
+    110.0
+   ],
+   [
+    8,
+    120.0
+   ],
+   [
+    9,
+    130.0
+   ]
+  ],
+  "phase2d_score_alternative": 100.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_08.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_3",
+   "F_frontier_size_7",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": true,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 70.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0053",
+  "k_min": 2,
+  "paragraph_index": 52,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    70.0
+   ]
+  ],
+  "phase2d_score_alternative": 70.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_09.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 2,
+  "delta_phase2d_score": 45.0,
+  "frontier_size": 5,
+  "item_id": "exp5-0054",
+  "k_min": 3,
+  "paragraph_index": 62,
+  "pareto_frontier": [
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    45.0
+   ],
+   [
+    5,
+    55.0
+   ],
+   [
+    6,
+    65.0
+   ],
+   [
+    7,
+    75.0
+   ]
+  ],
+  "phase2d_score_alternative": 55.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_09.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_2",
+   "F_frontier_size_5",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": true,
+  "contains_extreme_narrow_segment": true,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0055",
+  "k_min": 3,
+  "paragraph_index": 116,
+  "pareto_frontier": [
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 20.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": false,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_09.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0056",
+  "k_min": 2,
+  "paragraph_index": 118,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 10.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_09.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 2,
+  "delta_phase2d_score": 20.0,
+  "frontier_size": 6,
+  "item_id": "exp5-0057",
+  "k_min": 2,
+  "paragraph_index": 36,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ],
+   [
+    4,
+    30.0
+   ],
+   [
+    5,
+    40.0
+   ],
+   [
+    6,
+    50.0
+   ],
+   [
+    7,
+    60.0
+   ]
+  ],
+  "phase2d_score_alternative": 30.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_11.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_2",
+   "F_frontier_size_6"
+  ]
+ },
+ {
+  "alternative_k": 2,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 35.0,
+  "frontier_size": 2,
+  "item_id": "exp5-0058",
+  "k_min": 1,
+  "paragraph_index": 83,
+  "pareto_frontier": [
+   [
+    1,
+    0.0
+   ],
+   [
+    2,
+    35.0
+   ]
+  ],
+  "phase2d_score_alternative": 35.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_11.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_2",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 8,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 4,
+  "delta_phase2d_score": 65.0,
+  "frontier_size": 10,
+  "item_id": "exp5-0059",
+  "k_min": 4,
+  "paragraph_index": 146,
+  "pareto_frontier": [
+   [
+    4,
+    20.0
+   ],
+   [
+    5,
+    55.0
+   ],
+   [
+    6,
+    65.0
+   ],
+   [
+    7,
+    75.0
+   ],
+   [
+    8,
+    85.0
+   ],
+   [
+    9,
+    95.0
+   ],
+   [
+    10,
+    105.0
+   ],
+   [
+    11,
+    115.0
+   ],
+   [
+    12,
+    125.0
+   ],
+   [
+    13,
+    135.0
+   ]
+  ],
+  "phase2d_score_alternative": 85.0,
+  "phase2d_score_k_min": 20.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_11.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_10",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 2,
+  "delta_phase2d_score": 45.0,
+  "frontier_size": 6,
+  "item_id": "exp5-0060",
+  "k_min": 3,
+  "paragraph_index": 8,
+  "pareto_frontier": [
+   [
+    3,
+    20.0
+   ],
+   [
+    4,
+    55.0
+   ],
+   [
+    5,
+    65.0
+   ],
+   [
+    6,
+    75.0
+   ],
+   [
+    7,
+    85.0
+   ],
+   [
+    8,
+    95.0
+   ]
+  ],
+  "phase2d_score_alternative": 65.0,
+  "phase2d_score_k_min": 20.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_12.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_2",
+   "F_frontier_size_6",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 3,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 3,
+  "item_id": "exp5-0061",
+  "k_min": 2,
+  "paragraph_index": 34,
+  "pareto_frontier": [
+   [
+    2,
+    0.0
+   ],
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ]
+  ],
+  "phase2d_score_alternative": 10.0,
+  "phase2d_score_k_min": 0.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_12.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_3"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 2,
+  "delta_phase2d_score": 20.0,
+  "frontier_size": 6,
+  "item_id": "exp5-0062",
+  "k_min": 2,
+  "paragraph_index": 56,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ],
+   [
+    4,
+    30.0
+   ],
+   [
+    5,
+    40.0
+   ],
+   [
+    6,
+    50.0
+   ],
+   [
+    7,
+    60.0
+   ]
+  ],
+  "phase2d_score_alternative": 30.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_13.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_2",
+   "F_frontier_size_6"
+  ]
+ },
+ {
+  "alternative_k": 7,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 3,
+  "delta_phase2d_score": 100.0,
+  "frontier_size": 8,
+  "item_id": "exp5-0063",
+  "k_min": 4,
+  "paragraph_index": 85,
+  "pareto_frontier": [
+   [
+    4,
+    10.0
+   ],
+   [
+    5,
+    65.0
+   ],
+   [
+    6,
+    100.0
+   ],
+   [
+    7,
+    110.0
+   ],
+   [
+    8,
+    120.0
+   ],
+   [
+    9,
+    130.0
+   ],
+   [
+    10,
+    140.0
+   ],
+   [
+    11,
+    150.0
+   ]
+  ],
+  "phase2d_score_alternative": 110.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_13.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_3",
+   "F_frontier_size_8",
+   "G_non_monotonic",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 8,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 4,
+  "delta_phase2d_score": 135.0,
+  "frontier_size": 8,
+  "item_id": "exp5-0064",
+  "k_min": 4,
+  "paragraph_index": 1,
+  "pareto_frontier": [
+   [
+    4,
+    35.0
+   ],
+   [
+    5,
+    115.0
+   ],
+   [
+    6,
+    150.0
+   ],
+   [
+    7,
+    160.0
+   ],
+   [
+    8,
+    170.0
+   ],
+   [
+    9,
+    180.0
+   ],
+   [
+    10,
+    190.0
+   ],
+   [
+    11,
+    200.0
+   ]
+  ],
+  "phase2d_score_alternative": 170.0,
+  "phase2d_score_k_min": 35.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_14.txt",
+  "stratum": [
+   "D_large_gain",
+   "E_delta_k_4plus",
+   "F_frontier_size_8",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 2,
+  "delta_phase2d_score": 20.0,
+  "frontier_size": 6,
+  "item_id": "exp5-0065",
+  "k_min": 3,
+  "paragraph_index": 67,
+  "pareto_frontier": [
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ],
+   [
+    5,
+    30.0
+   ],
+   [
+    6,
+    40.0
+   ],
+   [
+    7,
+    50.0
+   ],
+   [
+    8,
+    60.0
+   ]
+  ],
+  "phase2d_score_alternative": 30.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_14.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_2",
+   "F_frontier_size_6"
+  ]
+ },
+ {
+  "alternative_k": 6,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 60.0,
+  "frontier_size": 6,
+  "item_id": "exp5-0066",
+  "k_min": 5,
+  "paragraph_index": 24,
+  "pareto_frontier": [
+   [
+    5,
+    10.0
+   ],
+   [
+    6,
+    70.0
+   ],
+   [
+    7,
+    80.0
+   ],
+   [
+    8,
+    90.0
+   ],
+   [
+    9,
+    100.0
+   ],
+   [
+    10,
+    110.0
+   ]
+  ],
+  "phase2d_score_alternative": 70.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_15.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_1",
+   "F_frontier_size_6",
+   "H_material_boundary_change"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 2,
+  "delta_phase2d_score": 20.0,
+  "frontier_size": 8,
+  "item_id": "exp5-0067",
+  "k_min": 3,
+  "paragraph_index": 7,
+  "pareto_frontier": [
+   [
+    3,
+    45.0
+   ],
+   [
+    4,
+    55.0
+   ],
+   [
+    5,
+    65.0
+   ],
+   [
+    6,
+    75.0
+   ],
+   [
+    7,
+    85.0
+   ],
+   [
+    8,
+    95.0
+   ],
+   [
+    9,
+    105.0
+   ],
+   [
+    10,
+    115.0
+   ]
+  ],
+  "phase2d_score_alternative": 65.0,
+  "phase2d_score_k_min": 45.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_17.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_2",
+   "F_frontier_size_8"
+  ]
+ },
+ {
+  "alternative_k": 5,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 3,
+  "delta_phase2d_score": 30.0,
+  "frontier_size": 8,
+  "item_id": "exp5-0068",
+  "k_min": 2,
+  "paragraph_index": 20,
+  "pareto_frontier": [
+   [
+    2,
+    10.0
+   ],
+   [
+    3,
+    20.0
+   ],
+   [
+    4,
+    30.0
+   ],
+   [
+    5,
+    40.0
+   ],
+   [
+    6,
+    50.0
+   ],
+   [
+    7,
+    60.0
+   ],
+   [
+    8,
+    70.0
+   ],
+   [
+    9,
+    80.0
+   ]
+  ],
+  "phase2d_score_alternative": 40.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "alternative",
+  "segmentation_2_is": "k_min",
+  "source_file": "examples/notes/mcu2_slide_17.txt",
+  "stratum": [
+   "C_moderate_gain",
+   "E_delta_k_3",
+   "F_frontier_size_8"
+  ]
+ },
+ {
+  "alternative_k": 4,
+  "alternative_k_substituted": false,
+  "boundary_condition_candidate": false,
+  "contains_extreme_narrow_segment": false,
+  "delta_k": 1,
+  "delta_phase2d_score": 10.0,
+  "frontier_size": 6,
+  "item_id": "exp5-0069",
+  "k_min": 3,
+  "paragraph_index": 29,
+  "pareto_frontier": [
+   [
+    3,
+    10.0
+   ],
+   [
+    4,
+    20.0
+   ],
+   [
+    5,
+    30.0
+   ],
+   [
+    6,
+    40.0
+   ],
+   [
+    7,
+    50.0
+   ],
+   [
+    8,
+    60.0
+   ]
+  ],
+  "phase2d_score_alternative": 20.0,
+  "phase2d_score_k_min": 10.0,
+  "primary_sample": true,
+  "segmentation_1_is": "k_min",
+  "segmentation_2_is": "alternative",
+  "source_file": "examples/notes/mcu2_slide_17.txt",
+  "stratum": [
+   "B_small_gain",
+   "E_delta_k_1",
+   "F_frontier_size_6"
+  ]
+ }
+]

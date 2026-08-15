@@ -1,0 +1,9 @@
+各位同仁，歡迎來到 MCU 基礎知識培訓計畫 Week 2：架構基礎知識。
+在上一週的課程中，我們認識了 MCU 的基本概念，了解 MCU 在各種電子產品與 Embedded System 中所扮演的重要角色，也知道 MCU 是感測、控制、運算與通訊的核心。
+但是，當我們打開一顆 MCU 的規格書時，經常會看到 CPU、Flash、SRAM、Bus、Peripheral 等許多名詞。
+這些元件彼此之間到底有什麼關係？又是如何共同運作，讓一顆 MCU 能夠完成各種控制工作？
+這就是本週課程要探討的主題。
+在 Week 2，我們將從系統架構的角度，介紹 MCU 的內部組成，了解 CPU 如何執行程式、Memory 如何儲存程式與資料，以及 Bus 如何串聯各個功能模組，最後再認識各種 Peripheral 如何與外部世界互動。
+本課程仍然以系統層級為主，不會討論特定 MCU 的硬體架構、暫存器配置或程式設計，而是希望各位建立對 MCU Architecture 的整體理解，知道每一個功能模組在整個 Embedded System 中所扮演的角色。
+完成本週課程後，您將能夠看懂 MCU 的基本架構圖，理解各個模組之間的資料流與控制流程，也為後續 Memory、Communication Interface、Interrupt、Timer、ADC 與 Industrial Communication 等課程建立穩固的基礎。
+現在，就讓我們開始 Week 2：架構基礎知識。

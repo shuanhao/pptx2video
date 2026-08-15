@@ -1,0 +1,196 @@
+========================================================================================
+PHASE 2D REAL-CONTENT SHADOW EVALUATION SUMMARY
+========================================================================================
+
+CORPUS
+----------------------------------------------------------------------------------------
+Notes directory : examples\notes
+Total files     : 39
+Successful      : 39
+Errors          : 0
+Characters      : 87774
+
+PRESENTATIONS
+----------------------------------------------------------------------------------------
+mcu1                     21 slides
+mcu2                     18 slides
+
+OVERALL RESULTS
+----------------------------------------------------------------------------------------
+Identical slides :      0 (  0.00%)
+Divergent slides:     39 (100.00%)
+
+SEGMENT COUNTS
+----------------------------------------------------------------------------------------
+Production segments : 10372
+Phase 2D segments   : 9985
+Total segment delta : -387
+Slides where Phase 2D has MORE segments: 3
+Slides where Phase 2D has FEWER segments: 36
+Equal segment count but different boundaries: 0
+Minimum per-slide delta: -30
+Maximum per-slide delta: +8
+
+DIVERGENT SLIDES
+----------------------------------------------------------------------------------------
+examples\notes\mcu1_slide_01.txt: production=55, phase2d=50, delta=-5
+    first differing segment: 1
+    production: {'text': '歡迎參加 MCU', 'source_start_offset': 5, 'source_end_offset': 13}
+    phase2d:    {'text': '歡迎參加 MCU', 'source_start_offset': 5, 'source_end_offset': 14}
+examples\notes\mcu1_slide_02.txt: production=331, phase2d=302, delta=-29
+    first differing segment: 1
+    production: {'text': '各位同仁', 'source_start_offset': 7, 'source_end_offset': 12}
+    phase2d:    {'text': '各位同仁，歡迎來到', 'source_start_offset': 7, 'source_end_offset': 16}
+examples\notes\mcu1_slide_03.txt: production=298, phase2d=273, delta=-25
+    first differing segment: 0
+    production: {'text': 'MCU 為日常電子', 'source_start_offset': 0, 'source_end_offset': 9}
+    phase2d:    {'text': 'MCU 為日常電', 'source_start_offset': 0, 'source_end_offset': 8}
+examples\notes\mcu1_slide_04.txt: production=311, phase2d=305, delta=-6
+    first differing segment: 1
+    production: {'text': '上一頁', 'source_start_offset': 9, 'source_end_offset': 13}
+    phase2d:    {'text': '上一頁，我們看到', 'source_start_offset': 9, 'source_end_offset': 17}
+examples\notes\mcu1_slide_05.txt: production=327, phase2d=312, delta=-15
+    first differing segment: 0
+    production: {'text': 'MCU、MPU 與 SoC', 'source_start_offset': 0, 'source_end_offset': 13}
+    phase2d:    {'text': 'MCU、MPU 與', 'source_start_offset': 0, 'source_end_offset': 10}
+examples\notes\mcu1_slide_06.txt: production=302, phase2d=289, delta=-13
+    first differing segment: 0
+    production: {'text': 'MCU 在真', 'source_start_offset': 0, 'source_end_offset': 6}
+    phase2d:    {'text': 'MCU', 'source_start_offset': 0, 'source_end_offset': 4}
+examples\notes\mcu1_slide_07.txt: production=339, phase2d=323, delta=-16
+    first differing segment: 0
+    production: {'text': '為什麼每個 FAE', 'source_start_offset': 0, 'source_end_offset': 9}
+    phase2d:    {'text': '為什麼每個 FAE', 'source_start_offset': 0, 'source_end_offset': 10}
+examples\notes\mcu1_slide_08.txt: production=301, phase2d=293, delta=-8
+    first differing segment: 1
+    production: {'text': '前面幾頁', 'source_start_offset': 12, 'source_end_offset': 17}
+    phase2d:    {'text': '前面幾頁，我們已經', 'source_start_offset': 12, 'source_end_offset': 21}
+examples\notes\mcu1_slide_09.txt: production=309, phase2d=295, delta=-14
+    first differing segment: 1
+    production: {'text': '前一頁', 'source_start_offset': 12, 'source_end_offset': 16}
+    phase2d:    {'text': '前一頁，我們介紹了', 'source_start_offset': 12, 'source_end_offset': 21}
+examples\notes\mcu1_slide_10.txt: production=296, phase2d=283, delta=-13
+    first differing segment: 1
+    production: {'text': '到目前為止', 'source_start_offset': 9, 'source_end_offset': 15}
+    phase2d:    {'text': '到目前為止，我們', 'source_start_offset': 9, 'source_end_offset': 17}
+examples\notes\mcu1_slide_11.txt: production=266, phase2d=255, delta=-11
+    first differing segment: 2
+    production: {'text': '我們已經了解 MCU', 'source_start_offset': 17, 'source_end_offset': 27}
+    phase2d:    {'text': '我們已經了解 MCU', 'source_start_offset': 17, 'source_end_offset': 28}
+examples\notes\mcu1_slide_12.txt: production=270, phase2d=257, delta=-13
+    first differing segment: 2
+    production: {'text': '我們已經了解', 'source_start_offset': 17, 'source_end_offset': 23}
+    phase2d:    {'text': '我們已經了解 MCU', 'source_start_offset': 17, 'source_end_offset': 28}
+examples\notes\mcu1_slide_13.txt: production=288, phase2d=281, delta=-7
+    first differing segment: 2
+    production: {'text': '我們已經了解', 'source_start_offset': 17, 'source_end_offset': 23}
+    phase2d:    {'text': '我們已經了解 MCU', 'source_start_offset': 17, 'source_end_offset': 28}
+examples\notes\mcu1_slide_14.txt: production=313, phase2d=304, delta=-9
+    first differing segment: 2
+    production: {'text': '我們已經知道', 'source_start_offset': 14, 'source_end_offset': 20}
+    phase2d:    {'text': '我們已經知道 MCU', 'source_start_offset': 14, 'source_end_offset': 25}
+examples\notes\mcu1_slide_15.txt: production=313, phase2d=304, delta=-9
+    first differing segment: 2
+    production: {'text': '我們已經知道', 'source_start_offset': 14, 'source_end_offset': 20}
+    phase2d:    {'text': '我們已經知道 MCU', 'source_start_offset': 14, 'source_end_offset': 25}
+examples\notes\mcu1_slide_16.txt: production=301, phase2d=296, delta=-5
+    first differing segment: 1
+    production: {'text': '到目前為止', 'source_start_offset': 11, 'source_end_offset': 17}
+    phase2d:    {'text': '到目前為止，我們', 'source_start_offset': 11, 'source_end_offset': 19}
+examples\notes\mcu1_slide_17.txt: production=239, phase2d=231, delta=-8
+    first differing segment: 0
+    production: {'text': 'MCU 在系統', 'source_start_offset': 0, 'source_end_offset': 7}
+    phase2d:    {'text': 'MCU', 'source_start_offset': 0, 'source_end_offset': 4}
+examples\notes\mcu1_slide_18.txt: production=237, phase2d=223, delta=-14
+    first differing segment: 0
+    production: {'text': '一個產品裡', 'source_start_offset': 0, 'source_end_offset': 5}
+    phase2d:    {'text': '一個產品裡有多少', 'source_start_offset': 0, 'source_end_offset': 8}
+examples\notes\mcu1_slide_19.txt: production=185, phase2d=186, delta=+1
+    first differing segment: 1
+    production: {'text': '到目前為止', 'source_start_offset': 11, 'source_end_offset': 17}
+    phase2d:    {'text': '到目前為止，我們', 'source_start_offset': 11, 'source_end_offset': 19}
+examples\notes\mcu1_slide_20.txt: production=272, phase2d=266, delta=-6
+    first differing segment: 1
+    production: {'text': '我們已經完成', 'source_start_offset': 3, 'source_end_offset': 9}
+    phase2d:    {'text': '我們已經完成 Week', 'source_start_offset': 3, 'source_end_offset': 14}
+examples\notes\mcu1_slide_21.txt: production=32, phase2d=29, delta=-3
+    first differing segment: 0
+    production: {'text': '恭喜您完成 MCU', 'source_start_offset': 0, 'source_end_offset': 9}
+    phase2d:    {'text': '恭喜您完成 MCU', 'source_start_offset': 0, 'source_end_offset': 10}
+examples\notes\mcu2_slide_01.txt: production=71, phase2d=62, delta=-9
+    first differing segment: 1
+    production: {'text': '歡迎來到 MCU', 'source_start_offset': 5, 'source_end_offset': 13}
+    phase2d:    {'text': '歡迎來到 MCU 基礎', 'source_start_offset': 5, 'source_end_offset': 16}
+examples\notes\mcu2_slide_02.txt: production=327, phase2d=297, delta=-30
+    first differing segment: 1
+    production: {'text': '各位同仁', 'source_start_offset': 11, 'source_end_offset': 16}
+    phase2d:    {'text': '各位同仁，歡迎來到', 'source_start_offset': 11, 'source_end_offset': 20}
+examples\notes\mcu2_slide_03.txt: production=253, phase2d=244, delta=-9
+    first differing segment: 6
+    production: {'text': '是什麼」', 'source_start_offset': 42, 'source_end_offset': 47}
+    phase2d:    {'text': '是什麼」', 'source_start_offset': 41, 'source_end_offset': 47}
+examples\notes\mcu2_slide_04.txt: production=325, phase2d=315, delta=-10
+    first differing segment: 0
+    production: {'text': 'MCU 內部有', 'source_start_offset': 0, 'source_end_offset': 7}
+    phase2d:    {'text': 'MCU 內部有哪', 'source_start_offset': 0, 'source_end_offset': 8}
+examples\notes\mcu2_slide_05.txt: production=305, phase2d=294, delta=-11
+    first differing segment: 2
+    production: {'text': '我們認識了 MCU', 'source_start_offset': 15, 'source_end_offset': 24}
+    phase2d:    {'text': '我們認識了 MCU', 'source_start_offset': 15, 'source_end_offset': 25}
+examples\notes\mcu2_slide_06.txt: production=310, phase2d=304, delta=-6
+    first differing segment: 2
+    production: {'text': '我們已經建立了', 'source_start_offset': 15, 'source_end_offset': 22}
+    phase2d:    {'text': '我們已經建立了 MCU', 'source_start_offset': 15, 'source_end_offset': 26}
+examples\notes\mcu2_slide_07.txt: production=326, phase2d=315, delta=-11
+    first differing segment: 2
+    production: {'text': '我們認識了 CPU', 'source_start_offset': 14, 'source_end_offset': 23}
+    phase2d:    {'text': '我們認識了 CPU', 'source_start_offset': 14, 'source_end_offset': 24}
+examples\notes\mcu2_slide_08.txt: production=296, phase2d=293, delta=-3
+    first differing segment: 0
+    production: {'text': '為什麼 MCU', 'source_start_offset': 0, 'source_end_offset': 7}
+    phase2d:    {'text': '為什麼 MCU', 'source_start_offset': 0, 'source_end_offset': 8}
+examples\notes\mcu2_slide_09.txt: production=301, phase2d=304, delta=+3
+    first differing segment: 0
+    production: {'text': '為什麼 MCU', 'source_start_offset': 0, 'source_end_offset': 7}
+    phase2d:    {'text': '為什麼 MCU', 'source_start_offset': 0, 'source_end_offset': 8}
+examples\notes\mcu2_slide_10.txt: production=301, phase2d=309, delta=+8
+    first differing segment: 0
+    production: {'text': '為什麼 MCU', 'source_start_offset': 0, 'source_end_offset': 7}
+    phase2d:    {'text': '為什麼 MCU', 'source_start_offset': 0, 'source_end_offset': 8}
+examples\notes\mcu2_slide_11.txt: production=300, phase2d=296, delta=-4
+    first differing segment: 5
+    production: {'text': 'Flash 與 SRAM', 'source_start_offset': 42, 'source_end_offset': 55}
+    phase2d:    {'text': 'Flash 與 SRAM', 'source_start_offset': 41, 'source_end_offset': 55}
+examples\notes\mcu2_slide_12.txt: production=269, phase2d=257, delta=-12
+    first differing segment: 3
+    production: {'text': '我們已經認識了', 'source_start_offset': 21, 'source_end_offset': 28}
+    phase2d:    {'text': '我們已經認識了 MCU', 'source_start_offset': 21, 'source_end_offset': 32}
+examples\notes\mcu2_slide_13.txt: production=279, phase2d=268, delta=-11
+    first differing segment: 0
+    production: {'text': '資料如何在', 'source_start_offset': 0, 'source_end_offset': 5}
+    phase2d:    {'text': '資料如何在', 'source_start_offset': 0, 'source_end_offset': 6}
+examples\notes\mcu2_slide_14.txt: production=264, phase2d=251, delta=-13
+    first differing segment: 0
+    production: {'text': 'Peripheral', 'source_start_offset': 0, 'source_end_offset': 11}
+    phase2d:    {'text': 'Peripheral，MCU', 'source_start_offset': 0, 'source_end_offset': 15}
+examples\notes\mcu2_slide_15.txt: production=268, phase2d=252, delta=-16
+    first differing segment: 1
+    production: {'text': '各位同仁', 'source_start_offset': 11, 'source_end_offset': 16}
+    phase2d:    {'text': '各位同仁，前面幾頁', 'source_start_offset': 11, 'source_end_offset': 20}
+examples\notes\mcu2_slide_16.txt: production=307, phase2d=304, delta=-3
+    first differing segment: 2
+    production: {'text': '前面的課程中', 'source_start_offset': 12, 'source_end_offset': 19}
+    phase2d:    {'text': '前面的課程中，我們', 'source_start_offset': 12, 'source_end_offset': 21}
+examples\notes\mcu2_slide_17.txt: production=246, phase2d=229, delta=-17
+    first differing segment: 1
+    production: {'text': '本週我們學到', 'source_start_offset': 3, 'source_end_offset': 9}
+    phase2d:    {'text': '本週我們學到 MCU', 'source_start_offset': 3, 'source_end_offset': 14}
+examples\notes\mcu2_slide_18.txt: production=39, phase2d=34, delta=-5
+    first differing segment: 0
+    production: {'text': '恭喜您完成 MCU', 'source_start_offset': 0, 'source_end_offset': 9}
+    phase2d:    {'text': '恭喜您完成 MCU', 'source_start_offset': 0, 'source_end_offset': 10}
+
+OUTPUT
+----------------------------------------------------------------------------------------
+Raw results: D:\WorkingCopy\pptx2video\reports\phase2d\real_content_shadow_results.json
+Summary    : D:\WorkingCopy\pptx2video\reports\phase2d\real_content_shadow_summary.txt

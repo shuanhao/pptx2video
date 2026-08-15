@@ -1,0 +1,69 @@
+PHASE 2D EXPERIMENT 5A - SAMPLING SUMMARY
+============================================================================
+This round produces sampling + a blinded evaluation package ONLY.
+No human ratings were collected. No conclusions about readability,
+correlation, or K-selection policy are drawn here.
+
+Configuration:
+  seed: 42
+  items_per_stratum: 6
+  min_segment_width: 4
+  boundary_condition_count: 3
+  max_items: None
+  results_json: reports/phase2d/phase2d_pareto_results.json
+  corpus_dir: examples/notes
+
+Control paragraphs (no Pareto alternative, not sampled into items): 1799
+Recoverable paragraphs (frontier size > 1): 2329
+  Qualifying (>=1 alt passes width filter): 2107
+  Excluded by extreme-narrow-segment filter (no alt passes): 222
+Non-monotonic paragraphs (score decreases somewhere above K_min): 9
+
+Draw log (candidates drawn per stratum-targeting procedure; items may overlap/merge):
+  core_B: 6
+  core_C: 6
+  core_D: 6
+  E_delta_k_1: 6
+  E_delta_k_2: 6
+  E_delta_k_3: 6
+  E_delta_k_4plus: 6
+  F_frontier_size_2: 6
+  F_frontier_size_gt2: 6
+  G_non_monotonic: 6
+  H_material_boundary_change: 6
+  boundary_condition: 3
+
+Total evaluation items after merge: 69
+  Primary-sample items: 66
+  Boundary-condition items (excluded from primary sample): 3
+
+Stratum label counts (an item may carry multiple labels):
+  B_small_gain: 18
+  C_moderate_gain: 33
+  D_large_gain: 18
+  E_delta_k_1: 41
+  E_delta_k_2: 7
+  E_delta_k_3: 7
+  E_delta_k_4plus: 14
+  F_frontier_size_10: 2
+  F_frontier_size_11: 1
+  F_frontier_size_12: 3
+  F_frontier_size_14: 1
+  F_frontier_size_15: 1
+  F_frontier_size_16: 1
+  F_frontier_size_17: 1
+  F_frontier_size_19: 1
+  F_frontier_size_2: 15
+  F_frontier_size_3: 15
+  F_frontier_size_4: 5
+  F_frontier_size_5: 2
+  F_frontier_size_6: 8
+  F_frontier_size_7: 3
+  F_frontier_size_8: 8
+  F_frontier_size_9: 2
+  G_non_monotonic: 6
+  H_material_boundary_change: 42
+
+Items carrying more than one stratum label: 69
+Items with alternative_k_substituted=true (target ΔK not itself a frontier point): 7
+Items with contains_extreme_narrow_segment=true: 3

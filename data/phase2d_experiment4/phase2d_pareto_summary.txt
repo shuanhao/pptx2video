@@ -1,0 +1,369 @@
+PHASE 2D EXPERIMENT 4 - PARETO SIMULATION - CORPUS SUMMARY
+============================================================================
+Files: 39
+Paragraphs: 4128
+Paragraphs with K_min > 1: 2834
+Total feasible (paragraph, K) points: 77082
+Max observed K (any paragraph): 175
+
+K_min distribution (K_min -> paragraph count):
+  1: 1294
+  2: 1455
+  3: 699
+  4: 307
+  5: 163
+  6: 79
+  7: 46
+  8: 27
+  9: 17
+  10: 9
+  11: 16
+  12: 7
+  13: 4
+  14: 3
+  16: 2
+
+K_max distribution (K_max -> paragraph count):
+  2: 2
+  3: 253
+  4: 69
+  5: 162
+  6: 93
+  7: 175
+  8: 155
+  9: 217
+  10: 205
+  11: 177
+  12: 172
+  13: 187
+  14: 134
+  15: 139
+  16: 140
+  17: 113
+  18: 112
+  19: 110
+  20: 88
+  21: 97
+  22: 109
+  23: 77
+  24: 77
+  25: 63
+  26: 59
+  27: 69
+  28: 64
+  29: 53
+  30: 48
+  31: 34
+  32: 47
+  33: 37
+  34: 33
+  35: 24
+  36: 29
+  37: 40
+  38: 27
+  39: 23
+  40: 19
+  41: 16
+  42: 23
+  43: 14
+  44: 16
+  45: 25
+  46: 14
+  47: 13
+  48: 14
+  49: 13
+  50: 16
+  51: 11
+  52: 11
+  53: 5
+  54: 7
+  55: 9
+  56: 8
+  57: 7
+  58: 7
+  59: 9
+  60: 10
+  61: 5
+  62: 6
+  63: 7
+  64: 2
+  65: 4
+  66: 5
+  67: 7
+  68: 3
+  69: 3
+  70: 5
+  71: 4
+  72: 2
+  73: 1
+  74: 6
+  75: 3
+  77: 4
+  78: 5
+  79: 2
+  80: 2
+  81: 4
+  82: 2
+  83: 6
+  84: 2
+  85: 1
+  88: 2
+  89: 3
+  91: 2
+  93: 1
+  94: 1
+  95: 1
+  96: 3
+  98: 1
+  99: 2
+  100: 1
+  101: 1
+  102: 2
+  103: 1
+  104: 2
+  105: 2
+  106: 1
+  107: 1
+  108: 1
+  109: 1
+  110: 4
+  111: 4
+  112: 2
+  113: 1
+  114: 1
+  116: 1
+  117: 2
+  118: 1
+  120: 1
+  121: 1
+  128: 1
+  135: 3
+  137: 1
+  138: 1
+  139: 1
+  154: 1
+  161: 1
+  175: 1
+
+Option-A (current Phase 2D, K=K_min) total-score distribution:
+  {'n': 4128, 'mean': 15.5765503875969, 'median': 0.0, 'min': -10.0, 'max': 275.0}
+
+All feasible (paragraph, K) points - total-score distribution:
+  {'n': 77082, 'mean': 104.63577748371864, 'median': 70.0, 'min': -250.0, 'max': 750.0}
+
+Step-indexed score gain (step i = (K_min+i-1) -> (K_min+i)):
+  step 1: n=4128 mean=15.308 median=10.000 min=0.000 max=275.000
+  step 2: n=4126 mean=6.534 median=0.000 min=0.000 max=140.000
+  step 3: n=3873 mean=3.882 median=0.000 min=0.000 max=70.000
+  step 4: n=3804 mean=2.571 median=0.000 min=0.000 max=35.000
+  step 5: n=3642 mean=1.798 median=0.000 min=-30.000 max=35.000
+  step 6: n=3549 mean=1.254 median=0.000 min=-30.000 max=35.000
+  step 7: n=3374 mean=1.002 median=0.000 min=-30.000 max=10.000
+  step 8: n=3219 mean=0.696 median=0.000 min=-30.000 max=10.000
+  step 9: n=2860 mean=0.591 median=0.000 min=-30.000 max=10.000
+  step 10: n=2687 mean=0.473 median=0.000 min=-30.000 max=10.000
+  step 11: n=2471 mean=0.421 median=0.000 min=-30.000 max=10.000
+  step 12: n=2268 mean=0.335 median=0.000 min=-30.000 max=10.000
+  step 13: n=2133 mean=0.277 median=0.000 min=-30.000 max=10.000
+  step 14: n=1990 mean=0.251 median=0.000 min=-30.000 max=10.000
+  step 15: n=1848 mean=0.157 median=0.000 min=-30.000 max=10.000
+  step 16: n=1735 mean=0.110 median=0.000 min=-30.000 max=10.000
+  step 17: n=1588 mean=0.069 median=0.000 min=-30.000 max=10.000
+  step 18: n=1491 mean=0.060 median=0.000 min=-30.000 max=10.000
+  step 19: n=1358 mean=0.074 median=0.000 min=0.000 max=10.000
+  step 20: n=1243 mean=0.056 median=0.000 min=0.000 max=10.000
+  step 21: n=1158 mean=0.060 median=0.000 min=0.000 max=10.000
+  step 22: n=1081 mean=0.065 median=0.000 min=0.000 max=10.000
+  step 23: n=1007 mean=0.060 median=0.000 min=0.000 max=10.000
+  step 24: n=947 mean=0.042 median=0.000 min=0.000 max=10.000
+  step 25: n=865 mean=0.012 median=0.000 min=0.000 max=10.000
+  step 26: n=804 mean=0.012 median=0.000 min=0.000 max=10.000
+  step 27: n=736 mean=0.014 median=0.000 min=0.000 max=10.000
+  step 28: n=691 mean=0.014 median=0.000 min=0.000 max=10.000
+  step 29: n=645 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 30: n=602 mean=-0.033 median=0.000 min=-20.000 max=0.000
+  step 31: n=569 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 32: n=537 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 33: n=506 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 34: n=466 mean=-0.064 median=0.000 min=-30.000 max=0.000
+  step 35: n=426 mean=-0.141 median=0.000 min=-30.000 max=0.000
+  step 36: n=404 mean=-0.149 median=0.000 min=-30.000 max=0.000
+  step 37: n=387 mean=-0.078 median=0.000 min=-30.000 max=0.000
+  step 38: n=368 mean=-0.082 median=0.000 min=-30.000 max=0.000
+  step 39: n=348 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 40: n=332 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 41: n=306 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 42: n=290 mean=-0.103 median=0.000 min=-30.000 max=0.000
+  step 43: n=277 mean=-0.108 median=0.000 min=-30.000 max=0.000
+  step 44: n=265 mean=-0.113 median=0.000 min=-30.000 max=0.000
+  step 45: n=242 mean=-0.124 median=0.000 min=-30.000 max=0.000
+  step 46: n=234 mean=-0.128 median=0.000 min=-30.000 max=0.000
+  step 47: n=216 mean=-0.139 median=0.000 min=-30.000 max=0.000
+  step 48: n=211 mean=-0.142 median=0.000 min=-30.000 max=0.000
+  step 49: n=202 mean=-0.149 median=0.000 min=-30.000 max=0.000
+  step 50: n=193 mean=-0.259 median=0.000 min=-30.000 max=0.000
+  step 51: n=185 mean=-0.162 median=0.000 min=-30.000 max=0.000
+  step 52: n=171 mean=-0.175 median=0.000 min=-30.000 max=0.000
+  step 53: n=166 mean=-0.181 median=0.000 min=-30.000 max=0.000
+  step 54: n=158 mean=-0.190 median=0.000 min=-30.000 max=0.000
+  step 55: n=149 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 56: n=140 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 57: n=134 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 58: n=129 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 59: n=125 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 60: n=122 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 61: n=112 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 62: n=109 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 63: n=106 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 64: n=103 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 65: n=99 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 66: n=94 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 67: n=92 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 68: n=86 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 69: n=85 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 70: n=82 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 71: n=78 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 72: n=75 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 73: n=72 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 74: n=70 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 75: n=65 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 76: n=61 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 77: n=59 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 78: n=57 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 79: n=56 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 80: n=55 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 81: n=54 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 82: n=53 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 83: n=50 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 84: n=50 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 85: n=48 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 86: n=47 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 87: n=47 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 88: n=45 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 89: n=43 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 90: n=40 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 91: n=40 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 92: n=39 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 93: n=37 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 94: n=36 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 95: n=36 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 96: n=32 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 97: n=30 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 98: n=29 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 99: n=28 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 100: n=24 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 101: n=21 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 102: n=18 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 103: n=17 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 104: n=15 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 105: n=15 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 106: n=14 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 107: n=12 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 108: n=12 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 109: n=11 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 110: n=11 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 111: n=10 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 112: n=10 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 113: n=10 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 114: n=10 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 115: n=9 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 116: n=9 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 117: n=9 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 118: n=9 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 119: n=9 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 120: n=9 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 121: n=9 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 122: n=8 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 123: n=8 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 124: n=5 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 125: n=5 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 126: n=5 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 127: n=5 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 128: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 129: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 130: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 131: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 132: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 133: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 134: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 135: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 136: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 137: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 138: n=3 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 139: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 140: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 141: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 142: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 143: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 144: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 145: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 146: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 147: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 148: n=2 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 149: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 150: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 151: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 152: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 153: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 154: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 155: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 156: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 157: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 158: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+  step 159: n=1 mean=0.000 median=0.000 min=0.000 max=0.000
+
+Paragraphs where step-1 (K_min -> K_min+1) was examined: 4128
+  score increases: 2329
+  score unchanged: 1799
+Paragraphs where NO K above K_min ever beats K_min's score: 1799
+
+Max single-step marginal gain observed: 275.0
+  at: {'source_file': 'examples/notes/mcu1_slide_08.txt', 'paragraph_index': 131, 'K': 12, 'gain': 275.0}
+
+Marginal gain histogram (Δscore(K) value -> occurrence count):
+  -30: 46
+  -20: 2
+  0: 64148
+  10: 7229
+  15: 2
+  20: 70
+  30: 2
+  35: 987
+  45: 180
+  50: 2
+  55: 16
+  60: 30
+  65: 2
+  70: 146
+  75: 2
+  80: 35
+  90: 5
+  95: 5
+  100: 2
+  105: 12
+  115: 6
+  125: 9
+  135: 2
+  140: 3
+  145: 3
+  150: 2
+  160: 2
+  185: 1
+  205: 1
+  230: 1
+  275: 1
+
+Pareto frontier size distribution (per paragraph):
+  {'n': 4128, 'mean': 3.121608527131783, 'median': 2.0, 'min': 1, 'max': 29}
+Pareto frontier max-K distribution (per paragraph):
+  {'mean': 4.540455426356589, 'median': 3.0, 'max': 39}
+
+Option-A selected cuts total: 5857
+Option-A selected cuts carrying a negative (protection) score: 1
+
+Reference only (NOT an optimization target):
+  Production total segments: 10372
+  Current Phase 2D (Option A) total segments: 9985
+
+Integrity cross-check mismatches (Option-A DP vs frozen _select_cut_positions): 0
+Elapsed: 68.0s
