@@ -131,12 +131,14 @@ def main() -> None:
     # real deck).
     if args.global_scale_correction != 1.0:
         print(f"Applying global scale correction: x{args.global_scale_correction}")
+    alignment_records = {}
     bounds, locate_warnings = locate_slide_start_and_end_times(
         args.video, slides, manifest, audio_dir,
         default_slide_duration=args.default_slide_duration,
         search_window_seconds=args.search_window_seconds,
         anchor_seconds=args.anchor_seconds,
         global_scale_correction=args.global_scale_correction,
+        diagnostics=alignment_records,
     )
     for w in locate_warnings:
         print(f"WARNING (locate): {w}")
@@ -147,6 +149,7 @@ def main() -> None:
     srt_text, srt_warnings = generate_srt_from_true_starts(
         slides, manifest, audio_dir, start_times, end_times,
         default_slide_duration=args.default_slide_duration,
+        alignment_records=alignment_records,
     )
     for w in srt_warnings:
         print(f"WARNING (subtitles): {w}")

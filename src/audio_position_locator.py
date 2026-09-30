@@ -40,6 +40,7 @@ pyproject.toml/requirements.txt.
 """
 
 import subprocess
+import math
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -110,6 +111,195 @@ DEFAULT_SEARCH_WINDOW_SECONDS = 30.0
 # stretch error negligible regardless of how long the full slide's audio is,
 # since only the anchor's own (short) duration is exposed to it.
 DEFAULT_ANCHOR_SECONDS = 8.0
+
+# Prepared manifests use locate_slide_alignments below. Legacy unprepared
+# manifests retain their original locator behavior for the 0-second workflow.
+# Bounds for prepared audio are extrapolated media endpoints, not independently
+# observed ends of added silence. diagnostics exposes the actual anchor evidence.
+
+# Conservative initial thresholds; synthetic tests are not a substitute for
+# PowerPoint validation. Scores and rejection reasons are retained for review.
+MIN_MATCH_SCORE = 0.20
+MIN_PEAK_MARGIN = 0.05
+MIN_SCALE = 0.98
+MAX_SCALE = 1.02
+
+
+def _has_prepared_audio(manifest):
+    return bool(manifest.get("preparation") or any(e.get("preparation") for e in manifest.get("slides", [])))
+
+
+def _signal_anchor(clip, limit, anchor_samples, trailing=False):
+    """Select at most eight seconds inside original content, never padded tail.
+
+    50ms block RMS trims existing silence as well. This is a signal test, not
+    speech recognition; ambiguous tonal/background signals are rejected by NCC.
+    """
+    content = np.asarray(clip[:limit], dtype=np.float64)
+    if len(content) < SAMPLE_RATE // 4 or not np.all(np.isfinite(content)):
+        return None
+    block = SAMPLE_RATE // 20
+    count = len(content) // block
+    levels = np.sqrt(np.mean(content[:count * block].reshape(count, block) ** 2, axis=1))
+    active = np.flatnonzero(levels > max(1.0, float(levels.max()) * .02))
+    if len(active) < 5:
+        return None
+    first, last = int(active[0] * block), min(limit, int((active[-1] + 1) * block))
+    start = max(first, last - anchor_samples) if trailing else first
+    end = last if trailing else min(last, start + anchor_samples)
+    if end - start < SAMPLE_RATE // 4:
+        return None
+    return start, clip[start:end]
+
+
+def _match_anchor(full_track, anchor, predicted, search_window):
+    """Locally normalized correlation with a distinct-peak check."""
+    offset, clip = anchor
+    center = int(predicted * SAMPLE_RATE)
+    radius = int(search_window * SAMPLE_RATE)
+    lo = max(0, center - radius)
+    hi = min(len(full_track), center + radius + len(clip))
+    segment = np.asarray(full_track[lo:hi], dtype=np.float64)
+    template = np.asarray(clip, dtype=np.float64)
+    result = {"source_start_seconds": offset / SAMPLE_RATE,
+              "duration_seconds": len(clip) / SAMPLE_RATE, "reliable": False,
+              "score": 0.0, "peak_margin": 0.0, "reason": "insufficient_search_data"}
+    if len(segment) < len(template) or not np.all(np.isfinite(segment)):
+        return result
+    template = template - template.mean()
+    energy = float(np.dot(template, template))
+    if energy <= 1e-9:
+        result["reason"] = "no_signal"
+        return result
+    n = len(template)
+    sums = np.concatenate(([0.0], np.cumsum(segment)))
+    squares = np.concatenate(([0.0], np.cumsum(segment * segment)))
+    variance = np.maximum(0, squares[n:] - squares[:-n] - (sums[n:] - sums[:-n]) ** 2 / n)
+    denominator = np.sqrt(energy * variance)
+    scores = np.divide(correlate(segment, template, mode="valid", method="fft"), denominator,
+                       out=np.zeros_like(variance), where=denominator > 1e-9)
+    best = int(np.argmax(scores))
+    score = float(np.clip(scores[best], -1, 1))
+    # Nearby offsets represent the same peak, not independent candidate phrases.
+    exclusion = int(.10 * SAMPLE_RATE)
+    alternatives = np.concatenate((scores[:max(0, best - exclusion)], scores[best + exclusion + 1:]))
+    runner = float(np.max(alternatives)) if len(alternatives) else 0.0
+    margin = score - runner
+    result.update(video_start_seconds=(lo + best) / SAMPLE_RATE, score=score, peak_margin=margin)
+    if score < MIN_MATCH_SCORE:
+        result["reason"] = "weak_match"
+    elif margin < MIN_PEAK_MARGIN:
+        result["reason"] = "ambiguous_match"
+    else:
+        result.update(reliable=True, reason="matched")
+    return result
+
+
+def locate_slide_alignments(video_path, slides, manifest, audio_dir,
+                            default_slide_duration=5.0,
+                            search_window_seconds=DEFAULT_SEARCH_WINDOW_SECONDS,
+                            anchor_seconds=DEFAULT_ANCHOR_SECONDS,
+                            global_scale_correction=DEFAULT_GLOBAL_SCALE_CORRECTION):
+    """Return explicit per-slide mappings and diagnostics, including fallbacks.
+
+    Source anchor coordinates exclude prepared padding. Returned start/scale are
+    corrected exactly once by the global coefficient; raw anchor matches remain
+    in video coordinates. Predictions never depend on rejected matches.
+    """
+    for name, value in (("default duration", default_slide_duration), ("search window", search_window_seconds),
+                        ("anchor length", anchor_seconds), ("global correction", global_scale_correction)):
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} must be positive and finite")
+    entries = {int(e["slide_num"]): e for e in manifest.get("slides", [])}
+    records, warnings = {}, []
+    with tempfile.TemporaryDirectory() as tmp:
+        wav = Path(tmp) / "full.wav"
+        _extract_audio_track(Path(video_path), wav)
+        track = _load_mono_array(wav)
+        predicted, previous_reliable_start = 0.0, -1.0
+        for slide in sorted(slides, key=lambda s: int(s["slide_num"])):
+            number = int(slide["slide_num"])
+            entry = entries.get(number)
+            duration = default_slide_duration
+            record = {"slide_num": number, "status": "predicted", "reason": "no_audio",
+                      "predicted_start_seconds": predicted, "head": None, "tail": None,
+                      "start_seconds": predicted, "scale": 1.0,
+                      "video_duration_seconds": len(track) / SAMPLE_RATE,
+                      "global_scale_correction": global_scale_correction}
+            if entry:
+                try:
+                    clip = _load_mono_array(Path(audio_dir) / entry["audio_file"])
+                    duration = len(clip) / SAMPLE_RATE
+                    if duration <= 0:
+                        duration = default_slide_duration
+                        raise ValueError("empty audio")
+                    limit = len(clip)
+                    metadata = entry.get("preparation")
+                    if metadata:
+                        original_duration = float(metadata["source_probe"]["duration_seconds"])
+                        tail = float(metadata["fingerprint"]["settings"]["tail_silence"])
+                        if (not math.isfinite(original_duration) or original_duration <= 0
+                                or not math.isfinite(tail) or not 1 <= tail <= 10
+                                or abs(duration - original_duration - tail) > .3):
+                            raise ValueError("prepared duration/metadata mismatch")
+                        limit = min(limit, int(original_duration * SAMPLE_RATE))
+                    size = max(1, int(min(anchor_seconds, DEFAULT_ANCHOR_SECONDS) * SAMPLE_RATE))
+                    def match_signal(trailing, base):
+                        # Small export stretch can smear a long waveform match.
+                        # At most three attempts, in a fixed bounded search window.
+                        selected, match = None, None
+                        for length in dict.fromkeys((size, min(size, 2 * SAMPLE_RATE), min(size, SAMPLE_RATE // 2))):
+                            selected = _signal_anchor(clip, limit, length, trailing)
+                            if selected is None:
+                                break
+                            match = _match_anchor(track, selected, base + selected[0] / SAMPLE_RATE,
+                                                  search_window_seconds)
+                            if match["reliable"] or match["reason"] == "ambiguous_match":
+                                break
+                        return selected, match
+
+                    head, head_match = match_signal(False, predicted)
+                    record["reason"] = "no_effective_signal"
+                    if head:
+                        record["head"] = head_match
+                        record["reason"] = record["head"]["reason"]
+                        if record["head"]["reliable"]:
+                            start = record["head"]["video_start_seconds"] - head[0] / SAMPLE_RATE
+                            if start < -.05 or start <= previous_reliable_start:
+                                record["reason"] = "invalid_head_order"
+                                record["head"]["reliable"] = False
+                            else:
+                                start = max(0.0, start)
+                                record.update(start_seconds=start, status="head_only", reason="insufficient_anchor_separation")
+                                tail_anchor, tail_match = match_signal(True, start)
+                                if tail_anchor and tail_anchor[0] >= head[0] + len(head[1]):
+                                    record["tail"] = tail_match
+                                    record["reason"] = record["tail"]["reason"]
+                                    if record["tail"]["reliable"]:
+                                        separation = (tail_anchor[0] - head[0]) / SAMPLE_RATE
+                                        scale = (record["tail"]["video_start_seconds"] - record["head"]["video_start_seconds"]) / separation
+                                        mapped_start = record["head"]["video_start_seconds"] - head[0] / SAMPLE_RATE * scale
+                                        if MIN_SCALE <= scale <= MAX_SCALE and mapped_start >= -.05 and mapped_start > previous_reliable_start:
+                                            record.update(start_seconds=max(0.0, mapped_start), scale=scale,
+                                                          status="matched", reason="two_reliable_anchors")
+                                        else:
+                                            record["reason"] = "invalid_scale_or_order"
+                                previous_reliable_start = record["start_seconds"]
+                except Exception as exc:  # one unreadable source must not stop independent later searches
+                    record.update(status="predicted", reason=f"audio_or_metadata_error: {exc}",
+                                  start_seconds=predicted, scale=1.0)
+                if record["status"] != "matched":
+                    warnings.append(f"slide {number}: {record['status']} ({record['reason']}); "
+                                    f"check around {record['start_seconds']:.3f}s; local scale=1.0")
+            else:
+                record["status"] = "silent"
+            record["media_duration_seconds"] = duration
+            record["start_seconds"] *= global_scale_correction
+            record["scale"] *= global_scale_correction
+            record["end_seconds"] = record["start_seconds"] + duration * record["scale"]
+            records[number] = record
+            predicted += duration
+    return records, warnings
 
 
 def _extract_audio_track(video_path: Path, out_wav: Path) -> None:
@@ -186,6 +376,7 @@ def locate_slide_start_times(
     search_window_seconds: float = DEFAULT_SEARCH_WINDOW_SECONDS,
     anchor_seconds: float = DEFAULT_ANCHOR_SECONDS,
     global_scale_correction: float = DEFAULT_GLOBAL_SCALE_CORRECTION,
+    diagnostics: Optional[Dict[int, Dict[str, Any]]] = None,
 ) -> Tuple[Dict[int, float], List[str]]:
     """Measure each narrated slide's *real* start time in ``video_path``.
 
@@ -234,6 +425,14 @@ def locate_slide_start_times(
             failure since no per-slide measurement is possible without it,
             unlike per-slide audio problems which are only ever skipped.
     """
+    if _has_prepared_audio(manifest):
+        records, warnings = locate_slide_alignments(
+            video_path, slides, manifest, audio_dir, default_slide_duration,
+            search_window_seconds, anchor_seconds, global_scale_correction)
+        if diagnostics is not None:
+            diagnostics.update(records)
+        return {n: r["start_seconds"] for n, r in records.items()
+                if r["status"] in ("matched", "head_only")}, warnings
     video_path = Path(video_path)
     audio_dir = Path(audio_dir)
     manifest_by_slide = {int(e["slide_num"]): e for e in manifest.get("slides", [])}
@@ -305,6 +504,7 @@ def locate_slide_start_and_end_times(
     search_window_seconds: float = DEFAULT_SEARCH_WINDOW_SECONDS,
     anchor_seconds: float = DEFAULT_ANCHOR_SECONDS,
     global_scale_correction: float = DEFAULT_GLOBAL_SCALE_CORRECTION,
+    diagnostics: Optional[Dict[int, Dict[str, Any]]] = None,
 ) -> Tuple[Dict[int, Tuple[float, float]], List[str]]:
     """Measure each narrated slide's real start *and* end time in
     ``video_path``, independently of one another and of any other slide.
@@ -378,6 +578,17 @@ def locate_slide_start_and_end_times(
     Raises:
         RuntimeError: same as ``locate_slide_start_times``.
     """
+    if _has_prepared_audio(manifest):
+        records, warnings = locate_slide_alignments(
+            video_path, slides, manifest, audio_dir, default_slide_duration,
+            search_window_seconds, anchor_seconds, global_scale_correction)
+        if diagnostics is not None:
+            diagnostics.update(records)
+        # Endpoints encode the explicit local mapping, not the shifted anchor end.
+        # Prediction-only pages remain absent so legacy diagnostic callers do not
+        # count them as measured. Subtitle callers use diagnostics for fallbacks.
+        return {n: (r["start_seconds"], r["end_seconds"]) for n, r in records.items()
+                if r["status"] in ("matched", "head_only")}, warnings
     video_path = Path(video_path)
     audio_dir = Path(audio_dir)
     manifest_by_slide = {int(e["slide_num"]): e for e in manifest.get("slides", [])}

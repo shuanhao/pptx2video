@@ -14,7 +14,7 @@ from src.audio_position_locator import DEFAULT_GLOBAL_SCALE_CORRECTION, locate_s
 from src.exceptions import Pptx2VideoError, PptParseError, TTSGenerationError
 from src.logging_config import setup_logging
 from src.pptx_parser import extract_notes
-from src.subtitle_pipeline import generate_srt_for_deck, generate_srt_from_true_starts
+from src.subtitle_pipeline import SubtitleTimingError, generate_srt_for_deck, generate_srt_from_true_starts
 from src.tts import generate_audio_files
 
 
@@ -179,9 +179,11 @@ def write_subtitle_output_from_export(
     # export inserts *between* slides, a separate effect from this slide's
     # own narration stretching. See subtitle_pipeline.py's module docstring,
     # design decision 5.
+    alignment_records = {}
     bounds, locate_warnings = locate_slide_start_and_end_times(
         video_path, slides, manifest, resolved_audio_dir, default_slide_duration=default_slide_duration,
         global_scale_correction=global_scale_correction,
+        diagnostics=alignment_records,
     )
     start_times = {slide_num: start for slide_num, (start, _end) in bounds.items()}
     end_times = {slide_num: end for slide_num, (_start, end) in bounds.items()}
@@ -189,6 +191,7 @@ def write_subtitle_output_from_export(
     srt_text, srt_warnings = generate_srt_from_true_starts(
         slides, manifest, resolved_audio_dir, start_times, end_times,
         default_slide_duration=default_slide_duration,
+        alignment_records=alignment_records,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(srt_text, encoding="utf-8")
@@ -848,6 +851,8 @@ def main() -> None:
                         default_slide_duration=args.video_default_duration,
                         global_scale_correction=args.global_scale_correction,
                     )
+                except SubtitleTimingError as exc:
+                    _fail(parser, logger, f"Subtitle candidate not saved; exported video retained: {exc}")
                 except Exception as exc:  # noqa: BLE001 - a working export shouldn't be sunk by subtitle alignment failing
                     logger.warning(
                         f"Subtitle generation: true-start alignment against the "

@@ -163,6 +163,21 @@ class CliEndToEndTests(unittest.TestCase):
         self.assertEqual(prepare.call_args.args[0]["slides"], [original["slides"][0], regenerated["slides"][1]])
         self.assertEqual(subtitles.call_args.kwargs["audio_dir"], str(prepared))
 
+    def test_invalid_export_subtitles_do_not_overwrite_or_predict(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        from src.subtitle_pipeline import SubtitleTimingError
+        caption_path = root / "captions.srt"
+        caption_path.write_text("previous valid candidate", encoding="utf-8")
+        with mock.patch("src.main.ppt_automation.export_video", return_value={
+                 "output_path": "deck.mp4", "elapsed_seconds": 1}), \
+             mock.patch("src.main.write_subtitle_output_from_export", side_effect=SubtitleTimingError("overlap")), \
+             mock.patch("src.main.write_subtitle_output") as prediction:
+            _, stderr, code = self._invoke(argv + ["--export-video"])
+        self.assertEqual(code, 2)
+        self.assertIn("exported video retained", stderr)
+        prediction.assert_not_called()
+        self.assertEqual(caption_path.read_text(encoding="utf-8"), "previous valid candidate")
+
     def test_prepared_input_is_rejected_before_tts(self):
         root, source, prepared, original, derived, argv = self._preparation_fixture()
         original["preparation"] = {"kind": "prepared"}

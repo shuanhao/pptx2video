@@ -327,6 +327,35 @@ def generate_srt_for_deck(
     return format_srt(all_entries), warnings
 
 
+class SubtitleTimingError(ValueError):
+    """A candidate contains invalid timestamps and must not be published."""
+
+
+def _srt_from_alignment_records(per_slide, records, warnings):
+    import math
+    entries = []
+    previous_end = 0.0
+    for slide in per_slide:
+        number = slide["slide_num"]
+        if not slide["captions"]:
+            continue
+        if number not in records:
+            raise SubtitleTimingError(f"slide {number}: missing alignment record")
+        record = records[number]
+        if record["status"] != "matched":
+            warnings.append(f"slide {number}: {record['status']} ({record['reason']}); manual review required")
+        for caption in slide["captions"]:
+            start = caption["start_seconds"] * record["scale"] + record["start_seconds"]
+            end = caption["end_seconds"] * record["scale"] + record["start_seconds"]
+            if (not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start
+                    or round(end * 1000) <= round(start * 1000)
+                    or start < previous_end - .001 or end > record["video_duration_seconds"] + .001):
+                raise SubtitleTimingError(f"slide {number}: invalid/overlapping subtitle range {start:.3f}..{end:.3f}")
+            entries.append({"text": caption["text"], "start_seconds": start, "end_seconds": end})
+            previous_end = end
+    return format_srt(entries), warnings
+
+
 def generate_srt_from_true_starts(
     slides: Sequence[Dict[str, Any]],
     manifest: Dict[str, Any],
@@ -336,6 +365,7 @@ def generate_srt_from_true_starts(
     default_slide_duration: float = DEFAULT_SLIDE_DURATION_SECONDS,
     max_display_width: int = DEFAULT_MAX_DISPLAY_WIDTH,
     trailing_gap_seconds: float = DEFAULT_TRAILING_GAP_SECONDS,
+    alignment_records: Optional[Dict[int, Dict[str, Any]]] = None,
 ) -> Tuple[str, List[str]]:
     """Build one deck-wide SRT file's text, with each narrated slide's
     position taken from ``true_starts_by_slide`` - measured real start
@@ -343,6 +373,11 @@ def generate_srt_from_true_starts(
     ``audio_position_locator.locate_slide_start_times()`` /
     ``locate_slide_start_and_end_times()``) - instead of predicted from
     summed durations.
+
+    When alignment_records is supplied by the prepared-audio locator, its
+    explicit start/scale and fallback status take precedence over legacy
+    inferred/deck-average ratios. Invalid candidate timestamps raise
+    SubtitleTimingError before any output is written.
 
     This is the accurate path: it does not assume anything about how
     PowerPoint's export lays out slide timing, because it's built from
@@ -375,6 +410,9 @@ def generate_srt_from_true_starts(
     per_slide, warnings = _build_slide_captions(
         slides, manifest, audio_dir, default_slide_duration, max_display_width, trailing_gap_seconds
     )
+
+    if alignment_records:
+        return _srt_from_alignment_records(per_slide, alignment_records, warnings)
 
     n = len(per_slide)
 
