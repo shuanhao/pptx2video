@@ -40,6 +40,10 @@ class TTSGenerationError(Pptx2VideoError):
     """
 
 
+class AudioPreparationError(Pptx2VideoError):
+    """Audio conversion, validation or prepared-manifest publication failed."""
+
+
 class PowerPointLaunchError(Pptx2VideoError):
     """Raised when PowerPoint cannot be started or a presentation opened.
 
