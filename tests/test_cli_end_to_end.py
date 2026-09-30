@@ -78,6 +78,102 @@ class CliEndToEndTests(unittest.TestCase):
                     exit_code = exc.code
         return stdout.getvalue(), stderr.getvalue(), exit_code
 
+    def test_preparation_rejects_invalid_arguments_before_any_work(self):
+        cases = [
+            ["--audio-tail-silence", "nan"], ["--audio-tail-silence", "11"],
+            ["--prepared-audio-format", "m4a"], ["--prepared-audio-dir", "output/audio_prepared"],
+            ["--prepared-audio-sample-rate", "24000"], ["--prepared-audio-channels", "1"],
+            ["--prepared-audio-bitrate", "64k"], ["--force-prepare-audio"],
+            ["--audio-tail-silence", "4", "--prepared-audio-format", "wav", "--prepared-audio-bitrate", "64k"],
+            ["--audio-tail-silence", "4", "--prepared-audio-channels", "0"],
+            ["--audio-tail-silence", "4", "--prepared-audio-dir", "output/audio/nested"],
+        ]
+        for flags in cases:
+            with self.subTest(flags=flags), mock.patch("src.main.extract_notes") as extract:
+                _, _, code = self._invoke(["missing.pptx", *flags])
+                self.assertEqual(code, 2)
+                extract.assert_not_called()
+
+    def _preparation_fixture(self):
+        pptx = self._create_pptx([("First", "Hello"), ("Second", "World")])
+        root = pptx.parent
+        source, prepared = root / "audio", root / "prepared"
+        source.mkdir()
+        manifest = {"slides": [{"slide_num": n, "audio_file": f"slide_{n:03d}.mp3"} for n in (1, 2)]}
+        (source / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        derived = {"slides": [{"slide_num": n, "audio_file": f"batch/slide_{n:03d}.m4a"} for n in (1, 2)]}
+        argv = [str(pptx), "--audio-output-dir", str(source), "--output", str(root / "slides.json"),
+                "--subtitles-output", str(root / "captions.srt"), "--no-file-log"]
+        return root, source, prepared, manifest, derived, argv
+
+    def test_prepared_source_reaches_json_insert_and_export_subtitles(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        result = {"manifest": derived, "audio_dir": prepared, "converted": [1, 2], "reused": []}
+        with mock.patch("src.main.prepare_audio_manifest", return_value=result) as prepare, \
+             mock.patch("src.main.generate_audio_files") as tts, \
+             mock.patch("src.main.ppt_automation.insert_audio", return_value={
+                 "inserted_slides": [1, 2], "skipped_slides": [], "output_path": "deck.pptx"}) as insert, \
+             mock.patch("src.main.ppt_automation.export_video", return_value={
+                 "output_path": "deck.mp4", "elapsed_seconds": 1}) as export, \
+             mock.patch("src.main.write_subtitle_output_from_export", return_value=(root / "captions.srt", [])) as subtitles:
+            _, stderr, code = self._invoke(argv + ["--audio-tail-silence", "4", "--prepared-audio-dir",
+                                                   str(prepared), "--insert-audio", "--export-video"])
+        self.assertIsNone(code, stderr)
+        tts.assert_not_called()
+        self.assertEqual(prepare.call_args.args[0], original)
+        self.assertEqual(insert.call_args.args[1:3], (derived, str(prepared)))
+        self.assertEqual(subtitles.call_args.kwargs["audio_dir"], str(prepared))
+        self.assertEqual(subtitles.call_args.args[0]["audio"], derived)
+        export.assert_called_once()
+        payload = json.loads((root / "slides.json").read_text(encoding="utf-8"))
+        self.assertEqual(payload["audio"], derived)
+        self.assertEqual(payload["metadata"]["audio_output_dir"], str(prepared))
+        self.assertTrue(payload["slides"][0]["audio_file"].endswith("prepared/batch/slide_001.m4a"))
+
+    def test_zero_uses_original_and_preparation_failure_stops_consumers(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        with mock.patch("src.main.prepare_audio_manifest") as prepare, \
+             mock.patch("src.main.write_subtitle_output", return_value=(root / "captions.srt", [])) as subtitles:
+            _, stderr, code = self._invoke(argv + ["--audio-tail-silence", "0"])
+        self.assertIsNone(code, stderr)
+        prepare.assert_not_called()
+        self.assertEqual(subtitles.call_args.kwargs["audio_dir"], str(source))
+        self.assertEqual(subtitles.call_args.args[0]["audio"], original)
+        from src.exceptions import AudioPreparationError
+        with mock.patch("src.main.prepare_audio_manifest", side_effect=AudioPreparationError("encoder failed")), \
+             mock.patch("src.main.ppt_automation.insert_audio") as insert, \
+             mock.patch("src.main.write_subtitle_output") as subtitles:
+            _, stderr, code = self._invoke(argv + ["--audio-tail-silence", "4", "--prepared-audio-dir", str(prepared), "--insert-audio"])
+        self.assertEqual(code, 2)
+        self.assertIn("encoder failed", stderr)
+        insert.assert_not_called()
+        subtitles.assert_not_called()
+
+    def test_partial_tts_is_merged_before_preparation(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        regenerated = {"slides": [{"slide_num": 2, "audio_file": "changed.mp3"}]}
+        with mock.patch("src.main.generate_audio_files", return_value=regenerated) as tts, \
+             mock.patch("src.main.prepare_audio_manifest", return_value={"manifest": derived, "audio_dir": prepared,
+                        "converted": [2], "reused": [1]}) as prepare, \
+             mock.patch("src.main.write_subtitle_output", return_value=(root / "captions.srt", [])) as subtitles:
+            _, stderr, code = self._invoke(argv + ["--generate-audio", "--slides", "2", "--audio-tail-silence", "4",
+                                                   "--prepared-audio-dir", str(prepared)])
+        self.assertIsNone(code, stderr)
+        self.assertEqual([s["slide_num"] for s in tts.call_args.args[0]], [2])
+        self.assertEqual(prepare.call_args.args[0]["slides"], [original["slides"][0], regenerated["slides"][1]])
+        self.assertEqual(subtitles.call_args.kwargs["audio_dir"], str(prepared))
+
+    def test_prepared_input_is_rejected_before_tts(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        original["preparation"] = {"kind": "prepared"}
+        (source / "manifest.json").write_text(json.dumps(original), encoding="utf-8")
+        with mock.patch("src.main.generate_audio_files") as tts:
+            _, stderr, code = self._invoke(argv + ["--generate-audio", "--audio-tail-silence", "4",
+                                                   "--prepared-audio-dir", str(prepared)])
+        self.assertEqual(code, 2)
+        self.assertIn("Prepared manifests", stderr)
+        tts.assert_not_called()
+
     def test_parses_pptx_and_writes_json_and_srt_without_audio(self):
         pptx_path = self._create_pptx([
             ("Intro", "Hello there"),

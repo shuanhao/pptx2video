@@ -9,6 +9,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import ppt_automation
+from src.audio_preparation import AudioPreparationOptions, prepare_audio_manifest, validate_preparation_options
 from src.audio_position_locator import DEFAULT_GLOBAL_SCALE_CORRECTION, locate_slide_start_and_end_times
 from src.exceptions import Pptx2VideoError, PptParseError, TTSGenerationError
 from src.logging_config import setup_logging
@@ -251,6 +252,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory where generated MP3 files should be written",
     )
     parser.add_argument(
+        "--audio-tail-silence", type=float, default=0,
+        help="Append 1..10 seconds of silence and prepare audio; 0 keeps original audio",
+    )
+    parser.add_argument("--prepared-audio-dir", default=None, help="Derived audio directory (default: output/audio_prepared)")
+    parser.add_argument("--prepared-audio-format", choices=("m4a", "wav"), default=None)
+    parser.add_argument("--prepared-audio-bitrate", default=None, help="AAC bitrate (default: 64k); not for WAV")
+    parser.add_argument("--prepared-audio-sample-rate", type=int, default=None, help="Prepared sample rate (default: 24000)")
+    parser.add_argument("--prepared-audio-channels", type=int, default=None, help="Prepared channels (default: 1)")
+    parser.add_argument("--force-prepare-audio", action="store_true", help="Rebuild derived audio from originals")
+    parser.add_argument(
         "--slides",
         type=_parse_slide_selector,
         default=None,
@@ -443,6 +454,26 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    explicit_preparation = [name for name in (
+        "prepared_audio_dir", "prepared_audio_format", "prepared_audio_bitrate",
+        "prepared_audio_sample_rate", "prepared_audio_channels",
+    ) if getattr(args, name) is not None]
+    preparation_options = AudioPreparationOptions(
+        tail_silence=args.audio_tail_silence,
+        format=args.prepared_audio_format if args.prepared_audio_format is not None else "m4a",
+        bitrate=args.prepared_audio_bitrate,
+        sample_rate=args.prepared_audio_sample_rate if args.prepared_audio_sample_rate is not None else 24000,
+        channels=args.prepared_audio_channels if args.prepared_audio_channels is not None else 1,
+    )
+    prepared_dir = args.prepared_audio_dir if args.prepared_audio_dir is not None else "output/audio_prepared"
+    try:
+        preparation_enabled = validate_preparation_options(
+            preparation_options, args.audio_output_dir, prepared_dir,
+            explicit_preparation, args.force_prepare_audio,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+
     logger = setup_logging(
         verbose=args.verbose,
         log_dir=None if args.no_file_log else args.log_dir,
@@ -478,6 +509,18 @@ def main() -> None:
                 _fail(parser, logger, f"Strict mode: slide {slide['slide_num']} has no notes")
 
     audio_manifest = None
+    if preparation_enabled:
+        # Reject derived input before TTS could overwrite its manifest or files.
+        source_manifest_path = Path(args.audio_output_dir) / "manifest.json"
+        if source_manifest_path.exists():
+            try:
+                source_manifest = ppt_automation.load_audio_manifest(source_manifest_path)
+                if source_manifest.get("preparation") or any(
+                    entry.get("preparation") for entry in source_manifest.get("slides", [])
+                ):
+                    raise ValueError("Prepared manifests cannot be preparation sources")
+            except (OSError, ValueError, TypeError, AttributeError) as exc:
+                _fail(parser, logger, f"Invalid original audio manifest: {exc}")
     if args.generate_audio:
         def _print_audio_progress(current: int, total: int, slide_num: int) -> None:
             logger.info(f"Generating audio {current}/{total} (slide {slide_num})...")
@@ -604,11 +647,30 @@ def main() -> None:
         except FileNotFoundError:
             return None
 
+    effective_audio_dir = args.audio_output_dir
+    try:
+        audio_manifest = _resolve_audio_manifest()
+        if preparation_enabled:
+            if audio_manifest is None:
+                raise ValueError("--audio-tail-silence requires an original audio manifest; use --generate-audio first")
+            prepared = prepare_audio_manifest(
+                audio_manifest, args.audio_output_dir, prepared_dir, preparation_options,
+                force=args.force_prepare_audio, explicit_options=explicit_preparation,
+            )
+            audio_manifest = prepared["manifest"]
+            effective_audio_dir = str(prepared["audio_dir"])
+            logger.info("Prepared audio: converted=%s, reused=%s; directory=%s",
+                        prepared["converted"], prepared["reused"], effective_audio_dir)
+            if args.export_video and not args.insert_audio:
+                logger.warning("Preparation does not change embedded PPTX media; ensure this PPTX contains the same prepared audio")
+    except (Pptx2VideoError, OSError, ValueError, KeyError, TypeError) as exc:
+        _fail(parser, logger, f"Audio preparation/loading failed: {exc}")
+
     payload = build_payload(
         slides,
         pptx_path,
         audio_manifest=audio_manifest,
-        audio_output_dir=args.audio_output_dir,
+        audio_output_dir=effective_audio_dir,
     )
 
     if output_path is not None:
@@ -656,13 +718,13 @@ def main() -> None:
                 slides,
                 pptx_path,
                 audio_manifest=manifest_for_subtitles,
-                audio_output_dir=args.audio_output_dir,
+                audio_output_dir=effective_audio_dir,
             )
 
         subtitle_output_path, subtitle_warnings = write_subtitle_output(
             payload_for_subtitles,
             subtitle_output_path,
-            audio_dir=args.audio_output_dir,
+            audio_dir=effective_audio_dir,
             default_slide_duration=args.video_default_duration,
         )
         logger.info(f"Saved subtitles to {subtitle_output_path}")
@@ -693,7 +755,7 @@ def main() -> None:
             insert_result = ppt_automation.insert_audio(
                 pptx_path,
                 manifest_for_insert,
-                args.audio_output_dir,
+                effective_audio_dir,
                 output_path=pptx_output_path,
                 progress_callback=_print_insert_progress,
                 timeout_seconds=(
@@ -760,7 +822,7 @@ def main() -> None:
                     slides,
                     pptx_path,
                     audio_manifest=manifest_for_subtitles,
-                    audio_output_dir=args.audio_output_dir,
+                    audio_output_dir=effective_audio_dir,
                 )
 
             if manifest_for_subtitles is None:
@@ -773,7 +835,7 @@ def main() -> None:
                 subtitle_output_path, subtitle_warnings = write_subtitle_output(
                     payload_for_subtitles,
                     subtitle_output_path,
-                    audio_dir=args.audio_output_dir,
+                    audio_dir=effective_audio_dir,
                     default_slide_duration=args.video_default_duration,
                 )
             else:
@@ -782,7 +844,7 @@ def main() -> None:
                         payload_for_subtitles,
                         subtitle_output_path,
                         export_result["output_path"],
-                        audio_dir=args.audio_output_dir,
+                        audio_dir=effective_audio_dir,
                         default_slide_duration=args.video_default_duration,
                         global_scale_correction=args.global_scale_correction,
                     )
@@ -796,7 +858,7 @@ def main() -> None:
                     subtitle_output_path, subtitle_warnings = write_subtitle_output(
                         payload_for_subtitles,
                         subtitle_output_path,
-                        audio_dir=args.audio_output_dir,
+                        audio_dir=effective_audio_dir,
                         default_slide_duration=args.video_default_duration,
                     )
 

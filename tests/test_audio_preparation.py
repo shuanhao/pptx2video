@@ -118,6 +118,27 @@ class PreparationIntegrationTests(unittest.TestCase):
         self.assertEqual(prepared[:len(original)], original)
         self.assertEqual(prepared[len(original):], bytes(4 * 24000 * 2))
 
+    def test_cli_real_preparation_reuses_audio_without_tts(self):
+        import sys
+        from src.main import main
+        from src.logging_config import shutdown_logging
+        self.addCleanup(shutdown_logging)
+        payload_path = self.root / "slides.json"
+        argv = ["main.py", "unused.pptx", "--audio-output-dir", str(self.source),
+                "--prepared-audio-dir", str(self.output), "--audio-tail-silence", "4",
+                "--output", str(payload_path), "--subtitles-output", "", "--no-file-log"]
+        with patch.object(sys, "argv", argv), \
+             patch("src.main.extract_notes", return_value=[{"slide_num": 1, "notes": "測試"}]), \
+             patch("src.main.generate_audio_files", side_effect=AssertionError("Unexpected TTS")):
+            main()
+            first = json.loads(payload_path.read_text(encoding="utf-8"))
+            with patch("src.audio_preparation.prepare_audio_file", side_effect=AssertionError("Unexpected conversion")):
+                main()
+            second = json.loads(payload_path.read_text(encoding="utf-8"))
+        self.assertEqual(first, second)
+        self.assertEqual(first["metadata"]["audio_output_dir"], str(self.output.resolve()))
+        self.assertTrue(Path(first["slides"][0]["audio_file"]).is_file())
+
     def test_failed_batch_keeps_previous_manifest_and_files(self):
         first = self.prepare()
         committed = (self.output / "manifest.json").read_bytes()
