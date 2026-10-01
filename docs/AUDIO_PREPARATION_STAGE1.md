@@ -1,5 +1,8 @@
 # Stage 1：音訊準備模組
 
+> 設計更新：音訊準備已改為同層固定檔名、每次全部重轉，移除 `--force-prepare-audio` 與快取重用。以下關於版本化、整批回復與重用的敘述保留為歷史紀錄；現行規則見 [音訊準備手冊](AUDIO_PREPARATION.md)。舊驗收結果不等同新版已通過驗收。
+
+
 本階段新增 `src/audio_preparation.py`、`AudioPreparationError` 與模組測試，尚未接入主 CLI、PowerPoint 或字幕定位流程。評估報告中的新 CLI 參數目前仍不可使用。
 
 ## 模組介面

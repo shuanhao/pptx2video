@@ -46,6 +46,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
+from src.audio_preparation import validate_audio_manifest
 from src.exceptions import (
     AudioInsertionError,
     AudioInsertionTimeoutError,
@@ -198,10 +199,13 @@ def load_audio_manifest(manifest_path: Path | str) -> Dict[str, Any]:
     if not manifest_path.exists():
         raise FileNotFoundError(f"Audio manifest not found: {manifest_path}")
     with manifest_path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        manifest = json.load(f)
+    validate_audio_manifest(manifest)
+    return manifest
 
 
 def _build_slide_audio_map(manifest: Dict[str, Any], audio_dir: Path) -> Dict[int, Path]:
+    validate_audio_manifest(manifest)
     slide_audio_map: Dict[int, Path] = {}
     for entry in manifest.get("slides", []):
         audio_file = entry.get("audio_file")

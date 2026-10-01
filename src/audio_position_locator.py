@@ -45,6 +45,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from src.audio_preparation import validate_audio_manifest
 import numpy as np
 from pydub import AudioSegment
 from scipy.signal import correlate
@@ -126,6 +127,7 @@ MAX_SCALE = 1.02
 
 
 def _has_prepared_audio(manifest):
+    validate_audio_manifest(manifest)
     return bool(manifest.get("preparation") or any(e.get("preparation") for e in manifest.get("slides", [])))
 
 
@@ -210,6 +212,7 @@ def locate_slide_alignments(video_path, slides, manifest, audio_dir,
                         ("anchor length", anchor_seconds), ("global correction", global_scale_correction)):
         if not math.isfinite(value) or value <= 0:
             raise ValueError(f"{name} must be positive and finite")
+    validate_audio_manifest(manifest)
     entries = {int(e["slide_num"]): e for e in manifest.get("slides", [])}
     records, warnings = {}, []
     with tempfile.TemporaryDirectory() as tmp:

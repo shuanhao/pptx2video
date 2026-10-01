@@ -214,7 +214,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--prepared-audio-bitrate", default=None, help="AAC bitrate (default: 64k); not for WAV")
     parser.add_argument("--prepared-audio-sample-rate", type=int, default=None, help="Prepared sample rate (default: 24000)")
     parser.add_argument("--prepared-audio-channels", type=int, default=None, help="Prepared channels (default: 1)")
-    parser.add_argument("--force-prepare-audio", action="store_true", help="Rebuild derived audio from originals")
     parser.add_argument(
         "--slides",
         type=_parse_slide_selector,
@@ -425,7 +424,7 @@ def main() -> None:
     try:
         preparation_enabled = validate_preparation_options(
             preparation_options, args.audio_output_dir, prepared_dir,
-            explicit_preparation, args.force_prepare_audio,
+            explicit_preparation,
         )
     except ValueError as exc:
         parser.error(str(exc))
@@ -612,12 +611,12 @@ def main() -> None:
                 raise ValueError("--audio-tail-silence requires an original audio manifest; use --generate-audio first")
             prepared = prepare_audio_manifest(
                 audio_manifest, args.audio_output_dir, prepared_dir, preparation_options,
-                force=args.force_prepare_audio, explicit_options=explicit_preparation,
+                explicit_options=explicit_preparation,
             )
             audio_manifest = prepared["manifest"]
             effective_audio_dir = str(prepared["audio_dir"])
-            logger.info("Prepared audio: converted=%s, reused=%s; directory=%s",
-                        prepared["converted"], prepared["reused"], effective_audio_dir)
+            logger.info("Prepared audio: converted=%s; directory=%s",
+                        prepared["converted"], effective_audio_dir)
             if args.export_video and not args.insert_audio:
                 logger.warning("Preparation does not change embedded PPTX media; ensure this PPTX contains the same prepared audio")
     except (Pptx2VideoError, OSError, ValueError, KeyError, TypeError) as exc:

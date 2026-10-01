@@ -1,5 +1,8 @@
 # Stage 5：字幕黑條自動縮放
 
+> 設計更新：音訊準備已改為同層固定檔名、每次全部重轉，移除 `--force-prepare-audio` 與快取重用。以下關於版本化、整批回復與重用的敘述保留為歷史紀錄；現行規則見 [音訊準備手冊](AUDIO_PREPARATION.md)。舊驗收結果不等同新版已通過驗收。
+
+
 人工確認 SRT 後獨立執行：
 ```powershell
 python scripts/burn_subtitles.py --video output/deck.mp4 --srt output/captions_initial.srt --output output/deck_burned.mp4

@@ -143,7 +143,7 @@ class PreparedAnchorTests(unittest.TestCase):
                    2: {"status": "predicted", "start_seconds": 36., "end_seconds": 50.}}
         diagnostics = {}
         with patch("src.audio_position_locator.locate_slide_alignments", return_value=(records, ["review"])):
-            bounds, warnings = locate_slide_start_and_end_times("unused", [], {"preparation": True}, ".", diagnostics=diagnostics)
+            bounds, warnings = locate_slide_start_and_end_times("unused", [], {"preparation": {"schema_version": 1, "kind": "prepared"}}, ".", diagnostics=diagnostics)
         self.assertEqual(bounds, {1: (2., 36.)})
         self.assertEqual(diagnostics, records)
 

@@ -6,6 +6,8 @@
 
 ## [未發布]
 
+- 音訊準備改為固定檔名、每次從原始 MP3 全部重轉；移除 `--force-prepare-audio`。schema 2 manifest 以 incomplete／ready 防止使用中斷批次；不再保留整批舊版回復，舊版本目錄不自動刪除。
+
 - Stage 5：完整及分段燒字幕新增 `--bar-scale-mode auto|fixed`，預設依實際 720p／1080p 自動縮放黑條，支援逐項最終像素覆寫。1080p 預設改為 975／57／60；fixed 保留舊預設。字級及 MarginV 不縮放。所有模式均需 ffprobe，非法幾何明確失敗。
 
 ## [0.10.0] - 2026-08-07

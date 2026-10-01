@@ -1,8 +1,7 @@
 """Optional derived audio preparation; no CLI or PowerPoint dependencies.
 
-Original files are never modified. Each changed entry receives a unique directory;
-manifest.json is replaced only after the entire batch succeeds. Unreferenced files
-from interrupted runs are intentionally retained, never automatically deleted.
+Original files are never modified. Every enabled run rebuilds all entries using
+fixed filenames. An incomplete manifest blocks consumers until the batch succeeds.
 """
 from __future__ import annotations
 
@@ -37,7 +36,7 @@ class AudioPreparationOptions:
 
 
 def validate_preparation_options(options, source_dir=None, output_dir=None,
-                                 explicit_options=(), force=False):
+                                 explicit_options=()):
     """Return whether enabled. CLI callers must supply explicitly given options."""
     seconds = options.tail_silence
     if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not math.isfinite(seconds):
@@ -45,7 +44,7 @@ def validate_preparation_options(options, source_dir=None, output_dir=None,
     if seconds != 0 and not 1 <= seconds <= 10:
         raise ValueError("tail_silence must be 0 or 1..10 seconds")
     if seconds == 0:
-        if explicit_options or force or options != AudioPreparationOptions():
+        if explicit_options or options != AudioPreparationOptions():
             raise ValueError("Preparation settings require nonzero tail_silence")
         return False
     if options.format not in ("m4a", "wav"):
@@ -143,33 +142,38 @@ def prepare_audio_file(source, output, options) -> Dict[str, Any]:
         temporary.unlink(missing_ok=True)
 
 
-def is_prepared_entry_current(entry, fingerprint, output_dir):
-    """Check source/settings/tool fingerprint and hashes of all referenced files."""
+def validate_audio_manifest(manifest):
+    """Reject unfinished fixed-name batches; accept original and legacy manifests."""
+    metadata = manifest.get("preparation") or {}
+    if not isinstance(metadata, dict):
+        raise AudioPreparationError("Invalid prepared audio metadata")
+    if metadata.get("status") not in (None, "ready") or (
+            metadata.get("schema_version", 1) >= 2 and metadata.get("status") != "ready"):
+        raise AudioPreparationError("Prepared audio manifest is incomplete; rerun preparation from originals")
+
+
+def _publish_manifest(destination, manifest):
+    temporary = destination.with_name(f".manifest-{uuid.uuid4().hex}.json")
     try:
-        metadata = entry["preparation"]
-        if metadata["fingerprint"] != fingerprint:
-            return False
-        root = Path(output_dir).resolve()
-        for field, digest in metadata["output_hashes"].items():
-            if _hash(_inside(root, entry[field])) != digest:
-                return False
-        return "audio_file" in metadata["output_hashes"] and (
-            not entry.get("word_boundaries_file") or "word_boundaries_file" in metadata["output_hashes"])
-    except (OSError, ValueError, KeyError, TypeError):
-        return False
+        temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(temporary, destination)
+    except OSError as exc:
+        raise AudioPreparationError(f"Cannot publish prepared manifest: {exc}") from exc
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
-def prepare_audio_manifest(manifest, source_dir, output_dir, options, force=False,
+def prepare_audio_manifest(manifest, source_dir, output_dir, options,
                            explicit_options=()):
-    """Return effective manifest/directory and converted/reused slide numbers.
+    """Return effective manifest/directory and converted slide numbers.
 
     Caller supplies the already merged original manifest. Missing WordBoundary is
     supported. Unknown manifest/slide fields are preserved. No TTS is invoked.
     """
     source, output = Path(source_dir).resolve(), Path(output_dir).resolve()
-    enabled = validate_preparation_options(options, source, output, explicit_options, force)
+    enabled = validate_preparation_options(options, source, output, explicit_options)
     if not enabled:
-        return {"manifest": copy.deepcopy(manifest), "audio_dir": source, "converted": [], "reused": []}
+        return {"manifest": copy.deepcopy(manifest), "audio_dir": source, "converted": []}
     if manifest.get("preparation"):
         raise ValueError("Prepared manifests cannot be preparation sources")
     for tool in ("ffmpeg", "ffprobe"):
@@ -196,50 +200,44 @@ def prepare_audio_manifest(manifest, source_dir, output_dir, options, force=Fals
             raise AudioPreparationError(f"Slide {number}: cannot read source: {exc}") from exc
         entries.append((entry, audio, boundary, fingerprint))
     destination = output / "manifest.json"
-    previous = {}
     if destination.exists():
         try:
             old = json.loads(destination.read_text(encoding="utf-8"))
             if not old.get("preparation"):
                 raise ValueError("Refusing to overwrite a non-prepared manifest")
-            previous = {e["slide_num"]: e for e in old["slides"]}
         except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
             raise AudioPreparationError(f"Cannot read prepared manifest: {exc}") from exc
     result = copy.deepcopy(manifest)
-    result.update(output_dir=str(output), slides=[], preparation={"schema_version": 1, "kind": "prepared"})
-    converted, reused = [], []
+    result.update(output_dir=str(output), slides=[], preparation={"schema_version": 2, "kind": "prepared", "status": "incomplete"})
+    converted = []
     output.mkdir(parents=True, exist_ok=True)
+    _publish_manifest(destination, result)
     for entry, audio, boundary, fingerprint in entries:
         number = entry["slide_num"]
-        current = previous.get(number, {})
         new = copy.deepcopy(entry)
-        if not force and is_prepared_entry_current(current, fingerprint, output):
-            for field in ("audio_file", "word_boundaries_file", "preparation"):
-                new[field] = copy.deepcopy(current.get(field))
-            reused.append(number)
-        else:
-            generation = uuid.uuid4().hex
-            relative = Path(generation) / f"slide_{number:03d}.{options.format}"
-            try:
-                metadata = prepare_audio_file(audio, output / relative, options)
-                new["audio_file"] = relative.as_posix()
-                new["word_boundaries_file"] = None
-                if boundary:
-                    copied = relative.with_suffix(".wordboundaries.json")
-                    shutil.copyfile(boundary, output / copied)
-                    new["word_boundaries_file"] = copied.as_posix()
-                # Catch input changes during conversion/copy before publishing.
-                if _hash(audio) != fingerprint["audio_sha256"] or (boundary and _hash(boundary) != fingerprint["boundary_sha256"]):
-                    raise AudioPreparationError("Source changed during preparation")
-                metadata.update(fingerprint=fingerprint, generation_id=generation,
-                                output_hashes={field: _hash(output / new[field]) for field in
-                                               ("audio_file", "word_boundaries_file") if new.get(field)})
-                new["preparation"] = metadata
-                converted.append(number)
-            except (OSError, AudioPreparationError) as exc:
-                raise AudioPreparationError(f"Slide {number}, {audio}: {exc}") from exc
+        relative = Path(f"slide_{number:03d}.{options.format}")
+        _inside(output, str(relative))
+        _inside(output, str(relative.with_suffix(".wordboundaries.json")))
+        try:
+            metadata = prepare_audio_file(audio, output / relative, options)
+            new["audio_file"] = relative.as_posix()
+            new["word_boundaries_file"] = None
+            if boundary:
+                copied = relative.with_suffix(".wordboundaries.json")
+                shutil.copyfile(boundary, output / copied)
+                new["word_boundaries_file"] = copied.as_posix()
+            # Catch input changes during conversion/copy before publishing.
+            if _hash(audio) != fingerprint["audio_sha256"] or (boundary and _hash(boundary) != fingerprint["boundary_sha256"]):
+                raise AudioPreparationError("Source changed during preparation")
+            metadata.update(fingerprint=fingerprint,
+                            output_hashes={field: _hash(output / new[field]) for field in
+                                           ("audio_file", "word_boundaries_file") if new.get(field)})
+            new["preparation"] = metadata
+            converted.append(number)
+        except (OSError, AudioPreparationError) as exc:
+            raise AudioPreparationError(f"Slide {number}, {audio}: {exc}") from exc
         result["slides"].append(new)
-    # Recheck reused entries too: originals may have changed during a long batch.
+    # Recheck all sources: originals may have changed during a long batch.
     for entry, audio, boundary, fingerprint in entries:
         try:
             if (_hash(audio) != fingerprint["audio_sha256"]
@@ -247,12 +245,6 @@ def prepare_audio_manifest(manifest, source_dir, output_dir, options, force=Fals
                 raise AudioPreparationError(f"Slide {entry['slide_num']}: source changed during batch")
         except OSError as exc:
             raise AudioPreparationError(f"Slide {entry['slide_num']}: source became unreadable") from exc
-    temporary = output / f".manifest-{uuid.uuid4().hex}.json"
-    try:
-        temporary.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(temporary, destination)
-    except OSError as exc:
-        raise AudioPreparationError(f"Cannot publish prepared manifest: {exc}") from exc
-    finally:
-        temporary.unlink(missing_ok=True)
-    return {"manifest": result, "audio_dir": output, "converted": converted, "reused": reused}
+    result["preparation"]["status"] = "ready"
+    _publish_manifest(destination, result)
+    return {"manifest": result, "audio_dir": output, "converted": converted}

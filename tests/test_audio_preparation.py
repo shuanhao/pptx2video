@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from src.audio_preparation import (
     AudioPreparationOptions, prepare_audio_manifest, probe_audio,
-    validate_preparation_options,
+    validate_preparation_options, validate_audio_manifest, prepare_audio_file,
 )
 from src.exceptions import AudioPreparationError
 
@@ -33,8 +33,6 @@ class PreparationValidationTests(unittest.TestCase):
                         AudioPreparationOptions(4, "mp3")):
             with self.assertRaises(ValueError):
                 validate_preparation_options(options)
-        with self.assertRaises(ValueError):
-            validate_preparation_options(AudioPreparationOptions(), force=True)
         with self.assertRaises(ValueError):
             validate_preparation_options(AudioPreparationOptions(), explicit_options=["format"])
         self.assertTrue(validate_preparation_options(AudioPreparationOptions(1.5)))
@@ -86,25 +84,16 @@ class PreparationIntegrationTests(unittest.TestCase):
                                      original["slide_001.wordboundaries.json"])
         self.assertEqual(original, {p.name: p.read_bytes() for p in self.source.iterdir()})
 
-    def test_cache_changes_force_and_corruption(self):
+    def test_every_run_rebuilds_fixed_names_without_accumulating_silence(self):
         first = self.prepare()
-        old_path = self.output / first["manifest"]["slides"][0]["audio_file"]
-        old_bytes = old_path.read_bytes()
-        with patch("src.audio_preparation.prepare_audio_file", side_effect=AssertionError):
-            self.assertEqual(self.prepare()["reused"], [1])
-        self.assertEqual(self.prepare(force=True)["converted"], [1])
-        self.assertEqual(old_path.read_bytes(), old_bytes)
-        (self.source / "slide_001.wordboundaries.json").write_text("[]")
-        self.assertEqual(self.prepare()["converted"], [1])
-        changed = self.prepare(AudioPreparationOptions(8))
-        self.assertEqual(changed["converted"], [1])
-        (self.output / changed["manifest"]["slides"][0]["audio_file"]).write_bytes(b"corrupt")
-        self.assertEqual(self.prepare(AudioPreparationOptions(8))["converted"], [1])
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
-                        "sine=frequency=880:sample_rate=24000:duration=1.25",
-                        "-ac", "1", "-c:a", "libmp3lame", "-b:a", "48k",
-                        str(self.source / "slide_001.mp3")], check=True, capture_output=True)
-        self.assertEqual(self.prepare(AudioPreparationOptions(8))["converted"], [1])
+        self.assertEqual(first["manifest"]["slides"][0]["audio_file"], "slide_001.m4a")
+        with patch("src.audio_preparation.prepare_audio_file", wraps=prepare_audio_file) as convert:
+            second = self.prepare()
+        self.assertEqual(convert.call_count, 1)
+        self.assertEqual(second["converted"], [1])
+        self.assertFalse(any(p.is_dir() for p in self.output.iterdir()))
+        self.assertAlmostEqual(probe_audio(self.output / "slide_001.m4a")["duration_seconds"], 5.25, delta=.09)
+        self.assertEqual(second["manifest"]["preparation"]["status"], "ready")
 
     def test_wav_preserves_decoded_narration_and_appends_silence(self):
         result = self.prepare(AudioPreparationOptions(4, "wav"))
@@ -119,7 +108,7 @@ class PreparationIntegrationTests(unittest.TestCase):
         self.assertEqual(prepared[:len(original)], original)
         self.assertEqual(prepared[len(original):], bytes(4 * 24000 * 2))
 
-    def test_cli_real_preparation_reuses_audio_without_tts(self):
+    def test_cli_real_preparation_rebuilds_audio_without_tts(self):
         import sys
         from src.main import main
         from src.logging_config import shutdown_logging
@@ -133,14 +122,15 @@ class PreparationIntegrationTests(unittest.TestCase):
              patch("src.main.generate_audio_files", side_effect=AssertionError("Unexpected TTS")):
             main()
             first = json.loads(payload_path.read_text(encoding="utf-8"))
-            with patch("src.audio_preparation.prepare_audio_file", side_effect=AssertionError("Unexpected conversion")):
+            with patch("src.audio_preparation.prepare_audio_file", wraps=prepare_audio_file) as convert:
                 main()
+                self.assertEqual(convert.call_count, 1)
             second = json.loads(payload_path.read_text(encoding="utf-8"))
         self.assertEqual(first, second)
         self.assertEqual(first["metadata"]["audio_output_dir"], str(self.output.resolve()))
         self.assertTrue(Path(first["slides"][0]["audio_file"]).is_file())
 
-    def test_failed_batch_keeps_previous_manifest_and_files(self):
+    def test_failed_batch_blocks_consumers_and_restart_rebuilds_all(self):
         first = self.prepare()
         committed = (self.output / "manifest.json").read_bytes()
         entry = first["manifest"]["slides"][0]
@@ -159,9 +149,59 @@ class PreparationIntegrationTests(unittest.TestCase):
 
         with patch("src.audio_preparation.prepare_audio_file", side_effect=fail_second):
             with self.assertRaisesRegex(AudioPreparationError, "Slide 2"):
-                self.prepare(force=True)
-        self.assertEqual((self.output / "manifest.json").read_bytes(), committed)
-        self.assertEqual((self.output / entry["audio_file"]).read_bytes(), original)
+                self.prepare()
+        broken = json.loads((self.output / "manifest.json").read_text())
+        self.assertEqual(broken["preparation"]["status"], "incomplete")
+        from src.ppt_automation import load_audio_manifest, _build_slide_audio_map
+        from src.subtitle_pipeline import build_caption_plan
+        from src.audio_position_locator import locate_slide_start_and_end_times, locate_slide_alignments
+        for consume in (
+            lambda: load_audio_manifest(self.output / "manifest.json"),
+            lambda: _build_slide_audio_map(broken, self.output),
+            lambda: build_caption_plan([], broken, self.output),
+            lambda: locate_slide_start_and_end_times(Path("missing.mp4"), [], broken, self.output),
+            lambda: locate_slide_alignments(Path("missing.mp4"), [], broken, self.output),
+        ):
+            with self.assertRaisesRegex(AudioPreparationError, "incomplete"):
+                consume()
+        with patch("src.audio_preparation.prepare_audio_file", wraps=prepare_audio_file) as convert:
+            restarted = self.prepare()
+        self.assertEqual(convert.call_count, 2)
+        self.assertEqual(restarted["converted"], [1, 2])
+
+    def test_final_manifest_publication_failure_leaves_incomplete(self):
+        import os
+        replace = os.replace
+        publications = 0
+
+        def fail_final(source, target):
+            nonlocal publications
+            if Path(target).name == "manifest.json":
+                publications += 1
+                if publications == 2:
+                    raise OSError("final publication failed")
+            return replace(source, target)
+
+        with patch("src.audio_preparation.os.replace", side_effect=fail_final):
+            with self.assertRaises(AudioPreparationError):
+                self.prepare()
+        manifest = json.loads((self.output / "manifest.json").read_text())
+        with self.assertRaises(AudioPreparationError):
+            validate_audio_manifest(manifest)
+        self.assertEqual(self.prepare()["converted"], [1])
+
+    def test_legacy_version_directory_is_not_deleted_on_migration(self):
+        first = self.prepare()
+        old = self.output / "old-version"
+        old.mkdir()
+        shutil.copyfile(self.output / "slide_001.m4a", old / "slide_001.m4a")
+        manifest = first["manifest"]
+        manifest["preparation"] = {"schema_version": 1, "kind": "prepared"}
+        manifest["slides"][0]["audio_file"] = "old-version/slide_001.m4a"
+        (self.output / "manifest.json").write_text(json.dumps(manifest))
+        result = self.prepare()
+        self.assertTrue((old / "slide_001.m4a").exists())
+        self.assertEqual(result["manifest"]["slides"][0]["audio_file"], "slide_001.m4a")
 
     def test_missing_boundary_and_source_guard(self):
         self.manifest["slides"][0]["word_boundaries_file"] = None
@@ -189,7 +229,7 @@ class PreparationIntegrationTests(unittest.TestCase):
 
         with patch("src.audio_preparation.os.replace", side_effect=fail_manifest):
             with self.assertRaisesRegex(AudioPreparationError, "Cannot publish"):
-                self.prepare(force=True)
+                self.prepare()
         self.assertEqual((self.output / "manifest.json").read_bytes(), committed)
         self.assertTrue((self.output / first["manifest"]["slides"][0]["audio_file"]).exists())
 

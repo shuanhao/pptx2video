@@ -98,6 +98,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from pydub import AudioSegment
 
+from src.audio_preparation import validate_audio_manifest
 from src.subtitle_alignment import (
     DEFAULT_TRAILING_GAP_SECONDS,
     align_segments_with_word_boundaries,
@@ -159,6 +160,7 @@ def _build_slide_captions(
     timeline), empty for silent slides or slides skipped due to missing
     data.
     """
+    validate_audio_manifest(manifest)
     audio_dir = Path(audio_dir)
     manifest_by_slide = {int(e["slide_num"]): e for e in manifest.get("slides", [])}
     ordered_slides = sorted(slides, key=lambda s: int(s.get("slide_num", 0)))

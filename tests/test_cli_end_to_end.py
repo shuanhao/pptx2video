@@ -110,7 +110,7 @@ class CliEndToEndTests(unittest.TestCase):
 
     def test_prepared_source_reaches_json_insert_and_export_subtitles(self):
         root, source, prepared, original, derived, argv = self._preparation_fixture()
-        result = {"manifest": derived, "audio_dir": prepared, "converted": [1, 2], "reused": []}
+        result = {"manifest": derived, "audio_dir": prepared, "converted": [1, 2]}
         with mock.patch("src.main.prepare_audio_manifest", return_value=result) as prepare, \
              mock.patch("src.main.generate_audio_files") as tts, \
              mock.patch("src.main.ppt_automation.insert_audio", return_value={
@@ -156,7 +156,7 @@ class CliEndToEndTests(unittest.TestCase):
         regenerated = {"slides": [{"slide_num": 2, "audio_file": "changed.mp3"}]}
         with mock.patch("src.main.generate_audio_files", return_value=regenerated) as tts, \
              mock.patch("src.main.prepare_audio_manifest", return_value={"manifest": derived, "audio_dir": prepared,
-                        "converted": [2], "reused": [1]}) as prepare, \
+                        "converted": [1, 2]}) as prepare, \
              mock.patch("src.main.write_subtitle_output", return_value=(root / "captions.srt", [])) as subtitles:
             _, stderr, code = self._invoke(argv + ["--generate-audio", "--slides", "2", "--audio-tail-silence", "4",
                                                    "--prepared-audio-dir", str(prepared)])
