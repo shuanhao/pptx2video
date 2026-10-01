@@ -29,6 +29,21 @@ def _factory(chunks, captured_kwargs_holder):
 
 
 class TtsWordBoundariesTests(unittest.TestCase):
+    def test_incomplete_chunks_fail_explicitly(self):
+        cases = [
+            {"type": "audio"},
+            {"type": "WordBoundary", "offset": 0, "duration": 1},
+            {"type": "WordBoundary", "text": "Hello", "duration": 1},
+            {"type": "WordBoundary", "text": "Hello", "offset": 0},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            for chunk in cases:
+                with self.subTest(chunk=chunk), self.assertRaisesRegex(ValueError, "missing"):
+                    synthesize_with_word_boundaries(
+                        "Hello", Path(tmp) / "slide.mp3", voice="en-US-AriaNeural",
+                        communicate_factory=_factory([chunk], []),
+                    )
+
     def test_returns_word_boundaries_converted_to_seconds(self):
         # 5,000,000 ticks / 10,000,000 ticks-per-second = 0.5s - chosen so
         # the tick -> second division is easy to eyeball in the assertion.

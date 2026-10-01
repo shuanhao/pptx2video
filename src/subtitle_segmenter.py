@@ -249,10 +249,12 @@ def _pack_greedy(units: List[Tuple[int, int]], text: str, max_width: int) -> Lis
         if _fits(text, current_start, u_end, max_width):
             current_end = u_end
         else:
+            assert current_end is not None, "An active unit must have an end offset"
             lines.append((current_start, current_end))
             current_start, current_end = u_start, u_end
 
     if current_start is not None:
+        assert current_end is not None, "An active unit must have an end offset"
         lines.append((current_start, current_end))
 
     return lines

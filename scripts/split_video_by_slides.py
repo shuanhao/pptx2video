@@ -161,6 +161,8 @@ def _parse_srt(text: str) -> list:
         if timestamp_line_idx is None:
             continue
         match = _SRT_TIMESTAMP_RE.search(lines[timestamp_line_idx])
+        if match is None:
+            continue
         start = _parse_srt_timestamp(*match.groups()[0:4])
         end = _parse_srt_timestamp(*match.groups()[4:8])
         text_lines = lines[timestamp_line_idx + 1:]

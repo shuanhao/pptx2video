@@ -72,6 +72,13 @@ from src.logging_config import ensure_utf8_console
 DRIFT_WARNING_THRESHOLD_SECONDS = 0.5
 
 
+def _slide_number(slide) -> int:
+    number = slide["slide_num"]
+    if number is None:
+        raise ValueError("A slide must have a slide_num")
+    return int(number)
+
+
 def main():
     # Reconfigure stdout/stderr to UTF-8 before any print() - Windows can
     # otherwise crash printing CJK slide text when stdout/stderr is piped
@@ -101,7 +108,7 @@ def main():
     audio_dir = Path(manifest.get("output_dir") or args.manifest_path.parent)
     audio_by_slide = {int(e["slide_num"]): e["audio_file"] for e in manifest.get("slides", [])}
 
-    slides = sorted(extract_notes(str(args.pptx_path)), key=lambda s: int(s["slide_num"]))
+    slides = sorted(extract_notes(str(args.pptx_path)), key=_slide_number)
 
     print(f"Extracting audio track and measuring per-slide positions in {args.video_path} ...")
     measured_starts, locate_warnings = locate_slide_start_times(
@@ -124,7 +131,7 @@ def main():
     print(f"\n{'slide':>5} {'predicted':>10} {'measured':>10} {'delta':>8}")
 
     for slide in slides:
-        slide_num = int(slide["slide_num"])
+        slide_num = _slide_number(slide)
         audio_file = audio_by_slide.get(slide_num)
 
         if audio_file is None:

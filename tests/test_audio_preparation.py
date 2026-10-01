@@ -33,9 +33,10 @@ class PreparationValidationTests(unittest.TestCase):
                         AudioPreparationOptions(4, "mp3")):
             with self.assertRaises(ValueError):
                 validate_preparation_options(options)
-        for kwargs in ({"force": True}, {"explicit_options": ["format"]}):
-            with self.assertRaises(ValueError):
-                validate_preparation_options(AudioPreparationOptions(), **kwargs)
+        with self.assertRaises(ValueError):
+            validate_preparation_options(AudioPreparationOptions(), force=True)
+        with self.assertRaises(ValueError):
+            validate_preparation_options(AudioPreparationOptions(), explicit_options=["format"])
         self.assertTrue(validate_preparation_options(AudioPreparationOptions(1.5)))
 
     def test_overlapping_directories(self):

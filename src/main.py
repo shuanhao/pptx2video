@@ -521,8 +521,8 @@ def main() -> None:
         # inside tts.py, to keep that function's contract simple (it always
         # fully describes exactly the slides it was asked to generate).
         if args.slides is not None:
-            slides_to_generate = [s for s in slides if int(s.get("slide_num", 0)) in args.slides]
-            found_slide_nums = {int(s.get("slide_num", 0)) for s in slides_to_generate}
+            slides_to_generate = [s for s in slides if int(s.get("slide_num") or 0) in args.slides]
+            found_slide_nums = {int(s.get("slide_num") or 0) for s in slides_to_generate}
             missing = sorted(args.slides - found_slide_nums)
             if missing:
                 _fail(parser, logger, f"--slides referenced slide number(s) not found in the deck: {missing}")
@@ -561,6 +561,7 @@ def main() -> None:
         regenerated_count = len(audio_manifest["slides"])
 
         if previous_manifest is not None:
+            assert args.slides is not None, "A previous manifest is loaded only for --slides"
             # Merge: entries for slides that were just (re)generated replace
             # the old ones; every other slide's entry from the prior run is
             # kept as-is, so a --slides run never silently truncates
@@ -746,6 +747,7 @@ def main() -> None:
         )
 
         if subtitle_output_path:
+            assert candidate_run is not None, "Export subtitle run must be initialized before export"
             try:
                 subtitle_output_path, subtitle_warnings = write_subtitle_output_from_export(
                     payload, subtitle_output_path, export_result["output_path"],

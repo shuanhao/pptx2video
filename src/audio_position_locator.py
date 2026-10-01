@@ -260,25 +260,25 @@ def locate_slide_alignments(video_path, slides, manifest, audio_dir,
 
                     head, head_match = match_signal(False, predicted)
                     record["reason"] = "no_effective_signal"
-                    if head:
+                    if head is not None and head_match is not None:
                         record["head"] = head_match
-                        record["reason"] = record["head"]["reason"]
-                        if record["head"]["reliable"]:
-                            start = record["head"]["video_start_seconds"] - head[0] / SAMPLE_RATE
+                        record["reason"] = head_match["reason"]
+                        if head_match["reliable"]:
+                            start = head_match["video_start_seconds"] - head[0] / SAMPLE_RATE
                             if start < -.05 or start <= previous_reliable_start:
                                 record["reason"] = "invalid_head_order"
-                                record["head"]["reliable"] = False
+                                head_match["reliable"] = False
                             else:
                                 start = max(0.0, start)
                                 record.update(start_seconds=start, status="head_only", reason="insufficient_anchor_separation")
                                 tail_anchor, tail_match = match_signal(True, start)
-                                if tail_anchor and tail_anchor[0] >= head[0] + len(head[1]):
+                                if tail_anchor is not None and tail_match is not None and tail_anchor[0] >= head[0] + len(head[1]):
                                     record["tail"] = tail_match
-                                    record["reason"] = record["tail"]["reason"]
-                                    if record["tail"]["reliable"]:
+                                    record["reason"] = tail_match["reason"]
+                                    if tail_match["reliable"]:
                                         separation = (tail_anchor[0] - head[0]) / SAMPLE_RATE
-                                        scale = (record["tail"]["video_start_seconds"] - record["head"]["video_start_seconds"]) / separation
-                                        mapped_start = record["head"]["video_start_seconds"] - head[0] / SAMPLE_RATE * scale
+                                        scale = (tail_match["video_start_seconds"] - head_match["video_start_seconds"]) / separation
+                                        mapped_start = head_match["video_start_seconds"] - head[0] / SAMPLE_RATE * scale
                                         if MIN_SCALE <= scale <= MAX_SCALE and mapped_start >= -.05 and mapped_start > previous_reliable_start:
                                             record.update(start_seconds=max(0.0, mapped_start), scale=scale,
                                                           status="matched", reason="two_reliable_anchors")

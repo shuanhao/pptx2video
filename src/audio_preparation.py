@@ -17,7 +17,7 @@ import subprocess
 import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from src.exceptions import AudioPreparationError
 
@@ -112,7 +112,7 @@ def _inside(root, name):
     return path
 
 
-def prepare_audio_file(source, output, options):
+def prepare_audio_file(source, output, options) -> Dict[str, Any]:
     """Convert an original MP3; publish only a fully decoded, validated result."""
     if not validate_preparation_options(options):
         raise ValueError("prepare_audio_file requires nonzero tail_silence")

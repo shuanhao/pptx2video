@@ -138,8 +138,12 @@ async def _stream_edge_tts_audio_with_word_boundaries(
     with open(output_path, "wb") as audio_file:
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
+                if "data" not in chunk:
+                    raise ValueError("Edge-TTS audio chunk is missing data")
                 audio_file.write(chunk["data"])
             elif chunk["type"] == "WordBoundary":
+                if "text" not in chunk or "offset" not in chunk or "duration" not in chunk:
+                    raise ValueError("Edge-TTS WordBoundary chunk is missing text, offset or duration")
                 word_boundaries.append({
                     "text": chunk["text"],
                     "offset_seconds": chunk["offset"] / WORD_BOUNDARY_TICKS_PER_SECOND,

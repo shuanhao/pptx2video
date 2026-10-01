@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 
 from pptx import Presentation
 
@@ -39,7 +39,7 @@ def _get_notes_text(slide) -> Optional[str]:
     return notes_text or None
 
 
-def extract_notes(pptx_path: str) -> List[Dict[str, Optional[str]]]:
+def extract_notes(pptx_path: str) -> List[Dict[str, Union[int, str, None]]]:
     """Extract slide number, title, and notes text from a PowerPoint file.
 
     Args:
@@ -60,7 +60,7 @@ def extract_notes(pptx_path: str) -> List[Dict[str, Optional[str]]]:
     except Exception as exc:
         raise PptParseError(f"Failed to load PowerPoint file: {exc}") from exc
 
-    slides_data: List[Dict[str, Optional[str]]] = []
+    slides_data: List[Dict[str, Union[int, str, None]]] = []
     for idx, slide in enumerate(prs.slides, start=1):
         title = _get_slide_title(slide)
         notes = _get_notes_text(slide)

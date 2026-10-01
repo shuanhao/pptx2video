@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import Any, Dict
 from unittest import mock
 
 from pptx import Presentation
@@ -50,14 +51,15 @@ class CliEndToEndTests(unittest.TestCase):
         for title, notes in slide_specs:
             slide = prs.slides.add_slide(prs.slide_layouts[1])
             if title:
-                try:
-                    slide.shapes.title.text = title
-                except AttributeError:
-                    pass
+                title_shape = slide.shapes.title
+                assert title_shape is not None, "Test layout must contain a title"
+                title_shape.text = title
             if notes:
-                slide.notes_slide.notes_text_frame.text = notes
+                notes_frame = slide.notes_slide.notes_text_frame
+                assert notes_frame is not None, "Test layout must contain a notes frame"
+                notes_frame.text = notes
 
-        prs.save(path)
+        prs.save(str(path))
         return path
 
     def _invoke(self, argv):
@@ -99,7 +101,7 @@ class CliEndToEndTests(unittest.TestCase):
         root = pptx.parent
         source, prepared = root / "audio", root / "prepared"
         source.mkdir()
-        manifest = {"slides": [{"slide_num": n, "audio_file": f"slide_{n:03d}.mp3"} for n in (1, 2)]}
+        manifest: Dict[str, Any] = {"slides": [{"slide_num": n, "audio_file": f"slide_{n:03d}.mp3"} for n in (1, 2)]}
         (source / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         derived = {"slides": [{"slide_num": n, "audio_file": f"batch/slide_{n:03d}.m4a"} for n in (1, 2)]}
         argv = [str(pptx), "--audio-output-dir", str(source), "--output", str(root / "slides.json"),

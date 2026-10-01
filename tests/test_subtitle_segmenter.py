@@ -59,7 +59,8 @@ class SegmentNotesForSubtitlesTests(unittest.TestCase):
     def test_empty_or_whitespace_only_text_returns_empty_list(self):
         self.assertEqual(segment_notes_for_subtitles(""), [])
         self.assertEqual(segment_notes_for_subtitles("   \n  \n "), [])
-        self.assertEqual(segment_notes_for_subtitles(None), [])
+        # Deliberately exercise runtime tolerance of an out-of-contract input.
+        self.assertEqual(segment_notes_for_subtitles(None), [])  # pyright: ignore[reportArgumentType]
 
     def test_single_short_sentence_strips_trailing_period(self):
         text = "這是一句測試。"

@@ -19,6 +19,8 @@ _FFMPEG_HAS_LIBASS = _FFMPEG_AVAILABLE and "subtitles" in subprocess.run(
 # scripts/ isn't a package (no __init__.py), so load by path - same approach
 # tests/test_calibrate_scale.py uses for calibrate_scale.py.
 _spec = importlib.util.spec_from_file_location("split_video_by_slides", ROOT / "scripts" / "split_video_by_slides.py")
+if _spec is None or _spec.loader is None:
+    raise ImportError("Cannot load scripts/split_video_by_slides.py: missing module spec or loader")
 split_video_by_slides = importlib.util.module_from_spec(_spec)
 sys.path.insert(0, str(ROOT))
 _spec.loader.exec_module(split_video_by_slides)

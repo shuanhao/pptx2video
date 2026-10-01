@@ -148,6 +148,9 @@ class SubtitleCandidateRun:
     def finish(self, video_path=None):
         if self.plan is None:
             self.preview()
+        plan = self.plan
+        if plan is None:
+            raise RuntimeError("Preview did not initialize the caption plan")
         if video_path is not None:
             self.video = Path(video_path)
         try:
@@ -164,7 +167,7 @@ class SubtitleCandidateRun:
                 search_window_seconds=self.search_window, anchor_seconds=self.anchor_seconds)
             self.report["warnings"].extend(warnings)
             predicted = 0.0
-            for slide in self.plan:
+            for slide in plan:
                 number = slide["slide_num"]
                 if number not in records:
                     # Original MP3 uses the legacy locator: do not imply it passed
@@ -184,7 +187,7 @@ class SubtitleCandidateRun:
             self.report["slides"] = records
             self.report["summary"] = {status: [n for n, r in records.items() if r["status"] == status]
                 for status in ("matched", "head_only", "predicted", "silent", "legacy_measured")}
-            self.report["missing_caption_slides"] = [s["slide_num"] for s in self.plan
+            self.report["missing_caption_slides"] = [s["slide_num"] for s in plan
                                                      if s["has_narration"] and not s["captions"]]
             self.report["counts"] = {status: len(numbers) for status, numbers in self.report["summary"].items()}
             self.save_report()
@@ -200,7 +203,7 @@ class SubtitleCandidateRun:
                 for record in mapping.values():
                     record["start_seconds"] *= coefficient
                     record["scale"] *= coefficient
-                text, warnings = render_caption_plan(self.plan, mapping)
+                text, warnings = render_caption_plan(plan, mapping)
                 self.report["artifacts"][name]["warnings"] = warnings
                 self.report["artifacts"][name]["global_scale_correction"] = coefficient
                 self.report["artifacts"][name]["mapping_rule"] = "raw start and local scale multiplied once by global_scale_correction"

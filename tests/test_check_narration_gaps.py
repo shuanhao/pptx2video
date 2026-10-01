@@ -18,6 +18,8 @@ ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location(
     "check_narration_gaps", ROOT / "scripts" / "check_narration_gaps.py"
 )
+if _spec is None or _spec.loader is None:
+    raise ImportError("Cannot load scripts/check_narration_gaps.py: missing module spec or loader")
 check_narration_gaps = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_narration_gaps)
 
