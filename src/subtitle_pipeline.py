@@ -331,6 +331,17 @@ class SubtitleTimingError(ValueError):
     """A candidate contains invalid timestamps and must not be published."""
 
 
+def build_caption_plan(slides, manifest, audio_dir, default_slide_duration=5.0):
+    """Build relative cues once for preview and both export candidates."""
+    return _build_slide_captions(slides, manifest, audio_dir, default_slide_duration,
+                                 DEFAULT_MAX_DISPLAY_WIDTH, DEFAULT_TRAILING_GAP_SECONDS)
+
+
+def render_caption_plan(per_slide, records):
+    """Validate and render explicit mappings without recomputing word alignment."""
+    return _srt_from_alignment_records(per_slide, records, [])
+
+
 def _srt_from_alignment_records(per_slide, records, warnings):
     import math
     entries = []

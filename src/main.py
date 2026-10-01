@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import math
 import sys
 from pathlib import Path
 from typing import NoReturn
@@ -9,12 +10,13 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import ppt_automation
+from src.subtitle_candidates import SubtitleCandidateRun
 from src.audio_preparation import AudioPreparationOptions, prepare_audio_manifest, validate_preparation_options
-from src.audio_position_locator import DEFAULT_GLOBAL_SCALE_CORRECTION, locate_slide_start_and_end_times
+from src.audio_position_locator import DEFAULT_GLOBAL_SCALE_CORRECTION
 from src.exceptions import Pptx2VideoError, PptParseError, TTSGenerationError
 from src.logging_config import setup_logging
 from src.pptx_parser import extract_notes
-from src.subtitle_pipeline import SubtitleTimingError, generate_srt_for_deck, generate_srt_from_true_starts
+from src.subtitle_pipeline import SubtitleTimingError, generate_srt_for_deck
 from src.tts import generate_audio_files
 
 
@@ -134,70 +136,19 @@ def write_subtitle_output(payload, output_path, audio_dir=None, default_slide_du
 
 def write_subtitle_output_from_export(
     payload, output_path, video_path, audio_dir=None, default_slide_duration=5.0,
-    global_scale_correction=DEFAULT_GLOBAL_SCALE_CORRECTION,
+    global_scale_correction=DEFAULT_GLOBAL_SCALE_CORRECTION, candidate_run=None,
 ):
-    """Like ``write_subtitle_output``, but positions each slide's subtitle
-    lines using its *measured* real start time in ``video_path`` (an
-    already-exported MP4) instead of a predicted cumulative sum - see
-    ``src.audio_position_locator`` and
-    ``subtitle_pipeline.generate_srt_from_true_starts()`` for why: the
-    predictive path was found to drift by several seconds on a real
-    long/complex deck, and not as a simple uniform scaling factor either, so
-    it isn't trustworthy on its own once a real exported video exists to
-    measure against instead.
+    """Publish initial/corrected SRTs from one localization pass; retain preview.
 
-    Requires ``video_path`` to already exist (i.e. this must be called after
-    ``ppt_automation.export_video()`` succeeds) and needs ffmpeg on PATH
-    plus the numpy/scipy dependencies - see ``audio_position_locator``'s
-    module docstring. Raises whatever ``locate_slide_start_and_end_times``
-    raises (e.g. ``RuntimeError`` if the video's audio track can't be
-    extracted at all) rather than swallowing it - callers should catch this
-    and fall back to ``write_subtitle_output`` if they want the run to still
-    produce a (less accurate) SRT rather than fail outright.
-
-    Returns ``(output_path, warnings)`` - ``warnings`` combines
-    ``locate_slide_start_and_end_times``'s warnings (prefixed) with
-    ``generate_srt_from_true_starts``'s.
+    Failures are recorded in the report and never replaced by a prediction under
+    a measured filename. Callers retain the exported video for manual review.
     """
-    output_path = Path(output_path)
-    slides = payload.get("slides", [])
-    manifest = payload.get("audio") or {}
-    resolved_audio_dir = audio_dir or payload.get("metadata", {}).get("audio_output_dir") or "."
-
-    # build_payload() stores slides without the raw notes text stripped out,
-    # but generate_srt_for_deck/generate_srt_from_true_starts both expect
-    # the same shape pptx_parser.extract_notes() produces (slide_num, notes)
-    # - payload's enriched slides already carry both under those same keys,
-    # so no reshaping is needed here.
-    #
-    # Uses locate_slide_start_and_end_times() (not just ...start_times()) so
-    # generate_srt_from_true_starts() can measure each slide's own intra-
-    # slide stretch ratio directly (via its own measured end), rather than
-    # inferring it from the gap to the next slide's start - the latter was
-    # found (via scripts/verify_srt_accuracy.py's word-level ground-truth
-    # sampling on a real deck) to be biased by whatever gap PowerPoint's
-    # export inserts *between* slides, a separate effect from this slide's
-    # own narration stretching. See subtitle_pipeline.py's module docstring,
-    # design decision 5.
-    alignment_records = {}
-    bounds, locate_warnings = locate_slide_start_and_end_times(
-        video_path, slides, manifest, resolved_audio_dir, default_slide_duration=default_slide_duration,
-        global_scale_correction=global_scale_correction,
-        diagnostics=alignment_records,
+    run = candidate_run or SubtitleCandidateRun(
+        payload, output_path, video_path,
+        audio_dir or payload.get("metadata", {}).get("audio_output_dir") or ".",
+        default_slide_duration, global_scale_correction,
     )
-    start_times = {slide_num: start for slide_num, (start, _end) in bounds.items()}
-    end_times = {slide_num: end for slide_num, (_start, end) in bounds.items()}
-
-    srt_text, srt_warnings = generate_srt_from_true_starts(
-        slides, manifest, resolved_audio_dir, start_times, end_times,
-        default_slide_duration=default_slide_duration,
-        alignment_records=alignment_records,
-    )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(srt_text, encoding="utf-8")
-
-    warnings = [f"(true-start locate) {w}" for w in locate_warnings] + srt_warnings
-    return output_path, warnings
+    return run.finish(video_path)
 
 
 def _fail(parser: argparse.ArgumentParser, logger: logging.Logger, message: str) -> NoReturn:
@@ -456,6 +407,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    if not math.isfinite(args.global_scale_correction) or args.global_scale_correction <= 0:
+        parser.error("--global-scale-correction must be positive and finite")
 
     explicit_preparation = [name for name in (
         "prepared_audio_dir", "prepared_audio_format", "prepared_audio_bitrate",
@@ -686,53 +639,27 @@ def main() -> None:
 
     subtitle_output_path = Path(args.subtitles_output) if args.subtitles_output else None
 
-    # Subtitle timing has two ways to be placed on the deck-wide timeline -
-    # see subtitle_pipeline.py's module docstring:
-    #
-    # - "Predictive" (write_subtitle_output): sums each slide's own audio
-    #   duration to guess its position. Fast, but was found (on a real
-    #   ~2h40m/20-slide deck) to drift by several seconds from the actual
-    #   exported video, and not as a simple scaling factor either - not
-    #   trustworthy for long/complex decks.
-    # - "True-start" (write_subtitle_output_from_export): measures each
-    #   slide's *real* start time by cross-correlating against the actual
-    #   exported MP4's audio track. Accurate, but can only run after
-    #   --export-video has produced that file.
-    #
-    # So: if this run is also exporting a video, subtitle generation is
-    # deferred until after that export succeeds (see below) and uses the
-    # accurate true-start path; only write the predictive version now, up
-    # front, when no video is being exported this run at all (there's
-    # nothing yet to measure against).
-    #
-    # Like the true-start path below, this resolves the audio manifest via
-    # _resolve_audio_manifest() rather than only using whatever this
-    # invocation's --generate-audio (if any) produced - so running just
-    # `--subtitles-output` after audio was already generated in an earlier,
-    # separate `--generate-audio` run still produces real subtitle lines
-    # from the existing manifest.json, instead of silently writing an empty
-    # .srt and requiring --generate-audio to be repeated (and edge-tts
-    # called again) purely to re-derive data that's already on disk.
-    if subtitle_output_path and not args.export_video:
-        manifest_for_subtitles = _resolve_audio_manifest()
-        payload_for_subtitles = payload
-        if manifest_for_subtitles is not audio_manifest:
-            payload_for_subtitles = build_payload(
-                slides,
-                pptx_path,
-                audio_manifest=manifest_for_subtitles,
-                audio_output_dir=effective_audio_dir,
+    candidate_run = None
+    if subtitle_output_path:
+        if args.export_video:
+            try:
+                candidate_run = SubtitleCandidateRun(
+                    payload, subtitle_output_path,
+                    args.video_output or str(Path(args.pptx_output or pptx_path).with_suffix(".mp4")),
+                    effective_audio_dir, args.video_default_duration, args.global_scale_correction,
+                )
+                candidate_run.preview()
+                logger.info("Saved preview subtitles to %s", candidate_run.paths["preview"])
+            except (OSError, ValueError, RuntimeError) as exc:
+                _fail(parser, logger, f"Subtitle preview failed: {exc}")
+        else:
+            subtitle_output_path, subtitle_warnings = write_subtitle_output(
+                payload, subtitle_output_path, audio_dir=effective_audio_dir,
+                default_slide_duration=args.video_default_duration,
             )
-
-        subtitle_output_path, subtitle_warnings = write_subtitle_output(
-            payload_for_subtitles,
-            subtitle_output_path,
-            audio_dir=effective_audio_dir,
-            default_slide_duration=args.video_default_duration,
-        )
-        logger.info(f"Saved subtitles to {subtitle_output_path}")
-        for warning in subtitle_warnings:
-            logger.warning(f"Subtitle generation: {warning}")
+            logger.info(f"Saved subtitles to {subtitle_output_path}")
+            for warning in subtitle_warnings:
+                logger.warning(f"Subtitle generation: {warning}")
 
     # Shared by --insert-audio and --export-video: the PPTX path that
     # downstream steps should operate on. If --insert-audio ran, this is
@@ -744,6 +671,8 @@ def main() -> None:
         manifest_for_insert = _resolve_audio_manifest()
         if manifest_for_insert is None:
             manifest_path = Path(args.audio_output_dir) / "manifest.json"
+            if candidate_run:
+                candidate_run.fail(f"Insertion requires audio manifest: {manifest_path}")
             _fail(
                 parser,
                 logger,
@@ -766,6 +695,8 @@ def main() -> None:
                 ),
             )
         except (Pptx2VideoError, FileNotFoundError) as exc:
+            if candidate_run:
+                candidate_run.fail(exc)
             _fail(parser, logger, str(exc))
 
         logger.debug(json.dumps(insert_result, ensure_ascii=False, indent=args.indent))
@@ -804,6 +735,8 @@ def main() -> None:
                 progress_callback=_print_video_progress,
             )
         except (Pptx2VideoError, FileNotFoundError) as exc:
+            if candidate_run:
+                candidate_run.fail(exc)
             _fail(parser, logger, str(exc))
 
         logger.debug(json.dumps(export_result, ensure_ascii=False, indent=args.indent))
@@ -813,63 +746,23 @@ def main() -> None:
         )
 
         if subtitle_output_path:
-            manifest_for_subtitles = _resolve_audio_manifest()
-            payload_for_subtitles = payload
-            if manifest_for_subtitles is not audio_manifest:
-                # audio_manifest was None (no --generate-audio this run) and
-                # got resolved from a previous run's manifest.json - rebuild
-                # payload's slide list against it so subtitle generation
-                # sees the same audio_file/word_boundaries_file info
-                # insert_audio would have used.
-                payload_for_subtitles = build_payload(
-                    slides,
-                    pptx_path,
-                    audio_manifest=manifest_for_subtitles,
-                    audio_output_dir=effective_audio_dir,
+            try:
+                subtitle_output_path, subtitle_warnings = write_subtitle_output_from_export(
+                    payload, subtitle_output_path, export_result["output_path"],
+                    audio_dir=effective_audio_dir, default_slide_duration=args.video_default_duration,
+                    global_scale_correction=args.global_scale_correction, candidate_run=candidate_run,
                 )
-
-            if manifest_for_subtitles is None:
-                logger.warning(
-                    "Subtitle generation: no audio manifest available "
-                    f"(run with --generate-audio, or ensure "
-                    f"{Path(args.audio_output_dir) / 'manifest.json'} exists); "
-                    "writing an empty .srt."
-                )
-                subtitle_output_path, subtitle_warnings = write_subtitle_output(
-                    payload_for_subtitles,
-                    subtitle_output_path,
-                    audio_dir=effective_audio_dir,
-                    default_slide_duration=args.video_default_duration,
-                )
-            else:
-                try:
-                    subtitle_output_path, subtitle_warnings = write_subtitle_output_from_export(
-                        payload_for_subtitles,
-                        subtitle_output_path,
-                        export_result["output_path"],
-                        audio_dir=effective_audio_dir,
-                        default_slide_duration=args.video_default_duration,
-                        global_scale_correction=args.global_scale_correction,
-                    )
-                except SubtitleTimingError as exc:
-                    _fail(parser, logger, f"Subtitle candidate not saved; exported video retained: {exc}")
-                except Exception as exc:  # noqa: BLE001 - a working export shouldn't be sunk by subtitle alignment failing
-                    logger.warning(
-                        f"Subtitle generation: true-start alignment against the "
-                        f"exported video failed ({exc}); falling back to the "
-                        "predicted timeline, which may drift out of sync for "
-                        "long/complex decks."
-                    )
-                    subtitle_output_path, subtitle_warnings = write_subtitle_output(
-                        payload_for_subtitles,
-                        subtitle_output_path,
-                        audio_dir=effective_audio_dir,
-                        default_slide_duration=args.video_default_duration,
-                    )
-
-            logger.info(f"Saved subtitles to {subtitle_output_path}")
+            except (SubtitleTimingError, OSError, ValueError, RuntimeError) as exc:
+                if candidate_run and candidate_run.report["status"] not in ("partial_failure", "failed"):
+                    candidate_run.fail(exc)
+                _fail(parser, logger, f"Subtitle candidate failure; exported video retained: {exc}. "
+                      f"See {candidate_run.paths['report']}")
             for warning in subtitle_warnings:
                 logger.warning(f"Subtitle generation: {warning}")
+            for name in ("preview", "initial", "captions"):
+                logger.info("Subtitle %s: %s", name, candidate_run.paths[name])
+            logger.info("Alignment report: %s", candidate_run.paths["report"])
+            logger.info("Stage 1 complete: manually compare subtitles before running burn_subtitles.py.")
 
     if args.pretty or output_path is None:
         print(json.dumps(payload, ensure_ascii=False, indent=args.indent))

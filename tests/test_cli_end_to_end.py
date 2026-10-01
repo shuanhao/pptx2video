@@ -189,6 +189,44 @@ class CliEndToEndTests(unittest.TestCase):
         self.assertIn("Prepared manifests", stderr)
         tts.assert_not_called()
 
+    def test_export_preserves_three_candidates_and_stops_before_burning(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        plan = [{"slide_num": n, "has_narration": True, "duration_seconds": 10.,
+                 "captions": [{"text": str(n), "start_seconds": 1., "end_seconds": 2.}]} for n in (1, 2)]
+
+        def export(*args, **kwargs):
+            self.assertTrue((root / "captions_preview.srt").exists())
+            self.assertFalse((root / "captions_initial.srt").exists())
+            video = root / "video.mp4"
+            video.write_bytes(b"exported")
+            return {"output_path": str(video), "elapsed_seconds": 1}
+
+        with mock.patch("src.main.ppt_automation.export_video", side_effect=export), \
+             mock.patch("src.subtitle_candidates.build_caption_plan", return_value=(plan, [])) as build, \
+             mock.patch("src.subtitle_candidates._video_duration", return_value=30.), \
+             mock.patch("src.subtitle_candidates.locate_slide_start_and_end_times", return_value=({1: (1., 11.), 2: (12., 22.)}, [])) as locate, \
+             mock.patch("src.subtitle_burner.burn_subtitles_into_video") as burn:
+            stdout, stderr, code = self._invoke(argv + ["--export-video"])
+        self.assertIsNone(code, stderr)
+        build.assert_called_once()
+        locate.assert_called_once()
+        burn.assert_not_called()
+        self.assertIn("manually compare", stdout)
+        self.assertEqual((root / "captions_initial.srt").read_bytes(), (root / "captions.srt").read_bytes())
+        report = json.loads((root / "captions_alignment_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "awaiting_manual_review")
+
+    def test_export_failure_retains_preview_and_reports_pending_candidates(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        from src.exceptions import VideoExportError
+        with mock.patch("src.main.ppt_automation.export_video", side_effect=VideoExportError("COM failure")):
+            _, stderr, code = self._invoke(argv + ["--export-video"])
+        self.assertEqual(code, 2)
+        self.assertTrue((root / "captions_preview.srt").exists())
+        report = json.loads((root / "captions_alignment_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "failed")
+        self.assertEqual(report["artifacts"]["initial"]["status"], "not_generated")
+
     def test_parses_pptx_and_writes_json_and_srt_without_audio(self):
         pptx_path = self._create_pptx([
             ("Intro", "Hello there"),

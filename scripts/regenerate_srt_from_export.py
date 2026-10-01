@@ -47,10 +47,10 @@ from src.audio_position_locator import (
     DEFAULT_ANCHOR_SECONDS,
     DEFAULT_GLOBAL_SCALE_CORRECTION,
     DEFAULT_SEARCH_WINDOW_SECONDS,
-    locate_slide_start_and_end_times,
 )
 from src.pptx_parser import extract_notes
-from src.subtitle_pipeline import DEFAULT_SLIDE_DURATION_SECONDS, generate_srt_from_true_starts
+from src.subtitle_pipeline import DEFAULT_SLIDE_DURATION_SECONDS
+from src.subtitle_candidates import SubtitleCandidateRun
 from src.logging_config import ensure_utf8_console
 
 
@@ -119,44 +119,22 @@ def main() -> None:
     else:
         slides = extract_notes(str(args.pptx))
 
-    print(f"Measuring true per-slide start AND end times in {args.video} ...")
-    # locate_slide_start_and_end_times() (not just ...start_times()) so the
-    # SRT composition step can measure each slide's own intra-slide stretch
-    # ratio directly from its own (start, end) pair, instead of inferring it
-    # from the gap to the next slide's start - the latter was found to be
-    # biased by whatever gap PowerPoint's export inserts *between* slides,
-    # separate from a slide's own narration stretching (see
-    # subtitle_pipeline.py's module docstring, design decision 5, and
-    # scripts/verify_srt_accuracy.py, which is how this was confirmed on a
-    # real deck).
-    if args.global_scale_correction != 1.0:
-        print(f"Applying global scale correction: x{args.global_scale_correction}")
-    alignment_records = {}
-    bounds, locate_warnings = locate_slide_start_and_end_times(
-        args.video, slides, manifest, audio_dir,
-        default_slide_duration=args.default_slide_duration,
-        search_window_seconds=args.search_window_seconds,
-        anchor_seconds=args.anchor_seconds,
-        global_scale_correction=args.global_scale_correction,
-        diagnostics=alignment_records,
+    # Rebuild all candidate versions from one measurement, using the same
+    # publication/report policy as the first-stage main CLI.
+    run = SubtitleCandidateRun(
+        {"slides": slides, "audio": manifest, "source_pptx": str(args.pptx) if args.pptx else None},
+        args.output, args.video, audio_dir, args.default_slide_duration,
+        args.global_scale_correction, args.search_window_seconds, args.anchor_seconds,
     )
-    for w in locate_warnings:
-        print(f"WARNING (locate): {w}")
-
-    start_times = {slide_num: start for slide_num, (start, _end) in bounds.items()}
-    end_times = {slide_num: end for slide_num, (_start, end) in bounds.items()}
-
-    srt_text, srt_warnings = generate_srt_from_true_starts(
-        slides, manifest, audio_dir, start_times, end_times,
-        default_slide_duration=args.default_slide_duration,
-        alignment_records=alignment_records,
-    )
-    for w in srt_warnings:
-        print(f"WARNING (subtitles): {w}")
-
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(srt_text, encoding="utf-8")
-    print(f"Wrote {args.output} ({len(start_times)} slide(s) with a measured true start time).")
+    try:
+        _, warnings = run.finish()
+    except (ValueError, OSError, RuntimeError) as exc:
+        raise SystemExit(f"Subtitle candidate failure: {exc}. See {run.paths['report']}") from exc
+    for warning in warnings:
+        print(f"WARNING: {warning}")
+    for name, path in run.paths.items():
+        print(f"Wrote {name}: {path}")
+    print("Manually compare candidates before burning subtitles.")
 
 
 if __name__ == "__main__":
