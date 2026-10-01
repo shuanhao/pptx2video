@@ -337,15 +337,16 @@ def main() -> None:
         "--burn-subtitles", action="store_true",
         help="Also hardsub each segment's .srt into its .mp4, producing segment_N_burned.mp4. Requires --subtitles.",
     )
-    parser.add_argument("--bar-width", type=int, default=DEFAULT_BAR_WIDTH_PX, help=f"--burn-subtitles: black bar width in px (default: {DEFAULT_BAR_WIDTH_PX}).")
-    parser.add_argument("--bar-height", type=int, default=DEFAULT_BAR_HEIGHT_PX, help=f"--burn-subtitles: black bar height in px (default: {DEFAULT_BAR_HEIGHT_PX}).")
+    parser.add_argument("--bar-scale-mode", choices=("auto", "fixed"), default="auto", help="Auto: 720p/1080p bar geometry; fixed: 650/38/40 pixels. Explicit bar values are final pixels.")
+    parser.add_argument("--bar-width", type=int, default=None, help=f"--burn-subtitles: black bar width in px (auto-scaled; fixed: {DEFAULT_BAR_WIDTH_PX}).")
+    parser.add_argument("--bar-height", type=int, default=None, help=f"--burn-subtitles: black bar height in px (auto-scaled; fixed: {DEFAULT_BAR_HEIGHT_PX}).")
     parser.add_argument(
-        "--bar-bottom-offset", type=int, default=DEFAULT_BAR_BOTTOM_OFFSET_PX,
-        help=f"--burn-subtitles: px from the frame's bottom edge to the bar's TOP edge (default: {DEFAULT_BAR_BOTTOM_OFFSET_PX}).",
+        "--bar-bottom-offset", type=int, default=None,
+        help=f"--burn-subtitles: px from the frame's bottom edge to the bar's TOP edge (auto-scaled; fixed: {DEFAULT_BAR_BOTTOM_OFFSET_PX}).",
     )
     parser.add_argument("--font-name", default=DEFAULT_FONT_NAME, help=f"--burn-subtitles: font family (default: {DEFAULT_FONT_NAME!r}).")
-    parser.add_argument("--font-size", type=int, default=DEFAULT_FONT_SIZE, help=f"--burn-subtitles: font size in px (default: {DEFAULT_FONT_SIZE}).")
-    parser.add_argument("--margin-v", type=int, default=DEFAULT_MARGIN_V, help=f"--burn-subtitles: px from the frame's bottom edge to the text's bottom edge (default: {DEFAULT_MARGIN_V}).")
+    parser.add_argument("--font-size", type=int, default=DEFAULT_FONT_SIZE, help=f"--burn-subtitles: ASS font size (default: {DEFAULT_FONT_SIZE}).")
+    parser.add_argument("--margin-v", type=int, default=DEFAULT_MARGIN_V, help=f"--burn-subtitles: ASS MarginV from the bottom edge (default: {DEFAULT_MARGIN_V}).")
     parser.add_argument("--burn-crf", type=int, default=DEFAULT_CRF, help=f"--burn-subtitles: libx264 quality (default: {DEFAULT_CRF}).")
     args = parser.parse_args()
 
@@ -431,6 +432,7 @@ def main() -> None:
                 print(f"Burning {srt_output_path} into {output_path} -> {burned_output_path} ...")
                 burn_subtitles_into_video(
                     output_path, srt_output_path, burned_output_path,
+                    bar_scale_mode=args.bar_scale_mode,
                     bar_width_px=args.bar_width,
                     bar_height_px=args.bar_height,
                     bar_bottom_offset_px=args.bar_bottom_offset,

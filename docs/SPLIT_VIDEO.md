@@ -69,3 +69,19 @@ python scripts/burn_subtitles.py --video output/deck.mp4 --srt output/captions.s
 燒字幕的效果是「畫面下方一條固定寬度、固定位置的黑色長條，白色文字置中疊在上面」（不是 libass 預設的白字黑框、也不是隨文字長短自動縮放寬度的黑底框）。預設的黑條寬高、位置、字型、字級是專案負責人對照真實 1280x720 匯出投影片、實際目測校正過的數值（`w=650, h=38`，黑條頂邊距畫面底部 40px，`Noto Sans CJK TC` 字型、字級 15、文字距底部 1px），如果匯出解析度、字型、或字幕斷行長度（`DEFAULT_MAX_DISPLAY_WIDTH`）改變，這組數值很可能要重新校正——兩個燒字幕工具都提供 `--bar-width`/`--bar-height`/`--bar-bottom-offset`/`--font-name`/`--font-size`/`--margin-v`/`--crf`（`split_video_by_slides.py` 是 `--burn-crf`）可以覆寫，不用改程式碼。
 
 ⚠️ 燒字幕一定要重新編碼影片本身（`libx264`，因為是把文字畫進每一幀的像素），比純切割（`-c copy`）慢很多；音軌完全沒被動到，一律用 `-c:a copy` 直接複製。
+
+
+## Stage 5：字幕黑條自動縮放
+
+人工確認 SRT 後獨立執行：
+```powershell
+python scripts/burn_subtitles.py --video output/deck.mp4 --srt output/captions_initial.srt --output output/deck_burned.mp4
+```
+
+預設 `--bar-scale-mode auto` 使用 ffprobe 的實際影片尺寸：1280×720 採 650／38／40；1920×1080 採 975／57／60（黑條寬／高／底部至頂邊距離）。FontSize=15、MarginV=1 不縮放，兩者為 ASS 樣式座標值，不是直接輸出像素。
+
+三個幾何參數可逐項覆寫為最終像素；1080p 加 `--bar-width 900` 得到 900／57／60。`--bar-scale-mode fixed` 使用舊有 650／38／40 預設，也允許覆寫。1080p 未指定尺寸的預設效果因此有意改變。
+
+auto 僅支援無旋轉、方形像素的上述尺寸；其他影片需 fixed 或完整三個手動值。黑條須位於畫面內，高度不可大於底部 offset。所有模式均需 ffprobe 驗證，失敗停止、不猜測尺寸。輸出不得與輸入影片或字幕同一路徑。
+
+分段入口 `scripts/split_video_by_slides.py --burn-subtitles` 支援相同選項，共用 `src/subtitle_burner.py` 的 probe／resolve 邏輯。第一階段不自動選字幕或燒錄，不需重跑 TTS 或 PowerPoint。
