@@ -1,5 +1,7 @@
 # 字幕處理機制與可靠度改善評估報告
 
+> 現況對照（2026-10-01）：本文保留原始評估與歷史問題。資料雜湊追溯、匯出後候選 SRT 時間合法性檢查、逐頁 JSON 診斷與 prepared 音訊的 anchor 品質／退回政策已實作，不能再概括為全部尚未實作。文字模糊比對擴充、閱讀品質、跨環境準確率等仍屬建議；原始 MP3 仍用 legacy locator。音訊準備改採固定檔名與 incomplete／ready，失敗後重跑，不保留整批舊版。詳見 [現行手冊](AUDIO_PREPARATION.md)、[Stage 3](AUDIO_PREPARATION_STAGE3.md)、[Stage 4](AUDIO_PREPARATION_STAGE4.md)。
+
 - 撰寫日期：2026-09-30
 - 範圍：講稿、Edge-TTS WordBoundary、逐頁字幕、影片時間定位、SRT 合併與後續燒字幕。
 - 依據：本次對話中閱讀的專案 Markdown 文件，以及實際核對的 `subtitle_pipeline.py`、`subtitle_alignment.py`、`audio_position_locator.py`、`tts.py`、`main.py`、`regenerate_srt_from_export.py` 等程式碼。

@@ -4,6 +4,76 @@
 
 ## 使用方式
 
+### 兩階段完整 CLI
+
+第一階段，從乾淨原始 PPTX 產生影片及字幕候選（以下使用 4 秒 M4A）：
+
+```powershell
+python src/main.py examples/MPU_WK01.pptx `
+  --generate-audio `
+  --audio-output-dir output/MPU_WK01/audio `
+  --voice "zh-TW-YunJheNeural" --rate=+0% --pitch="+0Hz" `
+  --audio-tail-silence 4 `
+  --prepared-audio-dir output/MPU_WK01/audio_prepared `
+  --output output/MPU_WK01/slides.json `
+  --insert-audio --pptx-output output/MPU_WK01/deck_with_audio.pptx `
+  --export-video --video-output output/MPU_WK01/deck.mp4 `
+  --video-resolution 1080 --video-timeout 7200 `
+  --subtitles-output output/MPU_WK01/captions.srt `
+  --global-scale-correction 1.0 --verbose
+```
+
+此處先停下來，用同一份 MP4 掛載候選 SRT，確認聲音完整、補秒與同步；初次可先比對 initial，依報告優先檢查退回頁。第二階段只在人工選定字幕後執行：
+
+```powershell
+python scripts/burn_subtitles.py `
+  --video output/MPU_WK01/deck.mp4 `
+  --srt output/MPU_WK01/captions_initial.srt `
+  --output output/MPU_WK01/deck_burned.mp4
+```
+
+`--video-resolution 1080` 只指定高度，4:3 投影片可能匯出成 1440×1080。auto 僅支援 1280×720／1920×1080 方形像素、無旋轉影片；4:3 可加 `--bar-width 975 --bar-height 57 --bar-bottom-offset 60` 作手動版面設定，仍需目視核對。
+
+### 參數
+
+| 參數 | 啟用時預設 | 規則 |
+|---|---|---|
+| `--audio-tail-silence` | 0（關閉） | 唯一開關，0 或 1～10 的有限數值 |
+| `--prepared-audio-dir` | `output/audio_prepared` | 與原始目錄分離，不能相同或互相包含 |
+| `--prepared-audio-format` | m4a | m4a／wav |
+| `--prepared-audio-bitrate` | 64k | WAV 不接受明確指定 bitrate |
+| `--prepared-audio-sample-rate` | 24000 | 支援 8000／16000／22050／24000／32000／44100／48000 |
+| `--prepared-audio-channels` | 1 | 1 或 2 |
+
+補秒為 0 卻明確指定 prepared 參數會報错。沒有 `--prepare-audio`，也不再提供 `--force-prepare-audio`。ffmpeg 與 ffprobe 須在 PATH。
+
+### 字幕檔案與相依性
+
+| 產物 | 時點與用途 |
+|---|---|
+| captions_preview.srt | 匯出前；依完整音訊時長（含補秒）及空白頁預設時長累加 |
+| captions_initial.srt | 匯出後；共用定位結果，額外全域係數固定 1.0 |
+| captions.srt | initial 之後；使用指定全域係數，預設 1.0 時與 initial 相同 |
+| captions_alignment_report.json | 最先建立並持續更新；來源、狀態、警告、逐頁定位／退回 |
+
+自訂 lesson.srt 時依序衍生 lesson_preview.srt、lesson_initial.srt、lesson_alignment_report.json。`subtitle_candidates.py` 管理產物，`subtitle_pipeline.py` 建立／渲染字幕計畫，`audio_position_locator.py` 定位一次供兩版本共用。
+
+未使用 export-video 時維持單份預測 SRT。失敗時不能把舊檔視為本次成功；查看報告的 ready／failed／not_generated 與 run_id。合法的預測退回可產生候選，但不等於已實測同步。
+
+已有影片或手動匯出後，可不重跑 TTS／轉換／PowerPoint，直接重建：
+
+```powershell
+python scripts/regenerate_srt_from_export.py `
+  --video output/MPU_WK01/deck.mp4 `
+  --manifest output/MPU_WK01/audio_prepared/manifest.json `
+  --slides-json output/MPU_WK01/slides.json `
+  --output output/MPU_WK01/captions.srt --global-scale-correction 1.0
+```
+
+manifest 必須對應影片實際插入的音訊；不要在重建前更改補秒／格式而覆寫它。音訊設定有變就從乾淨 PPTX 重新插入匯出。
+
+### 已有音訊，只做準備
+
 `--audio-tail-silence` 維持唯一開關：0 不轉換，1～10 秒（可小數）啟用。M4A 預設 AAC-LC、64k、24000 Hz、單聲道；WAV 使用 PCM 16-bit。原始 audio 不修改。
 
 ```powershell

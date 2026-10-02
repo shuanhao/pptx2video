@@ -1,5 +1,7 @@
 # Stage 1：音訊準備模組
 
+> 本文件是該階段完成時的紀錄；「後續／尚未」僅指當時。Stage 1～5 功能目前已實作，現行規格見 [音訊準備手冊](AUDIO_PREPARATION.md)，剩餘驗收見 [Stage 6](AUDIO_PREPARATION_STAGE6.md)。
+
 > 設計更新：音訊準備已改為同層固定檔名、每次全部重轉，移除 `--force-prepare-audio` 與快取重用。以下關於版本化、整批回復與重用的敘述保留為歷史紀錄；現行規則見 [音訊準備手冊](AUDIO_PREPARATION.md)。舊驗收結果不等同新版已通過驗收。
 
 

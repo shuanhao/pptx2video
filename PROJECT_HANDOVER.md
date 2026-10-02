@@ -4,7 +4,9 @@
 pptx2video (PPTX Auto Presenter)
 
 ## 文件版本
-對應程式版本 v0.5.0；本文件已改寫，移除與 README.md / CHANGELOG.md / TODO.md 重複的內容，只保留架構設計、設計原因、PowerPoint COM 特性、開發注意事項、維護建議與未來擴充方向。v0.5.0 更新：字幕生成從 PoC 畢業，第 4.4 節與第 7 節對應項目已改寫。
+
+現行新增模組：`audio_preparation.py` 每次以原始 MP3 全批重轉為固定檔名，schema 2 manifest 先 incomplete 再 ready；`validate_audio_manifest()` 由載入／插入、字幕與定位入口共用。`subtitle_candidates.py` 管理三份 SRT、來源追溯與逐檔提交，定位失敗不冒充成功。資料流為原始來源 → optional prepared → effective manifest → preview → 插入／匯出 → initial／captions／報告 → 人工選字幕 → 獨立燒錄。參數及失敗政策見 [音訊準備手冊](docs/AUDIO_PREPARATION.md)。
+對應 feature/audio-preparation-subtitle-workflow 現行實作（含固定檔名全批重轉）。功能已實作；自動化與人工驗收範圍分開記錄，尚未合併 main。歷史 v0.x 描述僅作設計背景。
 
 ## 目標對象
 接手開發者、AI 協作 Agent
@@ -45,7 +47,7 @@ pptx2video 是一套針對 Windows 桌面環境設計的輕量化自動化工具
 1. 解析 .pptx 的頁數與備忘稿
 2. 使用 Edge-TTS 產生逐頁語音，同時取得逐字時間（WordBoundary）
 3. 透過 Windows COM 控制 PowerPoint 插入音訊並匯出 MP4
-4. 把備忘稿斷句、對齊到逐字語音時間，合併成整份 SRT 字幕——沒有搭配匯出影片時用「預測」時間軸（每頁時長加總）；有搭配 `--export-video` 時，改在匯出完成後，用音訊互相關比對匯出影片的實際音軌，取代預測（見第 4.10 節、CHANGELOG v0.6.0）
+4. 由相同 effective manifest 建立字幕計畫，匯出前保留 preview，匯出後定位一次生成 initial／captions 及報告，人工選定後獨立燒錄。
 
 ### 主要技術選型與原因
 
@@ -80,7 +82,7 @@ graph TD
     F3 --> H[輸出 output/captions.srt]
 ```
 
-`F3` 合併字幕時間軸有兩種模式：只有 `--subtitles-output`（沒有匯出影片）時用「預測」（把每頁 mp3 時長加總）；有搭配 `--export-video` 時，字幕改到匯出完成後才產生，改用 `audio_position_locator.py` 量到的**真實**起始時間，取代預測（見 CHANGELOG v0.6.0，長影片下預測會逐頁累積漂移）。細節見第 4.6、4.7 節。
+上圖為原始 MP3 管線示意；現行 optional audio_preparation 位於 TTS 與插入之間。subtitle_candidates 管理 preview／initial／captions 與報告，preview 在匯出前、另外兩份在匯出後；詳見 [音訊準備手冊](docs/AUDIO_PREPARATION.md)。
 
 圖中沒畫出來的錯誤處理路徑（`_fail()` 統一收斂、單頁跳過 vs 整體中止）見第 4.9 節、第 4.8 節的例外階層、與第 5.6 節的 Skip/Abort 判斷表；COM session 的開關生命週期見第 3 節與第 4.3 節。
 
@@ -193,7 +195,7 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 
 負責：把每張投影片各自對齊好的字幕（4.5 節的輸出，跟時間軸怎麼擺放無關），依照它們在最終影片裡的位置合併成一份完整 SRT。共用的每頁對齊邏輯抽在 `_build_slide_captions()`，兩種擺放時間軸的方式分開成兩個公開函式：
 - **`generate_srt_for_deck()`（預測模式，v0.5.0）**：每張投影片的時長 = 該投影片音訊檔案的**實際長度**（用 `pydub` 量測，不是估算），沒有備忘稿的投影片則用 `default_slide_duration`，逐頁加總算出每頁在時間軸上的位置。這個假設早期（小規模測試簡報）曾驗證過偏差在 0.2 秒內，但在 v0.6.0 的一份真實長講稿測試（2 小時 40 分、20 頁）中發現，長影片下這個預測會累積漂移到數秒，而且不是等比例關係——只有在**沒有搭配 `--export-video`**（沒有真正的匯出影片可以測量）時才會使用這個模式，此時仍是「盡力而為」的估計值。
-- **`generate_srt_from_true_starts()`（真實起始時間模式，v0.6.0 新增）**：每張投影片的時間軸位置改用 4.7 節 `audio_position_locator.locate_slide_start_times()` 量到的**真實**起始時間，不做任何預測假設。只有在**這次執行同時有 `--export-video`** 時才會走這個模式（見 `main.py` 第 4.10 節）。單一投影片如果沒量到真實起始時間（音檔缺失、比對失敗），會退回該頁的預測位置並記錄警告，不會讓整份字幕開天窗。
+- `generate_srt_from_true_starts()` 保留既有 API；主 CLI／重建入口現使用 SubtitleCandidateRun，共用 build_caption_plan 與 render_caption_plan，按定位 records 生成候選。prepared 有可靠頁首時可退回 head_only，無可靠頁首時用 predicted，均需人工檢查。
 - 兩種模式都：沒有備忘稿的投影片沒有字幕，但仍然佔用時長，必須算進累加時間軸，否則後面所有投影片的字幕都會提早；所有投影片的字幕行依序串接後只呼叫一次 `format_srt()`，編號連續，不分投影片重新編號；遇到「有音訊但沒有 WordBoundary 資料」「音訊檔案讀不到」「WordBoundary 檔案壞掉」等情況，都是跳過該投影片、記錄警告、繼續處理後面的投影片，不會讓整個合併中斷。
 
 ### 4.7 audio_position_locator.py（v0.6.0 新增）
@@ -216,7 +218,7 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 **主要依賴**：`ffmpeg`（含 `libass`/`subtitles` filter，需在 PATH）
 
 負責：把字幕以「固定寬高、固定位置的黑色長條 + 白色無外框文字」燒進影片畫面（`burn_subtitles_into_video()`），而不是 libass 內建 `BorderStyle=3` 那種隨每行文字長短自動縮放寬度的貼字黑底框。背景：專案負責人想要的效果是「畫面下方一條固定寬度的黑 bar，不管這行字幕多長，黑 bar 大小都一樣」，並且黑 bar 的位置要能避開投影片模板本身的頁尾元素（logo、頁碼），這兩點都不是 libass 自動貼字框能做到的，因此改用 ffmpeg 的 `drawbox` 濾鏡先畫一條獨立的黑色長條，再疊上 `subtitles` 濾鏡渲染純白、無外框無陰影的文字（`BorderStyle=1,Outline=0,Shadow=0`）。
-- 黑條的預設寬高／位置（`w=650,h=38`，頂邊距畫面底部 40px）、字型（`Noto Sans CJK TC`）、字級（`15`）、文字距底部距離（`MarginV=1`）都是專案負責人對照一份真實 1280x720 匯出投影片、實際目測反覆調整校正出來的數值——**不是通用常數**，換一個匯出解析度、換字型、或改動字幕斷行長度（`subtitle_segmenter.DEFAULT_MAX_DISPLAY_WIDTH`）都可能需要重新校正，見 `docs/SPLIT_VIDEO.md`「想把字幕直接燒進畫面」一節。
+- 黑條由 ffprobe 讀取實際尺寸：auto 對 1280×720 使用 650／38／40，1920×1080 使用 975／57／60。FontSize=15、MarginV=1 為 ASS 樣式座標，不縮放；其他比例（含 1440×1080）需 fixed 或完整三項像素覆寫。
 - `build_burn_filter()` 刻意拆成獨立函式，只組字串、不執行 ffmpeg，方便不需要裝 ffmpeg 就能單元測試濾鏡字串本身的正確性（見 `tests/test_subtitle_burner.py`）。
 - `_escape_path_for_ffmpeg_filter()`：ffmpeg 的 filtergraph 語法裡 `:` 是分隔 filter 參數用的、`'` 是引號——Windows 絕對路徑裡的磁碟機代號冒號（例如 `C:\...`）如果不跳脫，會被誤判成新的 filter 參數而整串解析失敗（不是「檔案找不到」這種好懂的錯誤），所以這裡統一把反斜線換成正斜線、`:` 跳脫成 `\:`、`'` 跳脫成 `\'`。
 - 燒字幕一定要重新編碼影片（`-c:v libx264`，因為是把像素畫進每一幀），音軌完全沒被動到、一律 `-c:a copy` 直接複製、不重新編碼。
@@ -267,7 +269,7 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - 提供 CLI 入口
 - 決定輸入與輸出路徑
 - 讓使用者只需執行一個命令即可完成流程
-- **v0.6.0 起：決定字幕要用哪種模式產生**——`--subtitles-output` 搭配 `--export-video` 時，字幕產生從「跟 `--generate-audio` 同時進行」改成「等 `--export-video` 成功後才進行」，改呼叫 4.7 節的 `audio_position_locator` + 4.6 節的 `generate_srt_from_true_starts()`；只有 `--subtitles-output`、沒有 `--export-video` 時，維持原本「跟 `--generate-audio` 同時」的 `generate_srt_for_deck()` 預測路徑。真實起始時間比對本身失敗時（例如缺 ffmpeg），記錄警告後自動退回預測路徑，不會讓已經成功匯出的影片因為字幕比對失敗而讓整個指令回報錯誤
+- **現行字幕調度**：未匯出時生成單份預測字幕；匯出時由 SubtitleCandidateRun 先發布 preview，再定位、各別驗證及發布 initial／captions。定位失敗會回報錯誤，不以 preview 冒充實測成功；partial_failure 可以保留另一份合法候選，報告區分本次 ready 與舊檔。
 - 統一在 `_fail()` 這個 helper 裡處理錯誤：先寫進 log（`logger.error()`），再透過 `parser.error()` 印給使用者看並結束程式
 
 ---
@@ -290,8 +292,8 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 ### 5.4 字幕與語音同步
 字幕與音檔時長必須一致，避免出現時間漂移。目前的做法：
 - 每張投影片的字幕時間對齊 edge-tts 實際回報的 WordBoundary 時間（`subtitle_alignment.py`），不是估算——這一層 v0.5.0 起就沒變過，不受下面這點影響
-- 多投影片合併成整支影片的時間軸時（v0.6.0 起）：**只要這次執行有搭配 `--export-video`**，改用 `audio_position_locator.py` 對匯出好的 MP4 做互相關比對，量出每頁真實起始時間，不是預測（見第 4.6、4.7 節）。這個改動的起因是：早期只用小規模測試簡報驗證過「以每頁音訊實際量測長度加總」這個預測假設，偏差在 0.2 秒內；但用一份真實長講稿（2 小時 40 分、20 頁）重新測試後，發現預測時間軸會逐頁累積漂移到數秒，而且不是等比例關係、無法用單一縮放係數校正——`scripts/verify_slide_timing.py` 是保留下來的診斷工具，可以用來對任何一次匯出重新驗證這個假設是否仍然成立。**只有** `--subtitles-output` **沒有搭配** `--export-video` **時**，才會退回沿用舊的「預測」時間軸，因為這種情況下沒有已匯出的影片可以測量。
-- **即使搭配 `--export-video` 用了真實起始時間，仍可能需要 `--global-scale-correction`**（v0.6.1 第四輪修正，見第 4.7 節）：真實起始時間量測本身，在同一份 2 小時 40 分鐘 deck 上被發現帶有一個跟已播放時間成正比的系統性偏差，且已排除是匯出檔案本身音畫不同步或本專案重取樣造成的。這跟上一點「預測時間軸的漂移」是兩個不同層級的問題——一個是「要不要用真實量測取代預測」，一個是「真實量測本身夠不夠準」，兩者都需要处理才能在超長 deck 上得到準確字幕。
+- 多頁字幕：預測累加有效音訊全長（含補秒）與空白頁時長；匯出後或重建時定位。可靠頁採實測，退回頁採預測並列報告，不能統稱為全部實測。
+- 額外 global_scale_correction 預設 1.0。歷史長片有比例偏差案例，但本次 M4A 範例 initial 已通過人工同步；只有獨立觀測支持時才使用非 1.0。
 
 ### 5.5 COM 操作為何不做自動重試
 
@@ -323,8 +325,8 @@ TTS 網路請求有自動重試機制（見 4.2），但 `insert_audio()` / `exp
 ## 6. 維護建議
 
 - **修改 `insert_audio()` / `export_video()` 前，先讀完第 3 節**：這兩個函式的行為高度依賴實測發現的 COM 特性（`PlayOnEntry`、`CreateVideoStatus`），單看程式碼容易誤以為某些設定是多餘的而砍掉。
-- **版本相容性尚未正式驗證**：目前沒有明確記錄專案在哪些 Python 版本（`pyproject.toml` 只寫 `>=3.9`）、哪些 PowerPoint 版本上實測過。如果之後要支援更多環境，建議先補上這份相容性矩陣，尤其是 `CreateVideoStatus` 列舉值這種「文件說的跟實測不一定一致」的地方。
-- **輸出資料夾規劃還很粗略**：目前只有 `output/`、`logs/`、`temp/` 幾個目錄，沒有正式規範哪些檔案該放哪裡、要保留多久。專案目前刻意不自動清理暫存檔（見 [TODO.md](TODO.md)），但如果之後要做批次處理，這塊需要重新設計。
+- **跨版本相容性尚未全面驗證**：本機 Python 3.13、PowerPoint 16.0 有部分驗收紀錄，不代表所有 Python／Office 環境通過。Stage 6 的自動匯出曾因系統分頁檔不足中斷，手動匯出成功不取代自動流程驗收。
+- **產物管理**：原始 audio 與 prepared 分離；prepared 固定檔名全批覆寫，incomplete／ready 控制可用性。舊 UUID 與其他未引用檔案不自動刪除；不能同時轉換與消費同一目錄。
 - **新增功能前，先確認 CHANGELOG.md / TODO.md 是否需要同步更新**：之前曾發生過「TODO 裡某項目其實已經實作完成，但 checkbox 沒打勾」這種文件落後於程式碼的情況，之後每次合併新功能都建議順手檢查這兩份文件有沒有跟上。
 
 ---
@@ -335,13 +337,13 @@ TTS 網路請求有自動重試機制（見 4.2），但 `insert_audio()` / `exp
 
 - **現場放映自動播放**：解決第 3 節提到的「插入音訊後現場放映仍需點擊」問題。目前判斷優先度低，因為已確認不影響 MP4 匯出這條主要路徑；如果之後有真的需要現場簡報（非僅匯出影片）的使用情境，才需要回來重新研究 `slide.TimeLine.MainSequence` 或其他 COM API。
 - **字幕排版的兩個已知取捨**（v0.5.0 刻意暫緩，詳見 TODO.md）：原文裡「例如：」這類自成一段的極短句子會產生顯示時間很短的獨立字幕行（段落硬邊界規則導致）；純英文內容在目前針對中文調校的行寬設定下換行不夠自然。兩者都是局部、獨立的改動（前者在 `subtitle_segmenter.py` 的段落合併邏輯或 `subtitle_pipeline.py` 的時間軸層級，後者在 `subtitle_segmenter.py` 的排版演算法 `_pack_units`），不會因為延後處理而增加複雜度，等看到更多真實內容、確認問題實際嚴重程度後再決定。
-- **批次處理與輸出目錄管理**：支援多檔輸入、更完整的輸出目錄規劃，跟第 6 節「輸出資料夾規劃還很粗略」是同一件事的兩個角度。
+- **多簡報批次處理與清理政策**：目前同一來源可全批重轉，但沒有多簡報排程或跨程序鎖；不自動清理歷史 UUID 與未引用產物。
 - **同一個 PowerPoint session 共用**：目前 `--insert-audio` 跟 `--export-video` 在同一行指令裡執行時，PowerPoint 會被開關兩次（各自獨立完成後就關閉）。這不影響結果，只是多花一點時間；如果之後有大量批次處理、在意這個開銷，可以優化成同一個 session 共用，但需要重新設計 `_powerpoint_session()` 的生命週期管理。
 
 暫不處理、優先度更低的方向（超出目前專案定位，需要更大規模重新設計才能做）：
 - GUI 支援
 - Plugin 架構
-- 更細粒度的 Output Validation（目前只驗證檔案存在且非空，「能否開啟」「影片長度是否合理」等更進階檢查暫緩，等有實際需求再做）
+- MP4 本體的完整解碼及音畫品質驗證仍可加強；prepared 音訊已做解碼／格式／時長驗證，候選字幕已做時間合法性檢查。
 
 ---
 
@@ -352,6 +354,8 @@ pptx2video/
 ├── src/                     # 主要程式碼
 │   ├── main.py                   # CLI 入口與 JSON 輸出
 │   ├── pptx_parser.py            # 解析 .pptx 與 notes
+│   ├── audio_preparation.py      # 固定檔名全批補秒；incomplete／ready manifest
+│   ├── subtitle_candidates.py    # 三候選字幕、來源核對及診斷報告
 │   ├── tts.py                    # edge-tts 音訊生成，含逐字時間（WordBoundary）擷取
 │   ├── subtitle_segmenter.py     # 字幕斷句：備忘稿 → 適合當一行字幕的片段（純文字，不涉及時間）
 │   ├── subtitle_alignment.py     # 字幕對齊：把斷好的片段對齊到實際語音時間，輸出 SRT 文字
@@ -462,6 +466,3 @@ python scripts/burn_subtitles.py --video output/deck.mp4 --srt output/captions_i
 auto 僅支援無旋轉、方形像素的上述尺寸；其他影片需 fixed 或完整三個手動值。黑條須位於畫面內，高度不可大於底部 offset。所有模式均需 ffprobe 驗證，失敗停止、不猜測尺寸。輸出不得與輸入影片或字幕同一路徑。
 
 分段入口 `scripts/split_video_by_slides.py --burn-subtitles` 支援相同選項，共用 `src/subtitle_burner.py` 的 probe／resolve 邏輯。第一階段不自動選字幕或燒錄，不需重跑 TTS 或 PowerPoint。
-
-
-> 設計更新：音訊準備已改為同層固定檔名、每次全部重轉，移除 `--force-prepare-audio` 與快取重用。以下關於版本化、整批回復與重用的敘述保留為歷史紀錄；現行規則見 [音訊準備手冊](docs/AUDIO_PREPARATION.md)。舊驗收結果不等同新版已通過驗收。
