@@ -31,6 +31,40 @@ def _factory(chunks):
 
 
 class TtsGeneratorTests(unittest.TestCase):
+    def test_no_audio_response_retries_then_succeeds(self):
+        from edge_tts.exceptions import NoAudioReceived
+        calls = []
+        def generator(text, output_path, voice):
+            calls.append(1)
+            if len(calls) < 3:
+                output_path.write_bytes(b'')
+                raise NoAudioReceived('No audio was received')
+            output_path.write_bytes(b'audio')
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = generate_audio_files(
+                [dict(slide_num=1, notes='Hello')], tmp, generator=generator,
+                max_retries=3, retry_delay_seconds=0,
+            )
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(len(manifest['slides']), 1)
+            self.assertEqual((Path(tmp) / 'slide_001.mp3').read_bytes(), b'audio')
+
+    def test_no_audio_response_stops_at_retry_limit_without_manifest(self):
+        from edge_tts.exceptions import NoAudioReceived
+        calls = []
+        def generator(text, output_path, voice):
+            calls.append(1)
+            raise NoAudioReceived('No audio was received')
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = Path(tmp) / 'manifest.json'
+            with self.assertRaises(TTSGenerationError):
+                generate_audio_files(
+                    [dict(slide_num=1, notes='Hello')], tmp, generator=generator,
+                    manifest_path=manifest_path, max_retries=2, retry_delay_seconds=0,
+                )
+            self.assertEqual(len(calls), 3)
+            self.assertFalse(manifest_path.exists())
+
     def test_generate_audio_files_skips_slides_without_notes(self):
         slides = [
             {"slide_num": 1, "title": "Intro", "notes": "Hello there"},
