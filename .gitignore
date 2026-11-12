@@ -211,6 +211,7 @@ examples/*.pptx
 *.mp3
 *.mp4
 *.srt
+*.vtt
 *.wav
 *.log
 

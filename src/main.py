@@ -15,6 +15,7 @@ from src.logging_config import setup_logging
 from src.pptx_parser import extract_notes
 from src.subtitle_pipeline import generate_srt_for_deck, generate_srt_from_true_starts
 from src.tts import generate_audio_files
+from src.subtitle_vtt import write_slide_vtt
 
 
 def _non_negative_int(value: str) -> int:
@@ -294,6 +295,10 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=2.0,
         help="Seconds to wait between TTS retry attempts",
+    )
+    parser.add_argument(
+        "--vtt-output-dir",
+        help="Write per-slide WebVTT for original MP3 audio; attach captions in PowerPoint manually",
     )
     parser.add_argument(
         "--subtitles-output",
@@ -620,6 +625,16 @@ def main() -> None:
         logger.info(f"Saved JSON to {output_path}")
 
     subtitle_output_path = Path(args.subtitles_output) if args.subtitles_output else None
+
+    if args.vtt_output_dir:
+        manifest_for_vtt = _resolve_audio_manifest()
+        if not manifest_for_vtt:
+            _fail(parser, logger, "--vtt-output-dir requires an audio manifest with word boundaries")
+        try:
+            paths = write_slide_vtt(slides, manifest_for_vtt, args.audio_output_dir, args.vtt_output_dir)
+        except (ValueError, OSError) as exc:
+            _fail(parser, logger, f"Per-slide VTT generation failed: {exc}")
+        logger.info(f"Saved {len(paths)} per-slide VTT file(s) to {args.vtt_output_dir}")
 
     # Subtitle timing has two ways to be placed on the deck-wide timeline -
     # see subtitle_pipeline.py's module docstring:

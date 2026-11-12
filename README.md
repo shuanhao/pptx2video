@@ -24,7 +24,7 @@
 
 ## 🚀 快速開始（Windows）
 
-以下步驟適合在 Windows PowerShell 中從 GitHub 下載這個專案後直接開始使用。
+以下步驟適合 Windows PowerShell。每個 working copy 都要各自建立 `.venv`；不要複製或沿用另一個 working copy 的虛擬環境（editable install 可能指向另一個資料夾）。
 
 ### 1. 下載專案
 
@@ -33,11 +33,20 @@ git clone https://github.com/<your-username>/pptx2video.git
 cd pptx2video
 ```
 
+上面的 GitHub URL 是佔位範例，需替換成實際儲存庫網址。若已經有 working copy，跳過 clone，直接進入專案根目錄（請替換下方範例路徑）：
+
+```powershell
+Set-Location "C:\path\to\pptx2video"
+```
+
 ### 2. 建立虛擬環境
 
 ```powershell
-py -3 -m venv .venv
+py -0p
+py -3.13 -m venv .venv
 ```
+
+上方以 Python 3.13 為例；請先確認已安裝的直譯器版本，再選擇對應版本建立環境。若 launcher 沒列出已安裝的 Python，可使用其完整路徑，例如 `& "C:\path\to\Python313\python.exe" -m venv .venv`。Python 3.13 所需的 `audioop-lts` 已列為條件依賴，會自動安裝。
 
 ### 3. 啟動虛擬環境
 
@@ -45,18 +54,46 @@ py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-若 PowerShell 擋下執行腳本，可先執行：
+啟用只是在目前終端機調整 PATH，並非必要。若 PowerShell 擋下腳本，可直接用 `.\.venv\Scripts\python.exe` 執行下列指令，不必更改執行政策。若希望啟用，可只對目前終端機設定：
 
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+.\.venv\Scripts\Activate.ps1
 ```
 
 ### 4. 安裝依賴套件
 
 ```powershell
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip check
 ```
+
+`-e ".[dev]"` 依 `pyproject.toml` 安裝本專案、執行依賴及測試用 pytest，並讓程式碼修改即時生效。只使用、不跑測試可改成 `-e .`。另一種方式是 `python -m pip install -r requirements.txt`，測試依賴再加 `-r requirements-dev.txt`；兩種方式擇一即可。使用 requirements 方式時，從專案根目錄執行 `python -m pptx2video`。
+
+後續範例中的 `python` 假設已啟用本資料夾的 `.venv`；未啟用時請一律替換成 `.\.venv\Scripts\python.exe`，避免誤用系統 Python 或其他 working copy。
+
+### 4a. 安裝與確認外部工具
+
+Python 套件安裝不會安裝 FFmpeg 或 Microsoft PowerPoint。SRT／VTT 音訊時長量測需要 `ffmpeg`、`ffprobe` 都可由 PATH 找到。若尚未安裝 FFmpeg，可在有 winget 的 Windows 上執行：
+
+```powershell
+winget install --id Gyan.FFmpeg --exact
+```
+
+安裝後重新開啟 PowerShell，再回到本專案並確認：
+
+```powershell
+ffmpeg -version
+ffprobe -version
+.\.venv\Scripts\python.exe -c "import sys, pptx, edge_tts, pydub, jieba, numpy, scipy, win32com.client, audioop; print(sys.executable)"
+.\.venv\Scripts\python.exe -m pptx2video --help
+.\.venv\Scripts\python.exe -m pytest tests/test_subtitle_vtt.py -q
+```
+
+直譯器位置應為此 working copy 的 `.venv\Scripts\python.exe`。只產生 MP3／VTT 不需啟動 PowerPoint；手動掛載 VTT 需要可插入字幕的 PowerPoint 版本，自動插音訊／匯出影片則需要 Windows 桌面版 PowerPoint。Edge-TTS 生成音訊需要網路，重用既有 MP3 與時間資料產生 VTT 不需呼叫 TTS。
+
+目前依賴清單使用最低版本限制，沒有鎖版；新安裝可能與舊工作區版本不同。若需記錄實測環境，可執行 `.\.venv\Scripts\python.exe -m pip freeze > output\installed-packages.txt`（先建立 `output` 資料夾）。
 
 > `pywin32` 只會在 Windows 環境安裝（`requirements.txt` 已用 `sys_platform == "win32"` 標記），在其他作業系統上執行 `pip install` 會自動跳過它。
 
@@ -83,12 +120,12 @@ python -m pptx2video examples/sample_test.pptx --output output/slides.json
 ### 7. 生成語音（TTS）
 
 ```powershell
-python -m pptx2video examples/sample_test.pptx --generate-audio --audio-output-dir output/audio --voice "zh-TW-YunJheNeural" --rate=-10% --pitch="+0Hz"
+python -m pptx2video examples/sample_test.pptx --generate-audio --audio-output-dir output/audio --voice "zh-TW-YunJheNeural" --rate=-10% --pitch="+0Hz" --subtitles-output=
 ```
 
 這會把有 notes 的投影片轉成 MP3，並在 `output/audio/manifest.json` 建立對應的音訊清單。
 
-> `edge-tts` 直接把語音服務回傳的 MP3 位元組寫入檔案，**這個階段本身不需要安裝 ffmpeg**。ffmpeg 是在下一步「產生字幕」量測每張投影片實際音檔時長時才會用到（見下方需求說明）。
+> `edge-tts` 直接把語音服務回傳的 MP3 位元組寫入檔案，**純 TTS 本身不需要 ffmpeg**。上方用 `--subtitles-output=` 關閉預設 SRT；若省略此參數，CLI 預設同時產生 `output/captions.srt`，仍會需要 FFmpeg。VTT 也需要 FFmpeg／ffprobe 量測原始 MP3。
 
 > 🔧 **這一步出錯、或事後想針對某幾頁重跑時**：不用整份 deck 重新跑一次（長講稿可能要一個多小時）。加 `--slides 6,9`（逗號分隔頁碼/區間，例如 `6,8-10`）只重新生成指定頁面，其他頁面已生成好的音檔跟 `manifest.json` 紀錄不會被動到。常見情境：某頁因為網路問題生成失敗、想針對某頁換一下 `--voice`/`--rate` 重試、或下面「疑似漏講偵測」警告某一頁有問題想重新生成確認。指令範例與細節見下方「⚠️ `--generate-audio` 疑似漏講偵測」小節。
 
@@ -279,7 +316,7 @@ python -m pptx2video <pptx_path> [選項...]
 | `--voice` | `Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)` | edge-tts 使用的語音。也可用簡短格式如 `zh-TW-YunJheNeural`，若完整格式在你的環境報錯可改用簡短格式 |
 | `--rate` | `-10%` | 語速調整，語音會比原始語速慢 10%；正值加快、負值放慢，例如 `+10%`、`-20%`。⚠️ **負值務必用 `--rate=-20%` 等號寫法**，不要用空格分隔的 `--rate "-20%"`（見下方說明） |
 | `--pitch` | `+0Hz` | 音高調整，預設不改變音高 |
-| `--tts-max-retries` | `3` | edge-tts 生成失敗後（僅限判斷為暫時性的網路/服務錯誤）最多重試幾次，設為 `0` 停用重試。**必須是 0 或正整數**，帶負值會直接被 CLI 拒絕並提示錯誤 |
+| `--tts-max-retries` | `3` | edge-tts 生成失敗後（含 `NoAudioReceived` 等判斷為暫時性的錯誤）最多重試幾次，設為 `0` 停用重試。**必須是 0 或正整數**，帶負值會直接被 CLI 拒絕並提示錯誤 |
 | `--tts-retry-delay` | `2.0`（秒） | 兩次重試之間的等待秒數 |
 | `--subtitles-output` | `output/captions.srt` | 字幕輸出路徑，每次執行都會自動產生；需要 `--generate-audio`（或既有的 `manifest.json`）提供的逐字語音時間才能產出有內容的字幕，否則會寫出空白 `.srt`。**這次執行有沒有同時加 `--export-video` 會決定用哪種對齊方式**：沒有的話用「預測版」（加總每頁音檔時長猜位置，Step 8）；有的話會等匯出完成後才寫出，改用「真實起始時間版」（比對實際影片音軌量測，Step 10，較準）——見下方 Step 8／10 的說明 |
 | `--insert-audio` | `False`（flag） | 把已生成的音訊插入 PPTX 對應投影片，圖示縮小移到右上角並盡量隱藏。需要 Windows + PowerPoint + pywin32，且需已用 `--generate-audio` 產生過音檔（或指定的 `--audio-output-dir` 底下已有 `manifest.json`） |
@@ -388,3 +425,9 @@ python src/main.py output/deck_with_audio.pptx --export-video --video-output out
 * **需要架構層級思考、還沒到可直接執行程度的長期方向**（例如現場放映自動播放、批次處理與輸出目錄管理）：[PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「未來擴充方向」章節。
 
 已完成的項目與各版本詳情請見 [CHANGELOG.md](CHANGELOG.md)。
+
+## 每頁 VTT
+
+PPTX 原始 MP3 可搭配 `--vtt-output-dir output/vtt` 輸出每頁相對時間字幕，再手動加入 PowerPoint 音訊物件。用法、驗證與實作範圍見 [每頁 VTT 說明](docs/PER_SLIDE_VTT.md)。
+
+產生 VTT 不會自動產生嵌入音訊的新 PPTX；需要再執行 `--insert-audio --pptx-output output/deck_with_audio.pptx`，或自行插入音訊。TTS 偶發無音訊已加入有限次重試，但根因未確認；失敗批次的檔案與 manifest 可能不完整，詳見上述說明的限制與驗收紀錄。

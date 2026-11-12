@@ -21,6 +21,7 @@ pptx2video (PPTX Auto Presenter)
 - 功能特色、CLI 使用方式、快速開始：[README.md](README.md)
 - 版本歷史：[CHANGELOG.md](CHANGELOG.md)
 - 待辦事項與已知限制：[TODO.md](TODO.md)
+- 每頁 VTT 的操作、共用 cues、TTS 限制與手動驗收紀錄：[docs/PER_SLIDE_VTT.md](docs/PER_SLIDE_VTT.md)。VTT 沿用既有斷句與對齊，不另建一套邏輯；字幕掛載與播放屬性由使用者手動完成。
 
 這份文件專注在「為什麼這樣設計、開發時要注意什麼、之後接手要往哪裡擴充」。
 

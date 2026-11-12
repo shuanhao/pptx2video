@@ -6,6 +6,19 @@
 
 ## [未發布]
 
+### Added
+
+- 新增 `--vtt-output-dir`：共用既有每頁相對字幕 cues，為原始 MP3 輸出 `slide_NNN.vtt`，寫檔前驗證時間與字幕內容。無旁白頁不輸出 VTT；字幕行寬維持 36。PowerPoint 字幕掛載與播放屬性由使用者手動設定，詳見 [每頁 VTT](docs/PER_SLIDE_VTT.md)。
+- 補齊獨立 working copy 的 venv、套件安裝、FFmpeg／ffprobe 與初始化驗證說明。
+
+### Fixed
+
+- `edge-tts` 的 `NoAudioReceived` 現在納入既有有限次重試。實測同一頁首次無音訊、重試後成功；未確認間歇性無音訊的根本原因，重試耗盡仍會中止。
+
+### Validation
+
+- 使用者實測範例簡報：3 頁原始 MP3 與 VTT 成功產生，音訊嵌入 PPTX、手動掛載 VTT 及手動改為首次進頁自動播放均正常；字幕與音軌同步、無漏句。存檔重開及播放中換至下一頁停止前頁音訊通過；返回上一頁未自動重播，原因待確認。PowerPoint 版本與 Page Up 操作結果見 [手動驗收紀錄](docs/PER_SLIDE_VTT.md)。此紀錄不代表 Video 流程或其他字幕問題完成驗收。
+
 ## [0.10.0] - 2026-08-07
 
 ### Added
