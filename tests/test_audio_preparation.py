@@ -29,6 +29,7 @@ class PreparationValidationTests(unittest.TestCase):
             with self.subTest(seconds=seconds), self.assertRaises(ValueError):
                 validate_preparation_options(AudioPreparationOptions(tail_silence=seconds))
         for options in (AudioPreparationOptions(format="wav"),
+                        AudioPreparationOptions(4, "wav"),
                         AudioPreparationOptions(4, "wav", "64k"),
                         AudioPreparationOptions(4, "mp3")):
             with self.assertRaises(ValueError):
@@ -70,18 +71,17 @@ class PreparationIntegrationTests(unittest.TestCase):
 
     def test_formats_durations_and_originals_preserved(self):
         original = {p.name: p.read_bytes() for p in self.source.iterdir()}
-        for fmt in ("m4a", "wav"):
-            for seconds in (1, 1.5, 4, 8, 10):
-                with self.subTest(format=fmt, seconds=seconds):
-                    result = self.prepare(AudioPreparationOptions(seconds, fmt))
-                    entry = result["manifest"]["slides"][0]
-                    info = probe_audio(self.output / entry["audio_file"])
-                    self.assertEqual(info["codec"], "aac" if fmt == "m4a" else "pcm_s16le")
-                    self.assertEqual(info["sample_rate"], 24000)
-                    self.assertEqual(info["channels"], 1)
-                    self.assertAlmostEqual(info["duration_seconds"], 1.25 + seconds, delta=.09)
-                    self.assertEqual((self.output / entry["word_boundaries_file"]).read_bytes(),
-                                     original["slide_001.wordboundaries.json"])
+        for seconds in (1, 1.5, 4, 8, 10):
+            with self.subTest(seconds=seconds):
+                result = self.prepare(AudioPreparationOptions(seconds))
+                entry = result["manifest"]["slides"][0]
+                info = probe_audio(self.output / entry["audio_file"])
+                self.assertEqual(info["codec"], "aac")
+                self.assertEqual(info["sample_rate"], 24000)
+                self.assertEqual(info["channels"], 1)
+                self.assertAlmostEqual(info["duration_seconds"], 1.25 + seconds, delta=.09)
+                self.assertEqual((self.output / entry["word_boundaries_file"]).read_bytes(),
+                                 original["slide_001.wordboundaries.json"])
         self.assertEqual(original, {p.name: p.read_bytes() for p in self.source.iterdir()})
 
     def test_every_run_rebuilds_fixed_names_without_accumulating_silence(self):
@@ -94,19 +94,6 @@ class PreparationIntegrationTests(unittest.TestCase):
         self.assertFalse(any(p.is_dir() for p in self.output.iterdir()))
         self.assertAlmostEqual(probe_audio(self.output / "slide_001.m4a")["duration_seconds"], 5.25, delta=.09)
         self.assertEqual(second["manifest"]["preparation"]["status"], "ready")
-
-    def test_wav_preserves_decoded_narration_and_appends_silence(self):
-        result = self.prepare(AudioPreparationOptions(4, "wav"))
-        target = self.output / result["manifest"]["slides"][0]["audio_file"]
-
-        def pcm(path):
-            return subprocess.run(["ffmpeg", "-v", "error", "-i", str(path),
-                                   "-f", "s16le", "-c:a", "pcm_s16le", "pipe:1"],
-                                  check=True, capture_output=True).stdout
-
-        original, prepared = pcm(self.source / "slide_001.mp3"), pcm(target)
-        self.assertEqual(prepared[:len(original)], original)
-        self.assertEqual(prepared[len(original):], bytes(4 * 24000 * 2))
 
     def test_cli_real_preparation_rebuilds_audio_without_tts(self):
         import sys

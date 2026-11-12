@@ -6,6 +6,9 @@
 
 ## [未發布]
 
+- 依驗收回饋移除 prepared WAV 生成（檔案過大），只保留 M4A／AAC-LC；明確指定 wav 會報錯。取消 WAV 實機驗收，既有媒體不自動刪除。
+- 移除 WAV 後完整回歸 251 項測試全部通過、無跳過（含實際 FFmpeg／ffprobe）；移除 WAV 專用媒體測試，保留拒絕 WAV 參數的驗證。
+
 ### Added
 
 - 新增 `--vtt-output-dir`：共用既有每頁相對字幕 cues，為原始 MP3 輸出 `slide_NNN.vtt`，寫檔前驗證時間與字幕內容。無旁白頁不輸出 VTT；字幕行寬維持 36。PowerPoint 字幕掛載與播放屬性由使用者手動設定，詳見 [每頁 VTT](docs/PER_SLIDE_VTT.md)。

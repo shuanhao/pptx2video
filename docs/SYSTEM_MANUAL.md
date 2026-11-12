@@ -121,7 +121,7 @@ pptx2video 讀取備忘稿，生成或讀取原始音訊，選用補秒，建立
 |---|---|---|
 | ① 解析（Parse） | `.pptx` 檔案 | 每頁的頁碼、標題、備忘稿文字（JSON） |
 | ② 語音合成（TTS） | 每頁備忘稿文字 | 每頁 MP3 音檔 + 逐字時間資料（供字幕對齊使用） |
-| ③ 準備及 preview | 原始音訊、WordBoundary、備忘稿 | 選用 M4A／WAV 補秒及獨立 manifest；預測字幕 |
+| ③ 準備及 preview | 原始音訊、WordBoundary、備忘稿 | 選用 M4A 補秒及獨立 manifest；預測字幕 |
 | ④ 插入音訊 | 乾淨 PPTX＋effective manifest 的音訊 | 新的已插入音訊 PPTX |
 | ⑤ 匯出與定位 | 已插入音訊 PPTX | MP4；定位後 initial、captions 與診斷報告，結束第一階段 |
 

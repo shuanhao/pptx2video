@@ -5,6 +5,8 @@ pptx2video (PPTX Auto Presenter)
 
 ## 文件版本
 
+驗收範圍更新：因 WAV 檔案過大，prepared 音訊生成只保留 M4A／AAC-LC；CLI／模組拒絕 WAV 準備要求，舊檔與既有 manifest 讀取維持相容。實機進度見 Stage 6 的整合分支驗收更新。
+
 現行新增模組：`audio_preparation.py` 每次以原始 MP3 全批重轉為固定檔名，schema 2 manifest 先 incomplete 再 ready；`validate_audio_manifest()` 由載入／插入、字幕與定位入口共用。`subtitle_candidates.py` 管理三份 SRT、來源追溯與逐檔提交，定位失敗不冒充成功。資料流為原始來源 → optional prepared → effective manifest → preview → 插入／匯出 → initial／captions／報告 → 人工選字幕 → 獨立燒錄。參數及失敗政策見 [音訊準備手冊](docs/AUDIO_PREPARATION.md)。
 對應 feature/audio-preparation-subtitle-workflow 現行實作（含固定檔名全批重轉）。功能已實作；自動化與人工驗收範圍分開記錄，尚未合併 main。歷史 v0.x 描述僅作設計背景。
 

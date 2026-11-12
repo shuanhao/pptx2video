@@ -86,7 +86,7 @@ class CliEndToEndTests(unittest.TestCase):
             ["--prepared-audio-format", "m4a"], ["--prepared-audio-dir", "output/audio_prepared"],
             ["--prepared-audio-sample-rate", "24000"], ["--prepared-audio-channels", "1"],
             ["--prepared-audio-bitrate", "64k"], ["--force-prepare-audio"],
-            ["--audio-tail-silence", "4", "--prepared-audio-format", "wav", "--prepared-audio-bitrate", "64k"],
+            ["--audio-tail-silence", "4", "--prepared-audio-format", "wav"],
             ["--audio-tail-silence", "4", "--prepared-audio-channels", "0"],
             ["--audio-tail-silence", "4", "--prepared-audio-dir", "output/audio/nested"],
         ]

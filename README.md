@@ -1,6 +1,6 @@
 # PPTX Auto Presenter (`pptx2video`)
 
-將 PowerPoint 備忘稿轉為旁白影片與候選字幕的 Windows CLI。第一階段可生成原始 MP3／WordBoundary、選用補秒 M4A／WAV、插入音訊、匯出 MP4 並保留三份 SRT 與診斷報告；人工確認字幕後，第二階段獨立燒錄。功能已實作，完整真機驗收仍在進行，詳見 [Stage 6](docs/AUDIO_PREPARATION_STAGE6.md)。
+將 PowerPoint 備忘稿轉為旁白影片與候選字幕的 Windows CLI。第一階段可生成原始 MP3／WordBoundary、選用補秒 M4A、插入音訊、匯出 MP4 並保留三份 SRT 與診斷報告；人工確認字幕後，第二階段獨立燒錄。功能已實作，完整真機驗收仍在進行，詳見 [Stage 6](docs/AUDIO_PREPARATION_STAGE6.md)。
 
 - 版本歷史：[CHANGELOG.md](CHANGELOG.md)
 - 還沒完成的工作與已知限制：[TODO.md](TODO.md)
@@ -11,11 +11,11 @@
 
 ## ✨ 功能特色
 
-- **音訊補秒**：`--audio-tail-silence 1～10` 啟用 M4A／WAV；同層固定檔名、每次全批重轉，incomplete manifest 阻止下游使用。完整兩階段 CLI、參數及重跑規則見 [音訊準備手冊](docs/AUDIO_PREPARATION.md)。
+- **音訊補秒**：`--audio-tail-silence 1～10` 啟用 M4A；同層固定檔名、每次全批重轉，incomplete manifest 阻止下游使用。完整兩階段 CLI、參數及重跑規則見 [音訊準備手冊](docs/AUDIO_PREPARATION.md)。
 
 - **解析 `.pptx` 投影片內容**：讀取投影片編號、標題與備忘稿，支援多頁簡報、長段落、換行與空白行，也能正確處理沒有備忘稿的頁面（例如封面/結尾頁）。
 - **語音生成**：透過 `edge-tts` 把備忘稿轉成 MP3，依頁碼命名，支援語速/音高調整，失敗時有可設定次數的自動重試。
-- **PowerPoint 音訊插入**：依 effective manifest 插入原始 MP3 或 prepared M4A／WAV，來源與新 PPTX 分開保存。
+- **PowerPoint 音訊插入**：依 effective manifest 插入原始 MP3 或 prepared M4A，來源與新 PPTX 分開保存。
 - **MP4 匯出自動化**：呼叫 PowerPoint「建立視訊」功能匯出 MP4，解析度/FPS/畫質/逾時秒數皆可透過 CLI 調整。
 - **SRT 字幕生成**：備忘稿斷句後對齊 WordBoundary；未匯出時預測，匯出後保留三候選與退回報告。合法時間不等於已確認同步，仍需人工檢查。
 - **完整例外分類與 Logging**：失敗情境依類型拋出對應例外，並區分「單頁跳過」與「整體中止」兩種處理策略；終端機維持簡潔輸出，log 檔案永遠保留完整 DEBUG 細節。
@@ -319,10 +319,10 @@ python -m pptx2video <pptx_path> [選項...]
 | `--generate-audio` | `False`（flag） | 啟用語音生成，會呼叫 edge-tts 把每頁 notes 轉成 MP3 |
 | `--audio-output-dir` | `output/audio` | 原始 MP3、WordBoundary 與 manifest 的來源／輸出目錄；不加 generate-audio 時讀取既有來源 |
 | `--slides` | 全部頁面 | 僅限 TTS 重生頁碼，如 `2,4-6`；補秒仍全批重轉 |
-| `--audio-tail-silence` | `0` | 0 關閉；1～10 秒啟用 M4A／WAV 準備，允許範圍內小數 |
+| `--audio-tail-silence` | `0` | 0 關閉；1～10 秒啟用 M4A 準備，允許範圍內小數 |
 | `--prepared-audio-dir` | `output/audio_prepared` | 啟用時輸出至獨立目錄，同層固定檔名 |
-| `--prepared-audio-format` | `m4a` | `m4a` 或 `wav` |
-| `--prepared-audio-bitrate` | `64k` | M4A 目標 bitrate；WAV 不接受明確設定 |
+| `--prepared-audio-format` | `m4a` | 僅 `m4a`，可省略；WAV 輸出已移除 |
+| `--prepared-audio-bitrate` | `64k` | M4A 目標 bitrate |
 | `--prepared-audio-sample-rate` | `24000` | 啟用時取樣率，合法值見音訊準備手冊 |
 | `--prepared-audio-channels` | `1` | 聲道數 1 或 2；補秒為 0 時不可明確指定 prepared 參數 |
 | `--voice` | `Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)` | edge-tts 使用的語音。也可用簡短格式如 `zh-TW-YunJheNeural`，若完整格式在你的環境報錯可改用簡短格式 |

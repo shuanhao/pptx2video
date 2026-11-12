@@ -1,5 +1,7 @@
 # 音訊準備：固定檔名、每次全部重轉
 
+目前只提供 M4A／AAC-LC 準備輸出。因 WAV 檔案過大，已移除 WAV 生成選項，取消其實機驗收；既有 WAV 檔案不自動刪除，歷史驗收紀錄不代表現行支援。
+
 本文件取代原整合評估與 Stage 1～6 紀錄中的「版本目錄、快取重用、失敗保留整批舊版」設計。Stage 文件保留當時測試歷史，不表示新行為已通過真機驗收。
 
 ## 使用方式
@@ -40,8 +42,8 @@ python scripts/burn_subtitles.py `
 |---|---|---|
 | `--audio-tail-silence` | 0（關閉） | 唯一開關，0 或 1～10 的有限數值 |
 | `--prepared-audio-dir` | `output/audio_prepared` | 與原始目錄分離，不能相同或互相包含 |
-| `--prepared-audio-format` | m4a | m4a／wav |
-| `--prepared-audio-bitrate` | 64k | WAV 不接受明確指定 bitrate |
+| `--prepared-audio-format` | m4a | 僅 m4a，可省略；wav 會報錯 |
+| `--prepared-audio-bitrate` | 64k | AAC bitrate |
 | `--prepared-audio-sample-rate` | 24000 | 支援 8000／16000／22050／24000／32000／44100／48000 |
 | `--prepared-audio-channels` | 1 | 1 或 2 |
 
@@ -74,7 +76,7 @@ manifest 必須對應影片實際插入的音訊；不要在重建前更改補�
 
 ### 已有音訊，只做準備
 
-`--audio-tail-silence` 維持唯一開關：0 不轉換，1～10 秒（可小數）啟用。M4A 預設 AAC-LC、64k、24000 Hz、單聲道；WAV 使用 PCM 16-bit。原始 audio 不修改。
+`--audio-tail-silence` 維持唯一開關：0 不轉換，1～10 秒（可小數）啟用。M4A 預設 AAC-LC、64k、24000 Hz、單聲道。原始 audio 不修改。
 
 ```powershell
 python src/main.py examples/MPU_WK01.pptx --audio-output-dir output/audio --audio-tail-silence 4 --prepared-audio-dir output/audio_prepared --output output/slides.json --subtitles-output output/preview.srt
@@ -110,7 +112,7 @@ WordBoundary 直接複製，不增加靜音事件。manifest 保存來源／產�
 
 ## 舊資料
 
-舊 schema 1 的完成 manifest 仍可讀取。重新準備時改寫為平面檔名與 schema 2；舊 UUID 目錄不自動刪除，以免破壞舊產物。切換 M4A／WAV 或刪除頁面後，未被新 manifest 引用的檔案也不自動清理；消費端以 manifest 為準。
+舊 schema 1 的完成 manifest 仍可讀取。重新準備時改寫為平面 M4A 檔名與 schema 2；舊 UUID 目錄不自動刪除，以免破壞舊產物。舊 WAV 或刪除頁面後未被新 manifest 引用的檔案也不自動清理；消費端以 manifest 為準。
 
 字幕三候選與兩階段工作方式不變：第一階段結束後人工選定 SRT，再獨立燒錄。第二階段不重轉音訊。
 

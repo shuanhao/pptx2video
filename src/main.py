@@ -211,8 +211,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Append 1..10 seconds of silence and prepare audio; 0 keeps original audio",
     )
     parser.add_argument("--prepared-audio-dir", default=None, help="Derived audio directory (default: output/audio_prepared)")
-    parser.add_argument("--prepared-audio-format", choices=("m4a", "wav"), default=None)
-    parser.add_argument("--prepared-audio-bitrate", default=None, help="AAC bitrate (default: 64k); not for WAV")
+    parser.add_argument("--prepared-audio-format", choices=("m4a",), default=None)
+    parser.add_argument("--prepared-audio-bitrate", default=None, help="AAC bitrate (default: 64k)")
     parser.add_argument("--prepared-audio-sample-rate", type=int, default=None, help="Prepared sample rate (default: 24000)")
     parser.add_argument("--prepared-audio-channels", type=int, default=None, help="Prepared channels (default: 1)")
     parser.add_argument(

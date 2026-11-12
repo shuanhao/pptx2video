@@ -31,7 +31,7 @@ class AudioPreparationOptions:
 
     def settings(self):
         result = asdict(self)
-        result["bitrate"] = (self.bitrate or "64k") if self.format == "m4a" else None
+        result["bitrate"] = self.bitrate or "64k"
         return result
 
 
@@ -47,10 +47,8 @@ def validate_preparation_options(options, source_dir=None, output_dir=None,
         if explicit_options or options != AudioPreparationOptions():
             raise ValueError("Preparation settings require nonzero tail_silence")
         return False
-    if options.format not in ("m4a", "wav"):
-        raise ValueError("Prepared format must be m4a or wav")
-    if options.format == "wav" and options.bitrate is not None:
-        raise ValueError("WAV does not accept AAC bitrate")
+    if options.format != "m4a":
+        raise ValueError("Prepared format must be m4a; WAV output is no longer supported")
     if options.bitrate is not None and not re.fullmatch(r"[1-9][0-9]*k", options.bitrate):
         raise ValueError("Bitrate must be a positive integer followed by k")
     if type(options.sample_rate) is not int or options.sample_rate not in (8000, 16000, 22050, 24000, 32000, 44100, 48000):
@@ -122,16 +120,15 @@ def prepare_audio_file(source, output, options) -> Dict[str, Any]:
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f".{uuid.uuid4().hex}{output.suffix}")
     try:
-        codec = (["-c:a", "aac", "-profile:a", "aac_low", "-b:a", options.settings()["bitrate"]]
-                 if options.format == "m4a" else ["-c:a", "pcm_s16le"])
+        codec = ["-c:a", "aac", "-profile:a", "aac_low", "-b:a", options.settings()["bitrate"]]
         _run(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-y", "-i", str(source),
               "-map", "0:a:0", "-vn", "-af", f"apad=pad_dur={options.tail_silence}",
               "-ar", str(options.sample_rate), "-ac", str(options.channels),
               *codec, str(temporary)])
         prepared = probe_audio(temporary)
-        expected_codec = "aac" if options.format == "m4a" else "pcm_s16le"
+        expected_codec = "aac"
         # AAC decoding can expose a final padded frame; permit two AAC frames.
-        tolerance = 2 * 1024 / options.sample_rate if options.format == "m4a" else 2 / options.sample_rate
+        tolerance = 2 * 1024 / options.sample_rate
         if (prepared["codec"] != expected_codec or prepared["sample_rate"] != options.sample_rate
                 or prepared["channels"] != options.channels
                 or abs(prepared["duration_seconds"] - original["duration_seconds"] - options.tail_silence) > tolerance):
