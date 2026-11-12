@@ -152,6 +152,7 @@ def find_best_offset_seconds(
     predicted_start_seconds: float,
     sample_rate: int = SAMPLE_RATE,
     search_window_seconds: float = DEFAULT_SEARCH_WINDOW_SECONDS,
+    end_padding_seconds: float = 0.0,
 ) -> float:
     """Cross-correlate ``clip`` against a window of ``full_track`` centered
     on ``predicted_start_seconds`` (+/- ``search_window_seconds``),
@@ -162,12 +163,20 @@ def find_best_offset_seconds(
     too slow for anything beyond a few seconds of audio at this sample rate.
     Both signals are mean/std-normalized first so the match is driven by
     waveform shape, not loudness.
+
+    A trailing anchor may slightly overhang the decoded track when export
+    shortens audio. Optional bounded zero padding keeps that boundary match
+    in the valid-correlation search; leading-anchor callers do not pad.
     """
     center = int(predicted_start_seconds * sample_rate)
     window = int(search_window_seconds * sample_rate)
     lo = max(0, center - window)
-    hi = min(len(full_track), center + window + len(clip))
+    padding_samples = max(0, int(end_padding_seconds * sample_rate))
+    hi = min(len(full_track) + padding_samples, center + window + len(clip))
     segment = full_track[lo:hi]
+    if hi > len(full_track) and lo < len(full_track):
+        # Pad only the search window, not the potentially hours-long track.
+        segment = np.pad(segment, (0, hi - len(full_track)))
 
     if len(segment) < len(clip) or len(clip) == 0:
         return predicted_start_seconds  # not enough data to search - give up gracefully
@@ -436,9 +445,15 @@ def locate_slide_start_and_end_times(
                 # length.
                 naive_trailing_start = measured_start + clip_duration - anchor_seconds
                 measured_trailing_start = find_best_offset_seconds(
-                    full_track, trailing_clip, naive_trailing_start, search_window_seconds=search_window_seconds
+                    full_track, trailing_clip, naive_trailing_start,
+                    search_window_seconds=search_window_seconds,
+                    # Allow up to 1% anchor shortening at the physical end
+                    # of the track. Without padding, valid correlation can
+                    # exclude the true peak and choose an unrelated one.
+                    end_padding_seconds=anchor_seconds * .01,
                 )
-                measured_end = measured_trailing_start + anchor_seconds
+                measured_end = min(measured_trailing_start + anchor_seconds,
+                                   len(full_track) / SAMPLE_RATE)
             else:
                 # Too short for two independent anchors - fall back to the
                 # single (leading, or whole-clip) measurement plus the

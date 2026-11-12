@@ -57,6 +57,19 @@ def _wav_to_mp4(wav_path: Path, mp4_path: Path) -> None:
 
 
 class FindBestOffsetSecondsTests(unittest.TestCase):
+    def test_trailing_anchor_can_match_a_slightly_shortened_track_boundary(self):
+        rate = 8000
+        rng = np.random.default_rng(42)
+        clip = rng.standard_normal(rate).astype(np.float32)
+        # Last millisecond is missing from the exported track. The true
+        # anchor still overwhelmingly matches, but cannot fit in valid mode.
+        full = np.concatenate([np.zeros(rate), clip[:-8]])
+        measured = find_best_offset_seconds(
+            full, clip, predicted_start_seconds=1, sample_rate=rate,
+            search_window_seconds=1, end_padding_seconds=.01,
+        )
+        self.assertAlmostEqual(measured, 1, delta=1/rate)
+
     def test_finds_true_offset_within_search_window(self):
         sample_rate = 8000
         rng = np.random.default_rng(0)
