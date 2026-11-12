@@ -161,6 +161,8 @@ def _parse_srt(text: str) -> list:
         if timestamp_line_idx is None:
             continue
         match = _SRT_TIMESTAMP_RE.search(lines[timestamp_line_idx])
+        if match is None:
+            continue
         start = _parse_srt_timestamp(*match.groups()[0:4])
         end = _parse_srt_timestamp(*match.groups()[4:8])
         text_lines = lines[timestamp_line_idx + 1:]
@@ -335,15 +337,16 @@ def main() -> None:
         "--burn-subtitles", action="store_true",
         help="Also hardsub each segment's .srt into its .mp4, producing segment_N_burned.mp4. Requires --subtitles.",
     )
-    parser.add_argument("--bar-width", type=int, default=DEFAULT_BAR_WIDTH_PX, help=f"--burn-subtitles: black bar width in px (default: {DEFAULT_BAR_WIDTH_PX}).")
-    parser.add_argument("--bar-height", type=int, default=DEFAULT_BAR_HEIGHT_PX, help=f"--burn-subtitles: black bar height in px (default: {DEFAULT_BAR_HEIGHT_PX}).")
+    parser.add_argument("--bar-scale-mode", choices=("auto",), default="auto", help="Auto: 720p/1080p bar geometry. Explicit bar values are final pixels.")
+    parser.add_argument("--bar-width", type=int, default=None, help=f"--burn-subtitles: black bar width in px (auto-scaled from 720p base: {DEFAULT_BAR_WIDTH_PX}).")
+    parser.add_argument("--bar-height", type=int, default=None, help=f"--burn-subtitles: black bar height in px (auto-scaled from 720p base: {DEFAULT_BAR_HEIGHT_PX}).")
     parser.add_argument(
-        "--bar-bottom-offset", type=int, default=DEFAULT_BAR_BOTTOM_OFFSET_PX,
-        help=f"--burn-subtitles: px from the frame's bottom edge to the bar's TOP edge (default: {DEFAULT_BAR_BOTTOM_OFFSET_PX}).",
+        "--bar-bottom-offset", type=int, default=None,
+        help=f"--burn-subtitles: px from the frame's bottom edge to the bar's TOP edge (auto-scaled from 720p base: {DEFAULT_BAR_BOTTOM_OFFSET_PX}).",
     )
     parser.add_argument("--font-name", default=DEFAULT_FONT_NAME, help=f"--burn-subtitles: font family (default: {DEFAULT_FONT_NAME!r}).")
-    parser.add_argument("--font-size", type=int, default=DEFAULT_FONT_SIZE, help=f"--burn-subtitles: font size in px (default: {DEFAULT_FONT_SIZE}).")
-    parser.add_argument("--margin-v", type=int, default=DEFAULT_MARGIN_V, help=f"--burn-subtitles: px from the frame's bottom edge to the text's bottom edge (default: {DEFAULT_MARGIN_V}).")
+    parser.add_argument("--font-size", type=int, default=DEFAULT_FONT_SIZE, help=f"--burn-subtitles: ASS font size (default: {DEFAULT_FONT_SIZE}).")
+    parser.add_argument("--margin-v", type=int, default=DEFAULT_MARGIN_V, help=f"--burn-subtitles: ASS MarginV from the bottom edge (default: {DEFAULT_MARGIN_V}).")
     parser.add_argument("--burn-crf", type=int, default=DEFAULT_CRF, help=f"--burn-subtitles: libx264 quality (default: {DEFAULT_CRF}).")
     args = parser.parse_args()
 
@@ -362,17 +365,22 @@ def main() -> None:
     print(f"Measuring true per-slide start times in {args.video} ...")
     if args.global_scale_correction != 1.0:
         print(f"Applying global scale correction: x{args.global_scale_correction}")
+    alignment_records = {}
     bounds, locate_warnings = locate_slide_start_and_end_times(
         args.video, slides, manifest, audio_dir,
         default_slide_duration=args.default_slide_duration,
         search_window_seconds=args.search_window_seconds,
         anchor_seconds=args.anchor_seconds,
         global_scale_correction=args.global_scale_correction,
+        diagnostics=alignment_records,
     )
     for w in locate_warnings:
         print(f"WARNING (locate): {w}")
 
     slide_starts = {slide_num: start for slide_num, (start, _end) in bounds.items()}
+    if alignment_records:
+        print("Audio start estimates are not verified visual transition boundaries; "
+              "prediction-only slides are excluded from cut points.")
     if not slide_starts:
         raise SystemExit("No slide start times could be measured - can't choose cut points. See WARNING lines above.")
 
@@ -424,6 +432,7 @@ def main() -> None:
                 print(f"Burning {srt_output_path} into {output_path} -> {burned_output_path} ...")
                 burn_subtitles_into_video(
                     output_path, srt_output_path, burned_output_path,
+                    bar_scale_mode=args.bar_scale_mode,
                     bar_width_px=args.bar_width,
                     bar_height_px=args.bar_height,
                     bar_bottom_offset_px=args.bar_bottom_offset,

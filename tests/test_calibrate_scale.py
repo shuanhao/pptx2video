@@ -17,6 +17,8 @@ _FFMPEG_AVAILABLE = shutil.which("ffmpeg") is not None
 # so load calibrate_scale.py by path rather than a normal import - same
 # approach other tools would use to reach a standalone script's internals.
 _spec = importlib.util.spec_from_file_location("calibrate_scale", ROOT / "scripts" / "calibrate_scale.py")
+if _spec is None or _spec.loader is None:
+    raise ImportError("Cannot load scripts/calibrate_scale.py: missing module spec or loader")
 calibrate_scale = importlib.util.module_from_spec(_spec)
 sys.path.insert(0, str(ROOT))
 _spec.loader.exec_module(calibrate_scale)

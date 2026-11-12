@@ -160,7 +160,7 @@ def setup_logging(
         except OSError as exc:
             logger.warning(f"Could not set up file logging in {log_dir}: {exc}")
 
-    logger._pptx2video_log_dir = normalized_log_dir
+    setattr(logger, "_pptx2video_log_dir", normalized_log_dir)
     return logger
 
 

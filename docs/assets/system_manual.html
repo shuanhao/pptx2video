@@ -233,7 +233,7 @@
   <table>
     <tr><th>設定項目</th><th>可調範圍</th><th>說明</th></tr>
     <tr><td>配音</td><td>Edge-TTS 語音庫</td><td>預設 <code>zh-TW-YunJheNeural</code>（繁中男聲），可替換成任何 Edge-TTS 支援的語音代碼</td></tr>
-    <tr><td>語速</td><td>可正可負</td><td>預設放慢 10%（<code>-10%</code>），正值加快、負值放慢</td></tr>
+    <tr><td>語速</td><td>可正可負</td><td>預設原速（<code>+0%</code>），正值加快、負值放慢。edge-tts 7.3.1 本輪測得 YunJhe -10%／-5% 可能無音訊，根因未確認；不自動換語音或語速，增加重試不保證有效。詳見 <a href="../TTS_RATE_DIAGNOSTIC.md">TTS 語速診斷</a>。</td></tr>
     <tr><td>音高</td><td>可正可負</td><td>預設不調整（<code>+0Hz</code>）</td></tr>
     <tr><td>重試次數</td><td>0 或正整數</td><td>語音生成失敗時（僅限暫時性網路/服務錯誤）自動重試的次數，預設 3 次</td></tr>
   </table>

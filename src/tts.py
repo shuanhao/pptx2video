@@ -13,6 +13,8 @@ from edge_tts.exceptions import NoAudioReceived
 from src.exceptions import TTSGenerationError
 from src.subtitle_alignment import find_suspected_dropped_narration
 
+DEFAULT_RATE = "+0%"
+
 # Default retry policy for transient TTS failures (network blips, service
 # hiccups). Deliberately NOT applied to COM/PowerPoint operations elsewhere
 # in this project - retrying a failed COM launch without first confirming
@@ -72,7 +74,7 @@ async def _stream_edge_tts_audio_with_word_boundaries(
     text: str,
     output_path: Path,
     voice: str,
-    rate: str = "-10%",
+    rate: str = DEFAULT_RATE,
     pitch: str = "+0Hz",
     communicate_factory: Optional[Callable[..., Any]] = None,
 ) -> List[Dict[str, Any]]:
@@ -141,8 +143,12 @@ async def _stream_edge_tts_audio_with_word_boundaries(
     with open(output_path, "wb") as audio_file:
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
+                if "data" not in chunk:
+                    raise ValueError("Edge-TTS audio chunk is missing data")
                 audio_file.write(chunk["data"])
             elif chunk["type"] == "WordBoundary":
+                if "text" not in chunk or "offset" not in chunk or "duration" not in chunk:
+                    raise ValueError("Edge-TTS WordBoundary chunk is missing text, offset or duration")
                 word_boundaries.append({
                     "text": chunk["text"],
                     "offset_seconds": chunk["offset"] / WORD_BOUNDARY_TICKS_PER_SECOND,
@@ -156,7 +162,7 @@ def synthesize_with_word_boundaries(
     text: str,
     output_path: Path | str,
     voice: str,
-    rate: str = "-10%",
+    rate: str = DEFAULT_RATE,
     pitch: str = "+0Hz",
     communicate_factory: Optional[Callable[..., Any]] = None,
 ) -> List[Dict[str, Any]]:
@@ -200,7 +206,7 @@ async def _save_edge_tts_audio(
     text: str,
     output_path: Path,
     voice: str,
-    rate: str = "-10%",
+    rate: str = DEFAULT_RATE,
     pitch: str = "+0Hz",
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -208,7 +214,7 @@ async def _save_edge_tts_audio(
     await communicate.save(str(output_path))
 
 
-def _default_generator(text: str, output_path: Path, voice: str, rate: str = "-10%", pitch: str = "+0Hz") -> None:
+def _default_generator(text: str, output_path: Path, voice: str, rate: str = DEFAULT_RATE, pitch: str = "+0Hz") -> None:
     asyncio.run(_save_edge_tts_audio(text, output_path, voice, rate=rate, pitch=pitch))
 
 
@@ -216,7 +222,7 @@ def _default_generator_with_word_boundaries(
     text: str,
     output_path: Path,
     voice: str,
-    rate: str = "-10%",
+    rate: str = DEFAULT_RATE,
     pitch: str = "+0Hz",
     communicate_factory: Optional[Callable[..., Any]] = None,
 ) -> List[Dict[str, Any]]:
@@ -286,7 +292,7 @@ def generate_audio_files(
     voice: str = "Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)",
     generator: Optional[Callable[..., Any]] = None,
     manifest_path: Optional[Path | str] = None,
-    rate: str = "-10%",
+    rate: str = DEFAULT_RATE,
     pitch: str = "+0Hz",
     progress_callback: Optional[Callable[[int, int, int], None]] = None,
     max_retries: int = DEFAULT_MAX_RETRIES,

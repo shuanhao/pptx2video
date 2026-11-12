@@ -114,7 +114,11 @@ def main() -> int:
         slides = payload.get("slides", payload) if isinstance(payload, dict) else payload
     else:
         slides = extract_notes(str(args.pptx))
-    notes_by_slide = {int(s["slide_num"]): s.get("notes") for s in slides if s.get("slide_num") is not None}
+    notes_by_slide = {}
+    for slide in slides:
+        slide_num = slide.get("slide_num")
+        if slide_num is not None:
+            notes_by_slide[int(slide_num)] = slide.get("notes")
 
     wanted = parse_slide_selector(args.slides) if args.slides else None
 

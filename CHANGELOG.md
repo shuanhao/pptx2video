@@ -6,6 +6,17 @@
 
 ## [未發布]
 
+- TTS 預設語速由 -10% 改為 +0% 原速，CLI 與模組共用 DEFAULT_RATE。記錄 edge-tts 7.3.1、YunJhe 部分語速組合無音訊的已知限制；仍可明確指定語速，不自動換語音／語速，有限重試政策不變，既有媒體不自動重生。
+- 新預設完整回歸 254 項全部通過、無跳過；省略 --rate 的真實 CLI 範例三頁音訊及逐字時間全部生成成功，manifest 記錄 +0%。
+
+- 完成本輪 VTT 手動回歸：同步、前進換頁停止前頁音訊、儲存重開正常；返回自動播放限制仍存在。記錄 YunJhe -10% 與 +0% 的交錯診斷及預設調整決定，見 [TTS 語速診斷](docs/TTS_RATE_DIAGNOSTIC.md)。
+
+- 依實機驗收移除字幕黑條 fixed 模式：1080p 保留舊黑條像素會使文字寬高超出黑條。完整／分段燒錄與共用幾何模組皆拒絕 fixed；保留 auto 及逐項手動像素覆寫。
+- 移除 fixed 後完整回歸重跑 253 項全部通過、無跳過；新增共用模組與兩個 CLI 拒絕 fixed 的測試。首輪曾遇暫存報告原子替換的 Windows 存取錯誤，未修改字幕流程，重跑未重現。
+
+- 依驗收回饋移除 prepared WAV 生成（檔案過大），只保留 M4A／AAC-LC；明確指定 wav 會報錯。取消 WAV 實機驗收，既有媒體不自動刪除。
+- 移除 WAV 後完整回歸 251 項測試全部通過、無跳過（含實際 FFmpeg／ffprobe）；移除 WAV 專用媒體測試，保留拒絕 WAV 參數的驗證。
+
 ### Added
 
 - 新增 `--vtt-output-dir`：共用既有每頁相對字幕 cues，為原始 MP3 輸出 `slide_NNN.vtt`，寫檔前驗證時間與字幕內容。無旁白頁不輸出 VTT；字幕行寬維持 36。PowerPoint 字幕掛載與播放屬性由使用者手動設定，詳見 [每頁 VTT](docs/PER_SLIDE_VTT.md)。
@@ -16,10 +27,20 @@
 - 修正最後一頁音訊略微縮短時的尾端定位：允許尾端 anchor 在解碼音軌邊界有限補零，避免 valid correlation 排除真正峰值並錯選較早位置；量測終點不超過解碼音軌。起點搜尋與測試容差不變，不修改原始音訊。根因與驗證見 [尾端定位修正](docs/AUDIO_END_ANCHOR_FIX.md)。
 - `edge-tts` 的 `NoAudioReceived` 現在納入既有有限次重試。實測同一頁首次無音訊、重試後成功；未確認間歇性無音訊的根本原因，重試耗盡仍會中止。
 
+### Audio preparation workflow
+
+- 可選 M4A／WAV 補秒、prepared anchor 避開新增靜音與品質退回、三候選字幕／來源診斷、人工選字幕後獨立燒錄。
+- 音訊準備改為固定檔名、每次從原始 MP3 全部重轉；移除 `--force-prepare-audio`。schema 2 manifest 以 incomplete／ready 防止使用中斷批次；不再保留整批舊版回復，舊版本目錄不自動刪除。
+- 完整及分段燒字幕新增 `--bar-scale-mode auto|fixed`，預設依實際 720p／1080p 自動縮放黑條，支援逐項最終像素覆寫。1080p 預設改為 975／57／60；fixed 保留舊預設。字級及 MarginV 不縮放。所有模式均需 ffprobe，非法幾何明確失敗。
+- 合併 VTT 與音訊準備流程：VTT 保留原始 MP3 manifest，JSON、插入、SRT 及影片定位共用 effective manifest，避免補秒後誤把 prepared manifest 傳入 VTT。
+- 文件已更新兩階段 CLI、manifest 狀態、字幕產物順序、預設參數與 4:3／16:9 燒錄限制；歷史評估與事件紀錄保留原實測背景，另標示現況。
+
 ### Validation
 
+- 2026-11-12 整合回歸：Python 3.13.2、FFmpeg／ffprobe 環境完整執行 252 項測試，全部通過、無跳過；新增 VTT 使用原始 MP3、插入與候選字幕使用 prepared 音訊的組合測試。未執行新的 PowerPoint 真機驗收。
 - 整合 main 的尾端定位修復 PR #3 後，VTT 分支完整測試 204 項通過，另有 7 個 subtests 通過；原先失敗的定位測試已通過。
 - 使用者實測範例簡報：3 頁原始 MP3 與 VTT 成功產生，音訊嵌入 PPTX、手動掛載 VTT 及手動改為首次進頁自動播放均正常；字幕與音軌同步、無漏句。存檔重開及播放中換至下一頁停止前頁音訊通過；返回上一頁未自動重播，原因待確認。PowerPoint 版本與 Page Up 操作結果見 [手動驗收紀錄](docs/PER_SLIDE_VTT.md)。此紀錄不代表 Video 流程或其他字幕問題完成驗收。
+- 音訊準備固定檔名版原有 242 個自動化測試通過紀錄；Stage 6 完整真機驗收尚未完成，不代表已發布或合併。
 
 ## [0.10.0] - 2026-08-07
 
