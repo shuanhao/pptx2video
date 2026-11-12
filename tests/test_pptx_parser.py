@@ -19,14 +19,15 @@ class PptxParserTests(unittest.TestCase):
         for title, notes in slide_specs:
             slide = prs.slides.add_slide(prs.slide_layouts[1])
             if title:
-                try:
-                    slide.shapes.title.text = title
-                except AttributeError:
-                    pass
+                title_shape = slide.shapes.title
+                assert title_shape is not None, "Test layout must contain a title"
+                title_shape.text = title
             if notes:
-                slide.notes_slide.notes_text_frame.text = notes
+                notes_frame = slide.notes_slide.notes_text_frame
+                assert notes_frame is not None, "Test layout must contain a notes frame"
+                notes_frame.text = notes
 
-        prs.save(path)
+        prs.save(str(path))
         return str(path)
 
     def test_extract_notes_returns_all_slides_with_titles_and_notes(self):
@@ -57,13 +58,14 @@ class PptxParserTests(unittest.TestCase):
         prs = Presentation()
         slide = prs.slides.add_slide(prs.slide_layouts[1])
         notes_frame = slide.notes_slide.notes_text_frame
+        assert notes_frame is not None, "Test layout must contain a notes frame"
         first_paragraph = notes_frame.paragraphs[0]
         first_paragraph.text = "First paragraph"
         empty_paragraph = notes_frame.add_paragraph()
         empty_paragraph.text = ""
         third_paragraph = notes_frame.add_paragraph()
         third_paragraph.text = "Third paragraph"
-        prs.save(path)
+        prs.save(str(path))
 
         slides = extract_notes(str(path))
 

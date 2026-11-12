@@ -1,10 +1,13 @@
+import sys
 import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from src.subtitle_burner import (
+    VideoGeometry, resolve_bar_geometry,
     DEFAULT_BAR_BOTTOM_OFFSET_PX,
     DEFAULT_BAR_HEIGHT_PX,
     DEFAULT_BAR_WIDTH_PX,
@@ -96,6 +99,36 @@ class BuildBurnFilterTests(unittest.TestCase):
         self.assertIn(r"subtitles='C\:/output/captions.srt'", vf)
 
 
+class BarGeometryTests(unittest.TestCase):
+    def test_auto_and_overrides(self):
+        self.assertEqual(resolve_bar_geometry(VideoGeometry(1280, 720)), (650, 38, 40))
+        hd = VideoGeometry(1920, 1080)
+        self.assertEqual(resolve_bar_geometry(hd), (975, 57, 60))
+        self.assertEqual(resolve_bar_geometry(hd, bar_width_px=900), (900, 57, 60))
+        self.assertEqual(resolve_bar_geometry(hd, bar_scale_mode="fixed"), (650, 38, 40))
+        self.assertEqual(resolve_bar_geometry(hd, bar_width_px=900, bar_height_px=50,
+                                             bar_bottom_offset_px=55), (900, 50, 55))
+
+    def test_unsupported_and_invalid_geometry(self):
+        for geometry in (VideoGeometry(640, 480), VideoGeometry(1920, 1080, "2:1"),
+                         VideoGeometry(1920, 1080, rotation=90)):
+            with self.assertRaises(ValueError):
+                resolve_bar_geometry(geometry)
+        for values in ((0, 38, 40), (2000, 38, 40), (650, 50, 40), (650, 38, 800)):
+            with self.assertRaises(ValueError):
+                resolve_bar_geometry(VideoGeometry(1280, 720), bar_width_px=values[0],
+                                     bar_height_px=values[1], bar_bottom_offset_px=values[2])
+        self.assertEqual(resolve_bar_geometry(VideoGeometry(640, 480), bar_width_px=200,
+                                             bar_height_px=20, bar_bottom_offset_px=30),
+                         (200, 20, 30))
+
+    def test_probe_failure_does_not_encode(self):
+        with patch("src.subtitle_burner.subprocess.run", side_effect=FileNotFoundError) as run:
+            with self.assertRaises(FileNotFoundError):
+                burn_subtitles_into_video(Path("a.mp4"), Path("a.srt"), Path("b.mp4"))
+            self.assertEqual(run.call_count, 1)
+
+
 @unittest.skipUnless(_FFMPEG_AVAILABLE, "ffmpeg/ffprobe not available")
 class BurnSubtitlesIntoVideoEndToEndTests(unittest.TestCase):
     def setUp(self):
@@ -105,7 +138,7 @@ class BurnSubtitlesIntoVideoEndToEndTests(unittest.TestCase):
         subprocess.run(
             [
                 "ffmpeg", "-y", "-loglevel", "error",
-                "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=3",
+                "-f", "lavfi", "-i", "color=c=blue:s=1280x720:d=3",
                 "-f", "lavfi", "-i", "sine=frequency=440:duration=3",
                 "-c:v", "libx264", "-c:a", "aac", "-shortest", str(self.video),
             ],
@@ -144,6 +177,34 @@ class BurnSubtitlesIntoVideoEndToEndTests(unittest.TestCase):
             self._probe_duration_seconds(self.video),
             delta=0.5,
         )
+
+    def test_actual_bar_pixels_at_both_resolutions(self):
+        # Subtitle starts later, so frame zero measures the bar without text.
+        srt = self.tmp_path / "geometry.srt"
+        srt.write_text("1\n00:00:01,000 --> 00:00:02,000\nTest\n", encoding="utf-8")
+        for width, height, bar_width, bar_height, offset in (
+                (1280, 720, 650, 38, 40), (1920, 1080, 975, 57, 60)):
+            source = self.tmp_path / f"source_{height}.mp4"
+            output = self.tmp_path / f"burned_{height}.mp4"
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                            "-i", f"color=white:s={width}x{height}:d=0.2",
+                            "-c:v", "libx264", str(source)], check=True)
+            if height == 1080:
+                subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] /
+                                "scripts/burn_subtitles.py"), "--video", str(source),
+                                "--srt", str(srt), "--output", str(output)], check=True,
+                               capture_output=True)
+            else:
+                burn_subtitles_into_video(source, srt, output)
+            frame = subprocess.run(["ffmpeg", "-v", "error", "-i", str(output),
+                                    "-frames:v", "1", "-pix_fmt", "gray",
+                                    "-f", "rawvideo", "-"], capture_output=True, check=True).stdout
+            import numpy as np
+            pixels = np.frombuffer(frame, dtype=np.uint8).reshape(height, width)
+            ys, xs = np.where(pixels < 32)
+            self.assertAlmostEqual(int(xs.max() - xs.min() + 1), bar_width, delta=2)
+            self.assertAlmostEqual(int(ys.max() - ys.min() + 1), bar_height, delta=2)
+            self.assertAlmostEqual(int(ys.min()), height - offset, delta=1)
 
     def test_custom_bar_and_font_size_are_honored(self):
         srt_path = self.tmp_path / "captions.srt"

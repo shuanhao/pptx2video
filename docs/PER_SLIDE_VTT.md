@@ -12,6 +12,8 @@ VTT 不改動 MP3、不補尾端靜音、不插入字幕或設定 PowerPoint 播
 
 寫檔前檢查每頁時間：有限且非負、結束晚於開始、毫秒精度仍有長度、無重疊且不超出音訊長度（容許 1ms 誤差）。缺少 timing、音訊無法量測或對齊警告會中止輸出，應人工檢查來源；不自動修正 cues。
 
+同次執行可搭配 `--audio-tail-silence`：VTT 固定讀取 `--audio-output-dir` 的原始 MP3 manifest；JSON、SRT、插入及影片定位則使用 prepared 音訊。VTT 時間與驗證仍以原始 MP3 為準，PowerPoint 手動掛載時請使用對應的原始 MP3；prepared 媒體的字幕掛載尚未驗收。
+
 ## 完整操作流程
 
 以下指令從專案根目錄執行。先產生音訊與 VTT：

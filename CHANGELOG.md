@@ -16,10 +16,20 @@
 - 修正最後一頁音訊略微縮短時的尾端定位：允許尾端 anchor 在解碼音軌邊界有限補零，避免 valid correlation 排除真正峰值並錯選較早位置；量測終點不超過解碼音軌。起點搜尋與測試容差不變，不修改原始音訊。根因與驗證見 [尾端定位修正](docs/AUDIO_END_ANCHOR_FIX.md)。
 - `edge-tts` 的 `NoAudioReceived` 現在納入既有有限次重試。實測同一頁首次無音訊、重試後成功；未確認間歇性無音訊的根本原因，重試耗盡仍會中止。
 
+### Audio preparation workflow
+
+- 可選 M4A／WAV 補秒、prepared anchor 避開新增靜音與品質退回、三候選字幕／來源診斷、人工選字幕後獨立燒錄。
+- 音訊準備改為固定檔名、每次從原始 MP3 全部重轉；移除 `--force-prepare-audio`。schema 2 manifest 以 incomplete／ready 防止使用中斷批次；不再保留整批舊版回復，舊版本目錄不自動刪除。
+- 完整及分段燒字幕新增 `--bar-scale-mode auto|fixed`，預設依實際 720p／1080p 自動縮放黑條，支援逐項最終像素覆寫。1080p 預設改為 975／57／60；fixed 保留舊預設。字級及 MarginV 不縮放。所有模式均需 ffprobe，非法幾何明確失敗。
+- 合併 VTT 與音訊準備流程：VTT 保留原始 MP3 manifest，JSON、插入、SRT 及影片定位共用 effective manifest，避免補秒後誤把 prepared manifest 傳入 VTT。
+- 文件已更新兩階段 CLI、manifest 狀態、字幕產物順序、預設參數與 4:3／16:9 燒錄限制；歷史評估與事件紀錄保留原實測背景，另標示現況。
+
 ### Validation
 
+- 2026-11-12 整合回歸：Python 3.13.2、FFmpeg／ffprobe 環境完整執行 252 項測試，全部通過、無跳過；新增 VTT 使用原始 MP3、插入與候選字幕使用 prepared 音訊的組合測試。未執行新的 PowerPoint 真機驗收。
 - 整合 main 的尾端定位修復 PR #3 後，VTT 分支完整測試 204 項通過，另有 7 個 subtests 通過；原先失敗的定位測試已通過。
 - 使用者實測範例簡報：3 頁原始 MP3 與 VTT 成功產生，音訊嵌入 PPTX、手動掛載 VTT 及手動改為首次進頁自動播放均正常；字幕與音軌同步、無漏句。存檔重開及播放中換至下一頁停止前頁音訊通過；返回上一頁未自動重播，原因待確認。PowerPoint 版本與 Page Up 操作結果見 [手動驗收紀錄](docs/PER_SLIDE_VTT.md)。此紀錄不代表 Video 流程或其他字幕問題完成驗收。
+- 音訊準備固定檔名版原有 242 個自動化測試通過紀錄；Stage 6 完整真機驗收尚未完成，不代表已發布或合併。
 
 ## [0.10.0] - 2026-08-07
 

@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import Any, Dict
 from unittest import mock
 
 from pptx import Presentation
@@ -50,14 +51,15 @@ class CliEndToEndTests(unittest.TestCase):
         for title, notes in slide_specs:
             slide = prs.slides.add_slide(prs.slide_layouts[1])
             if title:
-                try:
-                    slide.shapes.title.text = title
-                except AttributeError:
-                    pass
+                title_shape = slide.shapes.title
+                assert title_shape is not None, "Test layout must contain a title"
+                title_shape.text = title
             if notes:
-                slide.notes_slide.notes_text_frame.text = notes
+                notes_frame = slide.notes_slide.notes_text_frame
+                assert notes_frame is not None, "Test layout must contain a notes frame"
+                notes_frame.text = notes
 
-        prs.save(path)
+        prs.save(str(path))
         return path
 
     def _invoke(self, argv):
@@ -77,6 +79,188 @@ class CliEndToEndTests(unittest.TestCase):
                 except SystemExit as exc:
                     exit_code = exc.code
         return stdout.getvalue(), stderr.getvalue(), exit_code
+
+    def test_preparation_rejects_invalid_arguments_before_any_work(self):
+        cases = [
+            ["--audio-tail-silence", "nan"], ["--audio-tail-silence", "11"],
+            ["--prepared-audio-format", "m4a"], ["--prepared-audio-dir", "output/audio_prepared"],
+            ["--prepared-audio-sample-rate", "24000"], ["--prepared-audio-channels", "1"],
+            ["--prepared-audio-bitrate", "64k"], ["--force-prepare-audio"],
+            ["--audio-tail-silence", "4", "--prepared-audio-format", "wav", "--prepared-audio-bitrate", "64k"],
+            ["--audio-tail-silence", "4", "--prepared-audio-channels", "0"],
+            ["--audio-tail-silence", "4", "--prepared-audio-dir", "output/audio/nested"],
+        ]
+        for flags in cases:
+            with self.subTest(flags=flags), mock.patch("src.main.extract_notes") as extract:
+                _, _, code = self._invoke(["missing.pptx", *flags])
+                self.assertEqual(code, 2)
+                extract.assert_not_called()
+
+    def _preparation_fixture(self):
+        pptx = self._create_pptx([("First", "Hello"), ("Second", "World")])
+        root = pptx.parent
+        source, prepared = root / "audio", root / "prepared"
+        source.mkdir()
+        manifest: Dict[str, Any] = {"slides": [{"slide_num": n, "audio_file": f"slide_{n:03d}.mp3"} for n in (1, 2)]}
+        (source / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        derived = {"slides": [{"slide_num": n, "audio_file": f"batch/slide_{n:03d}.m4a"} for n in (1, 2)]}
+        argv = [str(pptx), "--audio-output-dir", str(source), "--output", str(root / "slides.json"),
+                "--subtitles-output", str(root / "captions.srt"), "--no-file-log"]
+        return root, source, prepared, manifest, derived, argv
+
+    def test_prepared_source_reaches_json_insert_and_export_subtitles(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        result = {"manifest": derived, "audio_dir": prepared, "converted": [1, 2]}
+        with mock.patch("src.main.prepare_audio_manifest", return_value=result) as prepare, \
+             mock.patch("src.main.generate_audio_files") as tts, \
+             mock.patch("src.main.ppt_automation.insert_audio", return_value={
+                 "inserted_slides": [1, 2], "skipped_slides": [], "output_path": "deck.pptx"}) as insert, \
+             mock.patch("src.main.ppt_automation.export_video", return_value={
+                 "output_path": "deck.mp4", "elapsed_seconds": 1}) as export, \
+             mock.patch("src.main.write_subtitle_output_from_export", return_value=(root / "captions.srt", [])) as subtitles:
+            _, stderr, code = self._invoke(argv + ["--audio-tail-silence", "4", "--prepared-audio-dir",
+                                                   str(prepared), "--insert-audio", "--export-video"])
+        self.assertIsNone(code, stderr)
+        tts.assert_not_called()
+        self.assertEqual(prepare.call_args.args[0], original)
+        self.assertEqual(insert.call_args.args[1:3], (derived, str(prepared)))
+        self.assertEqual(subtitles.call_args.kwargs["audio_dir"], str(prepared))
+        self.assertEqual(subtitles.call_args.args[0]["audio"], derived)
+        export.assert_called_once()
+        payload = json.loads((root / "slides.json").read_text(encoding="utf-8"))
+        self.assertEqual(payload["audio"], derived)
+        self.assertEqual(payload["metadata"]["audio_output_dir"], str(prepared))
+        self.assertTrue(payload["slides"][0]["audio_file"].endswith("prepared/batch/slide_001.m4a"))
+
+    def test_vtt_uses_original_while_video_candidates_use_prepared_audio(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        plan = [{"slide_num": n, "has_narration": True, "duration_seconds": 14.,
+                 "captions": [{"text": str(n), "start_seconds": 1., "end_seconds": 2.}]}
+                for n in (1, 2)]
+        with mock.patch("src.main.prepare_audio_manifest", return_value={
+                 "manifest": derived, "audio_dir": prepared, "converted": [1, 2]}), \
+             mock.patch("src.main.write_slide_vtt", return_value=[]) as vtt, \
+             mock.patch("src.main.ppt_automation.insert_audio", return_value={
+                 "inserted_slides": [1, 2], "skipped_slides": [], "output_path": "deck.pptx"}) as insert, \
+             mock.patch("src.main.ppt_automation.export_video", return_value={
+                 "output_path": str(root / "video.mp4"), "elapsed_seconds": 1}), \
+             mock.patch("src.subtitle_candidates.build_caption_plan", return_value=(plan, [])) as build, \
+             mock.patch("src.subtitle_candidates._video_duration", return_value=30.), \
+             mock.patch("src.subtitle_candidates.locate_slide_start_and_end_times",
+                        return_value=({1: (0., 14.), 2: (14., 28.)}, [])) as locate, \
+             mock.patch("src.main.generate_audio_files") as tts, \
+             mock.patch("src.subtitle_burner.burn_subtitles_into_video") as burn:
+            _, stderr, code = self._invoke(argv + [
+                "--audio-tail-silence", "4", "--prepared-audio-dir", str(prepared),
+                "--vtt-output-dir", str(root / "vtt"), "--insert-audio", "--export-video"])
+        self.assertIsNone(code, stderr)
+        self.assertEqual(vtt.call_args.args[1:], (original, str(source), str(root / "vtt")))
+        self.assertEqual(insert.call_args.args[1:3], (derived, str(prepared)))
+        self.assertEqual(build.call_args.args[1:3], (derived, prepared))
+        self.assertEqual(locate.call_args.args[2:4], (derived, prepared))
+        tts.assert_not_called()
+        burn.assert_not_called()
+        preview = (root / "captions_preview.srt").read_text(encoding="utf-8")
+        self.assertIn("00:00:15,000 --> 00:00:16,000", preview)
+        self.assertEqual((root / "captions_initial.srt").read_bytes(),
+                         (root / "captions.srt").read_bytes())
+
+    def test_zero_uses_original_and_preparation_failure_stops_consumers(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        with mock.patch("src.main.prepare_audio_manifest") as prepare, \
+             mock.patch("src.main.write_subtitle_output", return_value=(root / "captions.srt", [])) as subtitles:
+            _, stderr, code = self._invoke(argv + ["--audio-tail-silence", "0"])
+        self.assertIsNone(code, stderr)
+        prepare.assert_not_called()
+        self.assertEqual(subtitles.call_args.kwargs["audio_dir"], str(source))
+        self.assertEqual(subtitles.call_args.args[0]["audio"], original)
+        from src.exceptions import AudioPreparationError
+        with mock.patch("src.main.prepare_audio_manifest", side_effect=AudioPreparationError("encoder failed")), \
+             mock.patch("src.main.ppt_automation.insert_audio") as insert, \
+             mock.patch("src.main.write_subtitle_output") as subtitles:
+            _, stderr, code = self._invoke(argv + ["--audio-tail-silence", "4", "--prepared-audio-dir", str(prepared), "--insert-audio"])
+        self.assertEqual(code, 2)
+        self.assertIn("encoder failed", stderr)
+        insert.assert_not_called()
+        subtitles.assert_not_called()
+
+    def test_partial_tts_is_merged_before_preparation(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        regenerated = {"slides": [{"slide_num": 2, "audio_file": "changed.mp3"}]}
+        with mock.patch("src.main.generate_audio_files", return_value=regenerated) as tts, \
+             mock.patch("src.main.prepare_audio_manifest", return_value={"manifest": derived, "audio_dir": prepared,
+                        "converted": [1, 2]}) as prepare, \
+             mock.patch("src.main.write_subtitle_output", return_value=(root / "captions.srt", [])) as subtitles:
+            _, stderr, code = self._invoke(argv + ["--generate-audio", "--slides", "2", "--audio-tail-silence", "4",
+                                                   "--prepared-audio-dir", str(prepared)])
+        self.assertIsNone(code, stderr)
+        self.assertEqual([s["slide_num"] for s in tts.call_args.args[0]], [2])
+        self.assertEqual(prepare.call_args.args[0]["slides"], [original["slides"][0], regenerated["slides"][1]])
+        self.assertEqual(subtitles.call_args.kwargs["audio_dir"], str(prepared))
+
+    def test_invalid_export_subtitles_do_not_overwrite_or_predict(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        from src.subtitle_pipeline import SubtitleTimingError
+        caption_path = root / "captions.srt"
+        caption_path.write_text("previous valid candidate", encoding="utf-8")
+        with mock.patch("src.main.ppt_automation.export_video", return_value={
+                 "output_path": "deck.mp4", "elapsed_seconds": 1}), \
+             mock.patch("src.main.write_subtitle_output_from_export", side_effect=SubtitleTimingError("overlap")), \
+             mock.patch("src.main.write_subtitle_output") as prediction:
+            _, stderr, code = self._invoke(argv + ["--export-video"])
+        self.assertEqual(code, 2)
+        self.assertIn("exported video retained", stderr)
+        prediction.assert_not_called()
+        self.assertEqual(caption_path.read_text(encoding="utf-8"), "previous valid candidate")
+
+    def test_prepared_input_is_rejected_before_tts(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        original["preparation"] = {"kind": "prepared"}
+        (source / "manifest.json").write_text(json.dumps(original), encoding="utf-8")
+        with mock.patch("src.main.generate_audio_files") as tts:
+            _, stderr, code = self._invoke(argv + ["--generate-audio", "--audio-tail-silence", "4",
+                                                   "--prepared-audio-dir", str(prepared)])
+        self.assertEqual(code, 2)
+        self.assertIn("Prepared manifests", stderr)
+        tts.assert_not_called()
+
+    def test_export_preserves_three_candidates_and_stops_before_burning(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        plan = [{"slide_num": n, "has_narration": True, "duration_seconds": 10.,
+                 "captions": [{"text": str(n), "start_seconds": 1., "end_seconds": 2.}]} for n in (1, 2)]
+
+        def export(*args, **kwargs):
+            self.assertTrue((root / "captions_preview.srt").exists())
+            self.assertFalse((root / "captions_initial.srt").exists())
+            video = root / "video.mp4"
+            video.write_bytes(b"exported")
+            return {"output_path": str(video), "elapsed_seconds": 1}
+
+        with mock.patch("src.main.ppt_automation.export_video", side_effect=export), \
+             mock.patch("src.subtitle_candidates.build_caption_plan", return_value=(plan, [])) as build, \
+             mock.patch("src.subtitle_candidates._video_duration", return_value=30.), \
+             mock.patch("src.subtitle_candidates.locate_slide_start_and_end_times", return_value=({1: (1., 11.), 2: (12., 22.)}, [])) as locate, \
+             mock.patch("src.subtitle_burner.burn_subtitles_into_video") as burn:
+            stdout, stderr, code = self._invoke(argv + ["--export-video"])
+        self.assertIsNone(code, stderr)
+        build.assert_called_once()
+        locate.assert_called_once()
+        burn.assert_not_called()
+        self.assertIn("manually compare", stdout)
+        self.assertEqual((root / "captions_initial.srt").read_bytes(), (root / "captions.srt").read_bytes())
+        report = json.loads((root / "captions_alignment_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "awaiting_manual_review")
+
+    def test_export_failure_retains_preview_and_reports_pending_candidates(self):
+        root, source, prepared, original, derived, argv = self._preparation_fixture()
+        from src.exceptions import VideoExportError
+        with mock.patch("src.main.ppt_automation.export_video", side_effect=VideoExportError("COM failure")):
+            _, stderr, code = self._invoke(argv + ["--export-video"])
+        self.assertEqual(code, 2)
+        self.assertTrue((root / "captions_preview.srt").exists())
+        report = json.loads((root / "captions_alignment_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "failed")
+        self.assertEqual(report["artifacts"]["initial"]["status"], "not_generated")
 
     def test_parses_pptx_and_writes_json_and_srt_without_audio(self):
         pptx_path = self._create_pptx([

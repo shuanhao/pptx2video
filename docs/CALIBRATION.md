@@ -2,11 +2,11 @@
 
 > 這份文件是給「用 `--subtitles-output` + `--export-video`（真實起始時間對齊模式）產字幕，或用 `scripts/split_video_by_slides.py` 切分段影片時，發現字幕/切點跟畫面對不準」的情境看的進階疑難排解文件。第一次使用這個工具、或字幕/切點目前看起來就是準的，不需要看這份文件。回到 [README.md](../README.md)。
 
-真實起始時間對齊模式（`--subtitles-output` + `--export-video`）量出來的時間，帶有一個跟已播放時間成正比、環境相依的系統性偏差（詳見 [CHANGELOG.md](../CHANGELOG.md) v0.6.1 第四輪修正）。這不是通用常數，換一份 deck 或換一台機器，理論上都需要重新校準。
+歷史長影片曾出現與播放時間成比例的偏差，但並非每份影片都有。預設維持 1.0，先人工核對 initial；已同步時不需校準。M4A 補秒案例曾出現套用 1.001221 反而延後，不能沿用舊值。
 
-## 想要免動手：`scripts/verify_srt_accuracy.py` 自動估算（推薦先試這個）
+## 自動估算：只作待核對的候選值
 
-如果不想每次都要開 Audacity 手動核對時間點，`scripts/verify_srt_accuracy.py`（本來是用來驗證字幕準確度的工具）現在也會**自動**從自己抽樣比對出來的資料，回歸算出一個建議的 `--global-scale-correction` 值——不需要人耳確認、不需要 Audacity：
+`scripts/verify_srt_accuracy.py` 可由抽樣音訊比對估算校正係數。這些樣本不是獨立人工真值，估算不取代聽音驗收：
 
 ```powershell
 python scripts/verify_srt_accuracy.py --video output/deck.mp4 --manifest output/audio/manifest.json --slides-json output/slides.json
@@ -19,13 +19,13 @@ Suggested --global-scale-correction (fitted from the 42 sample(s) above, no manu
 Residual after applying it: RMS 0.041s, max 0.187s across the sampled words.
 ```
 
-拿到建議值後直接套用即可：
+取得建議值後可另輸出候選並比對，不直接視為正確答案：
 
 ```powershell
 python scripts/regenerate_srt_from_export.py --video output/deck.mp4 --manifest output/audio/manifest.json --slides-json output/slides.json --output output/captions.srt --global-scale-correction 1.00118
 ```
 
-這個方法的取捨：樣本是機器自動挑、自動比對出來的，沒有獨立的人耳驗證當作對照組；deck 越長、抽樣的字越多，估出來的值越可靠，短 deck 或想要最高準確度時，建議還是跟下面手動校準流程的結果交叉核對一次。加大 `--samples-per-slide`（預設 3）可以增加抽樣密度，讓估算更穩定。
+自動樣本可能共享定位偏差；增加樣本不保證消除誤配。可用 `--samples-per-slide` 增加密度，但應以獨立時間點核對。
 
 ## 手動校準流程（想要最高準確度、或想交叉驗證自動估算結果時使用）
 
@@ -91,4 +91,4 @@ python scripts/calibrate_scale.py `
 - `scripts/regenerate_srt_from_export.py`
 - `scripts/split_video_by_slides.py`（見 [SPLIT_VIDEO.md](SPLIT_VIDEO.md)）
 
-這幾個地方各自獨立呼叫同一個底層量測函式（`audio_position_locator.locate_slide_start_and_end_times()`），每次呼叫都需要各自帶入這個係數去修正那一次的量測——不會因為在別的指令裡帶過就被「記住」，也不會因為同一份 deck 前面已經修正過而在後面被「修正兩次」；每次都是對同一支已匯出好的 `deck.mp4` 做一次獨立、全新的量測。
+主 CLI 與重建入口以 k=1.0 定位一次，再共用 records 產生 initial（1.0）與校正版（指定 k）；分段入口另行定位，其 k 只影響切點，不再乘到輸入 SRT。燒字幕不做時間校正。

@@ -61,21 +61,22 @@ def main() -> int:
     parser.add_argument("--video", required=True, type=Path, help="Input .mp4 to burn subtitles into.")
     parser.add_argument("--srt", required=True, type=Path, help="The .srt whose cues get burned in.")
     parser.add_argument("--output", required=True, type=Path, help="Where to write the burned-in .mp4.")
-    parser.add_argument("--bar-width", type=int, default=DEFAULT_BAR_WIDTH_PX, help=f"Black bar width in px (default: {DEFAULT_BAR_WIDTH_PX}).")
-    parser.add_argument("--bar-height", type=int, default=DEFAULT_BAR_HEIGHT_PX, help=f"Black bar height in px (default: {DEFAULT_BAR_HEIGHT_PX}).")
+    parser.add_argument("--bar-scale-mode", choices=("auto", "fixed"), default="auto", help="Auto: 720p/1080p bar geometry; fixed: 650/38/40 pixels. Explicit bar values are final pixels.")
+    parser.add_argument("--bar-width", type=int, default=None, help=f"Black bar width in px (auto-scaled; fixed: {DEFAULT_BAR_WIDTH_PX}).")
+    parser.add_argument("--bar-height", type=int, default=None, help=f"Black bar height in px (auto-scaled; fixed: {DEFAULT_BAR_HEIGHT_PX}).")
     parser.add_argument(
-        "--bar-bottom-offset", type=int, default=DEFAULT_BAR_BOTTOM_OFFSET_PX,
+        "--bar-bottom-offset", type=int, default=None,
         help=(
             f"Distance in px from the very bottom of the frame to the bar's TOP edge "
-            f"(default: {DEFAULT_BAR_BOTTOM_OFFSET_PX}) - the bar's bottom edge ends up "
+            f"(auto-scaled; fixed: {DEFAULT_BAR_BOTTOM_OFFSET_PX}) - the bar's bottom edge ends up "
             f"(this - --bar-height) px above the frame's bottom edge."
         ),
     )
     parser.add_argument("--font-name", default=DEFAULT_FONT_NAME, help=f"Font family for the burned-in text (default: {DEFAULT_FONT_NAME!r}).")
-    parser.add_argument("--font-size", type=int, default=DEFAULT_FONT_SIZE, help=f"Font size in px (default: {DEFAULT_FONT_SIZE}).")
+    parser.add_argument("--font-size", type=int, default=DEFAULT_FONT_SIZE, help=f"ASS font size (default: {DEFAULT_FONT_SIZE}).")
     parser.add_argument(
         "--margin-v", type=int, default=DEFAULT_MARGIN_V,
-        help=f"Distance in px from the frame's bottom edge to the text's bottom edge (default: {DEFAULT_MARGIN_V}). Should sit inside the black bar.",
+        help=f"ASS MarginV from the bottom edge (default: {DEFAULT_MARGIN_V}). Should sit inside the black bar.",
     )
     parser.add_argument("--crf", type=int, default=DEFAULT_CRF, help=f"libx264 quality (lower = better quality, larger file; default: {DEFAULT_CRF}).")
     args = parser.parse_args()
@@ -90,6 +91,7 @@ def main() -> int:
     print(f"Burning {args.srt} into {args.video} -> {args.output} ...")
     burn_subtitles_into_video(
         args.video, args.srt, args.output,
+        bar_scale_mode=args.bar_scale_mode,
         bar_width_px=args.bar_width,
         bar_height_px=args.bar_height,
         bar_bottom_offset_px=args.bar_bottom_offset,

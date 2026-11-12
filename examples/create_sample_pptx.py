@@ -1,5 +1,6 @@
 from pathlib import Path
 from pptx import Presentation
+from pptx.shapes.autoshape import Shape
 
 path = Path(__file__).with_name('sample_test.pptx')
 prs = Presentation()
@@ -62,10 +63,18 @@ slides_data = [
 
 for slide_data in slides_data:
     slide = prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text = slide_data['title']
-    slide.placeholders[1].text = f'Content for {slide_data["title"]}'
+    title_shape = slide.shapes.title
+    if title_shape is None:
+        raise ValueError("Sample layout is missing its title placeholder")
+    title_shape.text = slide_data['title']
+    content_shape = slide.placeholders[1]
+    if not isinstance(content_shape, Shape) or not content_shape.has_text_frame:
+        raise ValueError("Sample layout is missing a text content placeholder")
+    content_shape.text = f'Content for {slide_data["title"]}'
 
     notes_frame = slide.notes_slide.notes_text_frame
+    if notes_frame is None:
+        raise ValueError("Sample layout is missing its notes text frame")
     notes_frame.clear()
 
     for index, paragraph_text in enumerate(slide_data['notes']):
@@ -75,5 +84,5 @@ for slide_data in slides_data:
             new_paragraph = notes_frame.add_paragraph()
             new_paragraph.text = paragraph_text
 
-prs.save(path)
+prs.save(str(path))
 print(path.exists(), path)

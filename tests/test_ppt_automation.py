@@ -74,7 +74,7 @@ class FakePresentation:
         video_status_sequence=None,
         write_output_on_create_video=True,
         fail_save_as=False,
-        slow_save_as_seconds=0,
+        slow_save_as_seconds: float = 0.0,
     ):
         self.Slides = FakeSlides(slide_nums)
         self.PageSetup = FakePageSetup(slide_width)
@@ -272,7 +272,9 @@ class PptAutomationTests(unittest.TestCase):
 
             self.assertEqual(sorted(result["inserted_slides"]), [2, 3])
             self.assertEqual(result["skipped_slides"], [])
-            self.assertEqual(Path(presentation.saved_to).resolve(), pptx_path.resolve())
+            saved_to = presentation.saved_to
+            assert saved_to is not None, "Presentation must have been saved"
+            self.assertEqual(Path(saved_to).resolve(), pptx_path.resolve())
             self.assertTrue(presentation.closed)
 
             # Slides without audio were never touched.

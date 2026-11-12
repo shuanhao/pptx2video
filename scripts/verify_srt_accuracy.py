@@ -172,6 +172,13 @@ def _fit_scale(measured: list, observed: list) -> float:
     return numerator / denominator
 
 
+def _slide_number(slide) -> int:
+    number = slide["slide_num"]
+    if number is None:
+        raise ValueError("A slide must have a slide_num")
+    return int(number)
+
+
 def main():
     # Reconfigure stdout/stderr to UTF-8 before any print() - Windows can
     # otherwise crash printing CJK slide text when stdout/stderr is piped
@@ -220,7 +227,7 @@ def main():
         slides = payload.get("slides", payload) if isinstance(payload, dict) else payload
     else:
         slides = extract_notes(str(args.pptx))
-    slides = sorted(slides, key=lambda s: int(s["slide_num"]))
+    slides = sorted(slides, key=_slide_number)
 
     print("Step 1/2: measuring each slide's start AND end (locate_slide_start_and_end_times) ...")
     bounds, locate_warnings = locate_slide_start_and_end_times(
@@ -242,7 +249,7 @@ def main():
 
         rows = []
         for slide in slides:
-            slide_num = int(slide["slide_num"])
+            slide_num = _slide_number(slide)
             if wanted_slides is not None and slide_num not in wanted_slides:
                 continue
             entry = manifest_by_slide.get(slide_num)
