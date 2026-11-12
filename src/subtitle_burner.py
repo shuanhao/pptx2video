@@ -87,15 +87,15 @@ def resolve_bar_geometry(
     bar_bottom_offset_px: Optional[int] = None,
 ) -> tuple[int, int, int]:
     """Resolve each explicit pixel override independently, then validate bounds."""
-    if bar_scale_mode not in ("auto", "fixed"):
-        raise ValueError("bar_scale_mode must be auto or fixed")
+    if bar_scale_mode != "auto":
+        raise ValueError("bar_scale_mode must be auto; fixed mode has been removed")
     overrides = (bar_width_px, bar_height_px, bar_bottom_offset_px)
     scale = 1.0
-    if bar_scale_mode == "auto" and any(value is None for value in overrides):
+    if any(value is None for value in overrides):
         if ((video.width, video.height) not in ((1280, 720), (1920, 1080))
                 or video.sample_aspect_ratio != "1:1" or video.rotation % 360 != 0):
             raise ValueError("Auto bar scaling requires unrotated square-pixel 1280x720 or "
-                             "1920x1080 video; use --bar-scale-mode fixed or all three bar values.")
+                             "1920x1080 video; specify all three bar values for other geometry.")
         scale = video.height / 720
     width, height, offset = (
         explicit if explicit is not None else round(base * scale)

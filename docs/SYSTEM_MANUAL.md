@@ -243,7 +243,7 @@ PowerPoint 的「建立視訊」匯出功能是一個黑盒子 —— 你把已�
 
 ## 字幕怎麼跟畫面結合
 
-第一階段輸出獨立 SRT，不自動燒錄；人工選定後以 scripts/burn_subtitles.py 執行第二階段。720／1080 黑條 auto、fixed 與手動像素覆寫詳見 [SPLIT_VIDEO.md](SPLIT_VIDEO.md)。
+第一階段輸出獨立 SRT，不自動燒錄；人工選定後以 scripts/burn_subtitles.py 執行第二階段。720／1080 黑條自動縮放與手動像素覆寫詳見 [SPLIT_VIDEO.md](SPLIT_VIDEO.md)。fixed 模式已移除。
 
 ## 小結
 

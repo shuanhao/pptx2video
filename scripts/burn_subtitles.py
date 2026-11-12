@@ -61,14 +61,14 @@ def main() -> int:
     parser.add_argument("--video", required=True, type=Path, help="Input .mp4 to burn subtitles into.")
     parser.add_argument("--srt", required=True, type=Path, help="The .srt whose cues get burned in.")
     parser.add_argument("--output", required=True, type=Path, help="Where to write the burned-in .mp4.")
-    parser.add_argument("--bar-scale-mode", choices=("auto", "fixed"), default="auto", help="Auto: 720p/1080p bar geometry; fixed: 650/38/40 pixels. Explicit bar values are final pixels.")
-    parser.add_argument("--bar-width", type=int, default=None, help=f"Black bar width in px (auto-scaled; fixed: {DEFAULT_BAR_WIDTH_PX}).")
-    parser.add_argument("--bar-height", type=int, default=None, help=f"Black bar height in px (auto-scaled; fixed: {DEFAULT_BAR_HEIGHT_PX}).")
+    parser.add_argument("--bar-scale-mode", choices=("auto",), default="auto", help="Auto: 720p/1080p bar geometry. Explicit bar values are final pixels.")
+    parser.add_argument("--bar-width", type=int, default=None, help=f"Black bar width in px (auto-scaled from 720p base: {DEFAULT_BAR_WIDTH_PX}).")
+    parser.add_argument("--bar-height", type=int, default=None, help=f"Black bar height in px (auto-scaled from 720p base: {DEFAULT_BAR_HEIGHT_PX}).")
     parser.add_argument(
         "--bar-bottom-offset", type=int, default=None,
         help=(
             f"Distance in px from the very bottom of the frame to the bar's TOP edge "
-            f"(auto-scaled; fixed: {DEFAULT_BAR_BOTTOM_OFFSET_PX}) - the bar's bottom edge ends up "
+            f"(auto-scaled from 720p base: {DEFAULT_BAR_BOTTOM_OFFSET_PX}) - the bar's bottom edge ends up "
             f"(this - --bar-height) px above the frame's bottom edge."
         ),
     )

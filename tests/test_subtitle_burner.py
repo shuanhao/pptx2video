@@ -105,9 +105,30 @@ class BarGeometryTests(unittest.TestCase):
         hd = VideoGeometry(1920, 1080)
         self.assertEqual(resolve_bar_geometry(hd), (975, 57, 60))
         self.assertEqual(resolve_bar_geometry(hd, bar_width_px=900), (900, 57, 60))
-        self.assertEqual(resolve_bar_geometry(hd, bar_scale_mode="fixed"), (650, 38, 40))
         self.assertEqual(resolve_bar_geometry(hd, bar_width_px=900, bar_height_px=50,
                                              bar_bottom_offset_px=55), (900, 50, 55))
+
+    def test_removed_fixed_mode_is_rejected_even_with_full_overrides(self):
+        for overrides in ({}, {"bar_width_px": 900, "bar_height_px": 57,
+                                "bar_bottom_offset_px": 60}):
+            with self.subTest(overrides=overrides), self.assertRaisesRegex(ValueError, "fixed mode has been removed"):
+                resolve_bar_geometry(VideoGeometry(1920, 1080), bar_scale_mode="fixed", **overrides)
+
+    def test_both_cli_entry_points_reject_fixed_before_media_work(self):
+        import io
+        import sys
+        from contextlib import redirect_stderr
+        from scripts import burn_subtitles, split_video_by_slides
+        cases = ((burn_subtitles.main, ["--video", "missing.mp4", "--srt", "missing.srt",
+                                       "--output", "unused.mp4"]),
+                 (split_video_by_slides.main, ["--video", "missing.mp4"]))
+        for entry, required in cases:
+            with self.subTest(entry=entry.__module__), \
+                 patch.object(sys, "argv", ["script", *required, "--bar-scale-mode", "fixed"]), \
+                 redirect_stderr(io.StringIO()) as stderr, self.assertRaises(SystemExit) as error:
+                entry()
+            self.assertEqual(error.exception.code, 2)
+            self.assertIn("invalid choice", stderr.getvalue())
 
     def test_unsupported_and_invalid_geometry(self):
         for geometry in (VideoGeometry(640, 480), VideoGeometry(1920, 1080, "2:1"),

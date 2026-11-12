@@ -223,7 +223,7 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 **主要依賴**：`ffmpeg`（含 `libass`/`subtitles` filter，需在 PATH）
 
 負責：把字幕以「固定寬高、固定位置的黑色長條 + 白色無外框文字」燒進影片畫面（`burn_subtitles_into_video()`），而不是 libass 內建 `BorderStyle=3` 那種隨每行文字長短自動縮放寬度的貼字黑底框。背景：專案負責人想要的效果是「畫面下方一條固定寬度的黑 bar，不管這行字幕多長，黑 bar 大小都一樣」，並且黑 bar 的位置要能避開投影片模板本身的頁尾元素（logo、頁碼），這兩點都不是 libass 自動貼字框能做到的，因此改用 ffmpeg 的 `drawbox` 濾鏡先畫一條獨立的黑色長條，再疊上 `subtitles` 濾鏡渲染純白、無外框無陰影的文字（`BorderStyle=1,Outline=0,Shadow=0`）。
-- 黑條由 ffprobe 讀取實際尺寸：auto 對 1280×720 使用 650／38／40，1920×1080 使用 975／57／60。FontSize=15、MarginV=1 為 ASS 樣式座標，不縮放；其他比例（含 1440×1080）需 fixed 或完整三項像素覆寫。
+- 黑條由 ffprobe 讀取實際尺寸：auto 對 1280×720 使用 650／38／40，1920×1080 使用 975／57／60。FontSize=15、MarginV=1 為 ASS 樣式座標，不縮放；其他比例（含 1440×1080）需完整三項像素覆寫。fixed 模式因 1080p 文字溢出已移除。
 - `build_burn_filter()` 刻意拆成獨立函式，只組字串、不執行 ffmpeg，方便不需要裝 ffmpeg 就能單元測試濾鏡字串本身的正確性（見 `tests/test_subtitle_burner.py`）。
 - `_escape_path_for_ffmpeg_filter()`：ffmpeg 的 filtergraph 語法裡 `:` 是分隔 filter 參數用的、`'` 是引號——Windows 絕對路徑裡的磁碟機代號冒號（例如 `C:\...`）如果不跳脫，會被誤判成新的 filter 參數而整串解析失敗（不是「檔案找不到」這種好懂的錯誤），所以這裡統一把反斜線換成正斜線、`:` 跳脫成 `\:`、`'` 跳脫成 `\'`。
 - 燒字幕一定要重新編碼影片（`-c:v libx264`，因為是把像素畫進每一幀），音軌完全沒被動到、一律 `-c:a copy` 直接複製、不重新編碼。
@@ -466,8 +466,8 @@ python scripts/burn_subtitles.py --video output/deck.mp4 --srt output/captions_i
 
 預設 `--bar-scale-mode auto` 使用 ffprobe 的實際影片尺寸：1280×720 採 650／38／40；1920×1080 採 975／57／60（黑條寬／高／底部至頂邊距離）。FontSize=15、MarginV=1 不縮放，兩者為 ASS 樣式座標值，不是直接輸出像素。
 
-三個幾何參數可逐項覆寫為最終像素；1080p 加 `--bar-width 900` 得到 900／57／60。`--bar-scale-mode fixed` 使用舊有 650／38／40 預設，也允許覆寫。1080p 未指定尺寸的預設效果因此有意改變。
+三個幾何參數可逐項覆寫為最終像素；1080p 加 `--bar-width 900` 得到 900／57／60。fixed 模式已移除，僅保留自動縮放與手動尺寸覆寫。
 
-auto 僅支援無旋轉、方形像素的上述尺寸；其他影片需 fixed 或完整三個手動值。黑條須位於畫面內，高度不可大於底部 offset。所有模式均需 ffprobe 驗證，失敗停止、不猜測尺寸。輸出不得與輸入影片或字幕同一路徑。
+自動縮放僅支援無旋轉、方形像素的上述尺寸；其他影片需完整三個手動值。黑條須位於畫面內，高度不可大於底部 offset。所有影片均需 ffprobe 驗證，失敗停止、不猜測尺寸。輸出不得與輸入影片或字幕同一路徑。
 
 分段入口 `scripts/split_video_by_slides.py --burn-subtitles` 支援相同選項，共用 `src/subtitle_burner.py` 的 probe／resolve 邏輯。第一階段不自動選字幕或燒錄，不需重跑 TTS 或 PowerPoint。
