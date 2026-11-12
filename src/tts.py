@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Any
 
 import edge_tts
+from edge_tts.exceptions import NoAudioReceived
 
 from src.exceptions import TTSGenerationError
 from src.subtitle_alignment import find_suspected_dropped_narration
@@ -28,6 +29,8 @@ def _is_retryable(exc: Exception) -> bool:
 
     Retried: connection/timeout-style errors, which are the shape of a
     transient network blip or a momentarily overloaded TTS service.
+    NoAudioReceived is also retried within the same bounded policy: the
+    service can return no audio intermittently for otherwise valid input.
 
     NOT retried:
     - FileNotFoundError - almost always means ffmpeg is missing, which a
@@ -48,7 +51,7 @@ def _is_retryable(exc: Exception) -> bool:
         return False
     if isinstance(exc, (TypeError, ValueError)):
         return False
-    return isinstance(exc, (ConnectionError, TimeoutError, OSError))
+    return isinstance(exc, (ConnectionError, TimeoutError, OSError, NoAudioReceived))
 
 
 def _build_output_path(output_dir: Path, slide_num: int) -> Path:
