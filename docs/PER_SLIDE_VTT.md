@@ -62,7 +62,7 @@ VTT 不改動 MP3、不補尾端靜音、不插入字幕或設定 PowerPoint 播
 
 使用者另回報既有影片流程可產生 MP4、套用校正係數重產全片 SRT 並燒錄字幕。這是本分支的 main 既有流程回歸操作，不包含未移入的音訊準備功能或 Stage 6。
 
-提交前完整測試：202 項通過、1 項失敗（另有 7 個 subtests 通過）。失敗為 `tests/test_audio_position_locator.py::LocateSlideStartTimesTests::test_start_and_end_measured_independently_reflect_real_stretch`，單獨重跑可重現：預期約 59.940 秒、量到 56.930 秒。該測試與 `src/audio_position_locator.py` 均與 main 相同，VTT 共用的斷句／對齊管線也未修改；根因待另案調查，不宣稱完整測試全綠，也不在 VTT 工作內調整測試容差或修復影片定位。測試環境套件快照可依 README 的 `pip freeze` 指令保存。
+首次提交前完整測試曾有 202 項通過、1 項既有尾端定位測試失敗。該問題已由獨立修復 PR #3 合併 main（`e78c396`），再整合至 VTT 分支；修復未放寬測試容差。整合後完整測試為 **204 項通過，另有 7 個 subtests 通過**。修復根因、測試及真實影片修正前後 SRT 相同且實播同步的紀錄，見 [尾端定位修正](AUDIO_END_ANCHOR_FIX.md)。測試環境套件快照可依 README 的 `pip freeze` 指令保存。
 
 實際操作驗收補充：滑鼠點擊下一頁、簡報筆下一頁皆確認新頁音訊自動播放、字幕同步且前頁音訊停止。簡報筆上一頁與鍵盤 Page Up 相同，需要按兩次才能返回，返回後不自動播放音訊。故 VTT 產生、掛載、同步及正常前進播放通過；返回自動重播列為獨立的播放限制，尚未解決。移除 VTT 後仍有相同返回行為。
 

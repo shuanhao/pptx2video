@@ -2,6 +2,8 @@
 
 已完成的項目請見 [CHANGELOG.md](CHANGELOG.md)，這裡只保留還沒完成的工作、刻意不做的項目，以及已知限制。
 
+- **尾端定位邊界餘量的廣泛驗證**：完整測試及 sample.mp4 真實影片對照已通過（係數 1.001221，修正前後 SRT 相同且實播同步）；1% 邊界餘量對更多素材的適用性、歷史影響範圍尚未確認。詳見 [修復說明與驗證狀態](docs/AUDIO_END_ANCHOR_FIX.md)。
+
 ## 待進行
 
 - **定位 `global_scale_correction` 的確切根因**（見 CHANGELOG v0.6.1 第四輪修正、`audio_position_locator.py` 的 `DEFAULT_GLOBAL_SCALE_CORRECTION` docstring）——目前已經有一個經真實 deck 驗證過、精準到次秒等級的經驗校準值可用，但 `find_best_offset_seconds()` 互相關比對內部究竟是哪個環節造成這個跟已播放時間成正比的系統性偏差，還沒有定位到程式碼層級。不影響目前可用性（有校準流程可以繞過，見 `scripts/calibrate_scale.py`），但如果之後要讓工具「不需要每份 deck 手動校準就準」，需要先解決這個。
@@ -21,7 +23,6 @@
 
 ## 已知限制（目前不打算修）
 
-- 提交前回歸檢查發現既有 `test_start_and_end_measured_independently_reflect_real_stretch` 在目前環境可重現失敗（預期約 59.940 秒，量到 56.930 秒）。測試與定位程式均與 main 相同，根因尚未確認；另案追蹤，不為 VTT 放寬容差。詳見 [VTT 驗收紀錄](docs/PER_SLIDE_VTT.md)。
 
 - TTS 的 `NoAudioReceived` 已納入有限次重試，但間歇性無音訊根因未確認。重試耗盡時整批中止，可能留下空白／部分 MP3；manifest 僅在整批成功後寫出，既有 manifest 可能與覆寫音檔不一致。目前沒有逐頁可靠續跑或保留舊音檔的交易式更新；後續若改善長簡報復原能力，應另立工作，不作為 VTT 已完成能力。實測紀錄見 [每頁 VTT](docs/PER_SLIDE_VTT.md)。
 
