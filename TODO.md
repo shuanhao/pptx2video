@@ -6,7 +6,7 @@
 
 ## 待進行
 
-- **合併前驗收**：原始 MP3／0 秒、M4A 1／4／8／10 秒、4:3 手動黑條、720p／1080p auto 與 1080p 部分覆寫已獲使用者確認。大型簡報墊秒及內容完整，本片係數 1.00008 校正後抽查同步；不修改全域預設。WAV 生成與 fixed 模式依回饋移除。本輪 VTT 回歸仍待驗收，另追蹤 -10% TTS 無音訊問題；詳見 [Stage 6](docs/AUDIO_PREPARATION_STAGE6.md)。尚未 merge main。
+- **合併前驗收**：原始 MP3／0 秒、M4A 1／4／8／10 秒、4:3 手動黑條、720p／1080p auto、1080p 部分覆寫與 VTT 回歸已獲使用者確認。大型簡報墊秒及內容完整，本片係數 1.00008 校正後抽查同步；不修改全域校正預設。WAV 生成與 fixed 模式依回饋移除。YunJhe -10% TTS 無音訊根因仍待查；使用者已決定預設語速改為 +0%，保留手動設定及有限重試，見 [語速診斷](docs/TTS_RATE_DIAGNOSTIC.md)。實機範圍詳見 [Stage 6](docs/AUDIO_PREPARATION_STAGE6.md)。尚未 merge main。
 - **已知文字對齊警告**：MPU_WK01 第 16／20／23 頁孤立 `」`、第 22／23 頁 `mp; Connecti` 曾有警告。本輪使用者確認指定頁面無漏句；警告根因仍待釐清，不能僅因影片可播放就判定演算法問題已解決。
 
 - **定位 `global_scale_correction` 的確切根因**（見 CHANGELOG v0.6.1 第四輪修正、`audio_position_locator.py` 的 `DEFAULT_GLOBAL_SCALE_CORRECTION` docstring）——目前已經有一個經真實 deck 驗證過、精準到次秒等級的經驗校準值可用，但 `find_best_offset_seconds()` 互相關比對內部究竟是哪個環節造成這個跟已播放時間成正比的系統性偏差，還沒有定位到程式碼層級。不影響目前可用性（有校準流程可以繞過，見 `scripts/calibrate_scale.py`），但如果之後要讓工具「不需要每份 deck 手動校準就準」，需要先解決這個。

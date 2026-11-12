@@ -122,7 +122,7 @@ python -m pptx2video examples/sample_test.pptx --output output/slides.json
 ### 7. 生成語音（TTS）
 
 ```powershell
-python -m pptx2video examples/sample_test.pptx --generate-audio --audio-output-dir output/audio --voice "zh-TW-YunJheNeural" --rate=-10% --pitch="+0Hz" --subtitles-output=
+python -m pptx2video examples/sample_test.pptx --generate-audio --audio-output-dir output/audio --voice "zh-TW-YunJheNeural" --rate=+0% --pitch="+0Hz" --subtitles-output=
 ```
 
 這會把有 notes 的投影片轉成 MP3，並在 `output/audio/manifest.json` 建立對應的音訊清單。
@@ -250,7 +250,7 @@ python src/main.py examples/sample_test.pptx `
   --generate-audio `
   --audio-output-dir output/audio `
   --voice "zh-TW-YunJheNeural" `
-  --rate=-10% `
+  --rate=+0% `
   --pitch="+0Hz" `
   --subtitles-output output/captions.srt `
   --insert-audio `
@@ -326,7 +326,7 @@ python -m pptx2video <pptx_path> [選項...]
 | `--prepared-audio-sample-rate` | `24000` | 啟用時取樣率，合法值見音訊準備手冊 |
 | `--prepared-audio-channels` | `1` | 聲道數 1 或 2；補秒為 0 時不可明確指定 prepared 參數 |
 | `--voice` | `Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)` | edge-tts 使用的語音。也可用簡短格式如 `zh-TW-YunJheNeural`，若完整格式在你的環境報錯可改用簡短格式 |
-| `--rate` | `-10%` | 語速調整，語音會比原始語速慢 10%；正值加快、負值放慢，例如 `+10%`、`-20%`。⚠️ **負值務必用 `--rate=-20%` 等號寫法**，不要用空格分隔的 `--rate "-20%"`（見下方說明） |
+| `--rate` | `+0%` | 預設原速；正值加快、負值放慢，例如 `+10%`、`-20%`。部分語音與語速組合可能無音訊，見下方限制。⚠️ **負值務必用 `--rate=-20%` 等號寫法**，不要用空格分隔的 `--rate "-20%"`（見下方說明） |
 | `--pitch` | `+0Hz` | 音高調整，預設不改變音高 |
 | `--tts-max-retries` | `3` | edge-tts 生成失敗後（含 `NoAudioReceived` 等判斷為暫時性的錯誤）最多重試幾次，設為 `0` 停用重試。**必須是 0 或正整數**，帶負值會直接被 CLI 拒絕並提示錯誤 |
 | `--tts-retry-delay` | `2.0`（秒） | 兩次重試之間的等待秒數 |
@@ -347,6 +347,8 @@ python -m pptx2video <pptx_path> [選項...]
 | `--no-file-log` | `False`（flag） | 停用寫入 log 檔案，只印到終端機 |
 
 > ⚠️ **關於 `--rate` 負值的一個 Python argparse 陷阱**：像 `--rate "-10%"` 這種用空格分隔、值又以 `-` 開頭的寫法，會被 `argparse` 誤判成另一個選項旗標而報錯 `expected one argument`（`--pitch` 因為預設是 `+0Hz`，以 `+` 開頭，不受影響）。**負值請一律用等號寫法**，例如：`--rate=-20%`（等號連在一起、不要空格）。加速（正值）用空格或等號都可以，例如 `--rate "+10%"` 或 `--rate=+10%` 皆正常。
+
+**TTS 已知限制（2026-11-12）**：edge-tts 7.3.1、YunJhe 語音在本次測試中以 `-10%` 三次均回報 `NoAudioReceived`，相同全文 `+0%` 三次成功；`-5%` 及短文字 `-10%` 也失敗，另一語音 HsiaoChen 的 `-10%` 則成功。根因未確認，不能推論所有負語速均不支援，增加重試也非已證實有效的修復。因此 CLI 與 TTS 模組預設改為 `+0%`。仍可手動指定語速，失敗不自動換語音或語速；重試耗盡會中止。既有 MP3／manifest 不因預設改變而自動重生。完整證據見 [TTS 語速診斷](docs/TTS_RATE_DIAGNOSTIC.md)。
 
 ### 使用範例
 

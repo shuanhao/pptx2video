@@ -17,7 +17,7 @@ from src.exceptions import Pptx2VideoError, PptParseError, TTSGenerationError
 from src.logging_config import setup_logging
 from src.pptx_parser import extract_notes
 from src.subtitle_pipeline import SubtitleTimingError, generate_srt_for_deck
-from src.tts import generate_audio_files
+from src.tts import DEFAULT_RATE, generate_audio_files
 from src.subtitle_vtt import write_slide_vtt
 
 
@@ -235,7 +235,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--rate",
-        default="-10%",
+        default=DEFAULT_RATE,
         help="Speech rate for edge-tts (for example -10%% or +5%%)",
     )
     parser.add_argument(

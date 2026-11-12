@@ -31,6 +31,27 @@ def _factory(chunks):
 
 
 class TtsGeneratorTests(unittest.TestCase):
+    def test_default_and_explicit_rates_reach_service_and_manifest(self):
+        for options, expected in (({}, "+0%"), ({"rate": "-10%"}, "-10%")):
+            calls = []
+            def factory(**kwargs):
+                calls.append(kwargs)
+                return FakeCommunicate([
+                    {"type": "audio", "data": b"fake audio"},
+                    {"type": "WordBoundary", "text": "Hello", "offset": 0, "duration": 2000000},
+                ])
+            with self.subTest(options=options), tempfile.TemporaryDirectory() as tmp:
+                manifest = generate_audio_files(
+                    [{"slide_num": 1, "notes": "Hello"}], tmp,
+                    manifest_path=Path(tmp) / "manifest.json",
+                    communicate_factory=factory, **options,
+                )
+                self.assertEqual([call["rate"] for call in calls], [expected])
+                self.assertEqual(manifest["rate"], expected)
+                saved = json.loads((Path(tmp) / "manifest.json").read_text(encoding="utf-8"))
+                self.assertEqual(saved["rate"], expected)
+                self.assertEqual(calls[0]["boundary"], "WordBoundary")
+
     def test_no_audio_response_retries_then_succeeds(self):
         from edge_tts.exceptions import NoAudioReceived
         calls = []

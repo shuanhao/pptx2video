@@ -347,6 +347,7 @@ class CliEndToEndTests(unittest.TestCase):
             self.assertIsNone(exit_code)
             mock_generate.assert_called_once()
             _, kwargs = mock_generate.call_args
+            self.assertEqual(kwargs["rate"], "+0%")
             self.assertEqual(
                 kwargs["voice"],
                 "Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)",

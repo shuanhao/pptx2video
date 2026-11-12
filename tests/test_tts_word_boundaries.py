@@ -65,6 +65,7 @@ class TtsWordBoundariesTests(unittest.TestCase):
                 communicate_factory=_factory(chunks, captured_kwargs),
             )
 
+        self.assertEqual(captured_kwargs[0]["rate"], "+0%")
         self.assertEqual(
             events,
             [
