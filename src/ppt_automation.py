@@ -39,6 +39,8 @@ exception wrapping around it) is shared via the ``_powerpoint_session`` and
 in each function.
 """
 
+from __future__ import annotations
+
 import concurrent.futures
 import sys
 import time

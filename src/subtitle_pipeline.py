@@ -92,6 +92,8 @@ from the subtitle output - its narration still plays, but with no subtitle
 line - and this is called out in the returned ``warnings`` list.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple

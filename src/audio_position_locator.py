@@ -39,6 +39,8 @@ using ``--subtitles-output`` together with ``--export-video`` - see
 pyproject.toml/requirements.txt.
 """
 
+from __future__ import annotations
+
 import subprocess
 import math
 import tempfile

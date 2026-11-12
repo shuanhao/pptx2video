@@ -15,6 +15,8 @@ This module sets up a logger that:
   available after the fact even for a run where ``--verbose`` wasn't passed.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 from datetime import date
