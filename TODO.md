@@ -2,6 +2,8 @@
 
 已完成的項目請見 [CHANGELOG.md](CHANGELOG.md)，這裡只保留還沒完成的工作、刻意不做的項目，以及已知限制。
 
+- **尾端定位修復的真實影片對照**：合成素材與完整測試已通過，仍需以相同輸入及校正係數比較修正前後的末頁定位與字幕同步；1% 邊界餘量的廣泛適用性、歷史影響範圍尚未確認。詳見 [修復說明與驗證狀態](docs/AUDIO_END_ANCHOR_FIX.md)。
+
 ## 待進行
 
 - **定位 `global_scale_correction` 的確切根因**（見 CHANGELOG v0.6.1 第四輪修正、`audio_position_locator.py` 的 `DEFAULT_GLOBAL_SCALE_CORRECTION` docstring）——目前已經有一個經真實 deck 驗證過、精準到次秒等級的經驗校準值可用，但 `find_best_offset_seconds()` 互相關比對內部究竟是哪個環節造成這個跟已播放時間成正比的系統性偏差，還沒有定位到程式碼層級。不影響目前可用性（有校準流程可以繞過，見 `scripts/calibrate_scale.py`），但如果之後要讓工具「不需要每份 deck 手動校準就準」，需要先解決這個。
