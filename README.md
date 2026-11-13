@@ -265,9 +265,9 @@ python src/main.py examples/sample_test.pptx `
 ```
 Parsing PowerPoint file: ...
 Loaded 5 slide(s)
-Generating audio 1/3 (slide 2)...
-Generating audio 2/3 (slide 3)...
-Generating audio 3/3 (slide 4)...
+Generated audio 1/3 (slide 2).
+Generated audio 2/3 (slide 3).
+Generated audio 3/3 (slide 4).
 Generated 3 audio file(s) in output/audio
 Saved JSON to output\slides.json
 Saved preview subtitles to output\captions_preview.srt
@@ -328,8 +328,8 @@ python -m pptx2video <pptx_path> [選項...]
 | `--voice` | `Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)` | edge-tts 使用的語音。也可用簡短格式如 `zh-TW-YunJheNeural`，若完整格式在你的環境報錯可改用簡短格式 |
 | `--rate` | `+0%` | 預設原速；正值加快、負值放慢，例如 `+10%`、`-20%`。部分語音與語速組合可能無音訊，見下方限制。⚠️ **負值務必用 `--rate=-20%` 等號寫法**，不要用空格分隔的 `--rate "-20%"`（見下方說明） |
 | `--pitch` | `+0Hz` | 音高調整，預設不改變音高 |
-| `--tts-max-retries` | `3` | edge-tts 生成失敗後（含 `NoAudioReceived` 等判斷為暫時性的錯誤）最多重試幾次，設為 `0` 停用重試。**必須是 0 或正整數**，帶負值會直接被 CLI 拒絕並提示錯誤 |
-| `--tts-retry-delay` | `2.0`（秒） | 兩次重試之間的等待秒數 |
+| `--tts-max-retries` | `10` | edge-tts 暫時性失敗（含 `NoAudioReceived`、握手 HTTP 408／429／500／502／503／504）後的額外重試次數；預設每頁最多嘗試 11 次，設為 `0` 停用。**必須是 0 或正整數**，負值會被 CLI 拒絕 |
+| `--tts-retry-delay` | `5.0`（秒） | 兩次重試之間的等待秒數，可明確指定其他間隔 |
 | `--subtitles-output` | `output/captions.srt` | 未匯出時輸出單份預測字幕；匯出時衍生 preview、initial、captions 與 JSON 報告。空字串停用 |
 | `--insert-audio` | `False`（flag） | 把已生成的音訊插入 PPTX 對應投影片，圖示縮小移到右上角並盡量隱藏。需要 Windows + PowerPoint + pywin32，且需已用 `--generate-audio` 產生過音檔（或指定的 `--audio-output-dir` 底下已有 `manifest.json`） |
 | `--pptx-output` | 覆蓋輸入檔 | 搭配 `--insert-audio` 使用，指定插入音訊後另存的 PPTX 路徑；未指定則直接覆蓋原始輸入檔 |

@@ -3,6 +3,9 @@ import ssl
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+
+from aiohttp import WSServerHandshakeError
 
 from src.exceptions import TTSGenerationError
 from src.tts import generate_audio_files
@@ -28,6 +31,93 @@ def _factory(chunks):
         return FakeCommunicate(chunks, **kwargs)
 
     return factory
+
+
+class HandshakeRetryTests(unittest.TestCase):
+    @staticmethod
+    def failure(status):
+        return WSServerHandshakeError(
+            SimpleNamespace(real_url="wss://example.invalid/speech"), (),
+            status=status, message="Invalid response status",
+        )
+
+    def test_transient_handshake_retries_and_publishes_successful_audio_and_timing(self):
+        for status in (408, 429, 500, 502, 503, 504):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
+                failure = self.failure(status)
+                calls, retries = [], []
+
+                class FailingCommunicate:
+                    async def stream(self):
+                        yield {"type": "audio", "data": b"partial"}
+                        raise failure
+
+                def factory(**kwargs):
+                    calls.append(kwargs)
+                    if len(calls) == 1:
+                        return FailingCommunicate()
+                    return FakeCommunicate([
+                        {"type": "audio", "data": b"complete"},
+                        {"type": "WordBoundary", "text": "Hello", "offset": 0,
+                         "duration": 2000000},
+                    ])
+
+                manifest = generate_audio_files(
+                    [{"slide_num": 6, "notes": "Hello"}], tmp,
+                    communicate_factory=factory, max_retries=1,
+                    retry_delay_seconds=0,
+                    on_retry=lambda *args: retries.append(args),
+                )
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(retries, [(1, 1, 6, failure)])
+                self.assertEqual((Path(tmp) / "slide_006.mp3").read_bytes(), b"complete")
+                entry = manifest["slides"][0]
+                timing = json.loads((Path(tmp) / entry["word_boundaries_file"]).read_text(encoding="utf-8"))
+                self.assertEqual(timing, [{"text": "Hello", "offset_seconds": 0.0,
+                                           "duration_seconds": 0.2}])
+
+    def test_persistent_503_stops_at_retry_limit_without_publishing_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            calls, retries = [], []
+            failure = self.failure(503)
+
+            def factory(**kwargs):
+                calls.append(kwargs)
+                raise failure
+
+            manifest_path = Path(tmp) / "manifest.json"
+            with self.assertRaises(TTSGenerationError) as ctx:
+                generate_audio_files(
+                    [{"slide_num": 6, "notes": "Hello"}], tmp,
+                    communicate_factory=factory, manifest_path=manifest_path,
+                    retry_delay_seconds=0,
+                    on_retry=lambda *args: retries.append(args),
+                )
+            self.assertEqual(len(calls), 11)
+            self.assertEqual(len(retries), 10)
+            self.assertIs(ctx.exception.__cause__, failure)
+            self.assertIn("slide 6", str(ctx.exception))
+            self.assertIn("after 11 attempt(s)", str(ctx.exception))
+            self.assertIn("WebSocket handshake HTTP 503", str(ctx.exception))
+            self.assertNotIn("wss://", str(ctx.exception))
+            self.assertFalse(manifest_path.exists())
+
+    def test_other_handshake_statuses_fail_without_retry(self):
+        for status in (400, 401, 403, 404, 501):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
+                calls = []
+                failure = self.failure(status)
+
+                def factory(**kwargs):
+                    calls.append(kwargs)
+                    raise failure
+
+                with self.assertRaises(TTSGenerationError):
+                    generate_audio_files(
+                        [{"slide_num": 6, "notes": "Hello"}], tmp,
+                        communicate_factory=factory, retry_delay_seconds=0,
+                    )
+                self.assertEqual(len(calls), 1)
 
 
 class TtsGeneratorTests(unittest.TestCase):
@@ -288,7 +378,7 @@ class TtsGeneratorTests(unittest.TestCase):
             # on_retry fires once per failed attempt before the eventual
             # success (attempts 1 and 2 failed; no retry event for the
             # successful 3rd attempt).
-            self.assertEqual(retry_events, [(1, 3, 1), (2, 3, 1)])
+            self.assertEqual(retry_events, [(1, 10, 1), (2, 10, 1)])
 
     def test_generate_audio_files_gives_up_after_max_retries(self):
         slides = [{"slide_num": 1, "title": "Intro", "notes": "Hello there"}]

@@ -17,7 +17,10 @@ from src.exceptions import Pptx2VideoError, PptParseError, TTSGenerationError
 from src.logging_config import setup_logging
 from src.pptx_parser import extract_notes
 from src.subtitle_pipeline import SubtitleTimingError, generate_srt_for_deck
-from src.tts import DEFAULT_RATE, generate_audio_files
+from src.tts import (
+    DEFAULT_MAX_RETRIES, DEFAULT_RATE, DEFAULT_RETRY_DELAY_SECONDS,
+    describe_tts_error, generate_audio_files,
+)
 from src.subtitle_vtt import write_slide_vtt
 
 
@@ -246,7 +249,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tts-max-retries",
         type=_non_negative_int,
-        default=3,
+        default=DEFAULT_MAX_RETRIES,
         help=(
             "How many times to retry generating a slide's audio after a "
             "transient failure (network blip, service hiccup) before giving "
@@ -257,7 +260,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tts-retry-delay",
         type=float,
-        default=2.0,
+        default=DEFAULT_RETRY_DELAY_SECONDS,
         help="Seconds to wait between TTS retry attempts",
     )
     parser.add_argument(
@@ -483,12 +486,13 @@ def main() -> None:
                 _fail(parser, logger, f"Invalid original audio manifest: {exc}")
     if args.generate_audio:
         def _print_audio_progress(current: int, total: int, slide_num: int) -> None:
-            logger.info(f"Generating audio {current}/{total} (slide {slide_num})...")
+            logger.info(f"Generated audio {current}/{total} (slide {slide_num}).")
 
         def _print_audio_retry(attempt: int, max_retries: int, slide_num: int, exc: Exception) -> None:
+            logger.debug("Slide %s: full TTS retry error: %s", slide_num, exc, exc_info=True)
             logger.warning(
                 f"Slide {slide_num}: attempt {attempt}/{max_retries + 1} failed "
-                f"({exc}); retrying in {args.tts_retry_delay:.0f}s..."
+                f"({describe_tts_error(exc)}); retrying in {args.tts_retry_delay:g}s..."
             )
 
         def _print_narration_gap(slide_num: int, suspect: dict) -> None:
@@ -560,6 +564,7 @@ def main() -> None:
                 on_narration_gap=_print_narration_gap,
             )
         except TTSGenerationError as exc:
+            logger.debug("Full TTS generation failure", exc_info=True)
             _fail(parser, logger, str(exc))
 
         regenerated_count = len(audio_manifest["slides"])

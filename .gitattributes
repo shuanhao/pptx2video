@@ -1,0 +1,18 @@
+# Keep repository and working-tree text files on LF, including on Windows.
+* text=auto eol=lf
+
+# Media and packaged documents must never undergo newline conversion.
+*.pptx binary
+*.pdf binary
+*.mp3 binary
+*.m4a binary
+*.wav binary
+*.mp4 binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary

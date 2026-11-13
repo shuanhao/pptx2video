@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Any
 
 import edge_tts
+from aiohttp import WSServerHandshakeError
 from edge_tts.exceptions import NoAudioReceived
 
 from src.exceptions import TTSGenerationError
@@ -24,8 +25,17 @@ DEFAULT_RATE = "+0%"
 # orphaned background processes, which is a worse problem than the one
 # retrying would solve. TTS calls have no such cleanup concern, so retrying
 # here is safe.
-DEFAULT_MAX_RETRIES = 3
-DEFAULT_RETRY_DELAY_SECONDS = 2.0
+DEFAULT_MAX_RETRIES = 10
+DEFAULT_RETRY_DELAY_SECONDS = 5.0
+
+
+def describe_tts_error(exc: Exception) -> str:
+    """Summarize service errors without claiming a cause or exposing request URLs."""
+    if isinstance(exc, NoAudioReceived):
+        return "No audio received; cause undetermined"
+    if isinstance(exc, WSServerHandshakeError):
+        return f"WebSocket handshake HTTP {exc.status}"
+    return str(exc)
 
 
 def _is_retryable(exc: Exception) -> bool:
@@ -35,6 +45,8 @@ def _is_retryable(exc: Exception) -> bool:
     transient network blip or a momentarily overloaded TTS service.
     NoAudioReceived is also retried within the same bounded policy: the
     service can return no audio intermittently for otherwise valid input.
+    WebSocket handshake HTTP 408/429/500/502/503/504 responses use the same
+    bounded retries; authentication and other HTTP errors are not retried.
 
     NOT retried:
     - FileNotFoundError - almost always means ffmpeg is missing, which a
@@ -55,6 +67,8 @@ def _is_retryable(exc: Exception) -> bool:
         return False
     if isinstance(exc, (TypeError, ValueError)):
         return False
+    if isinstance(exc, WSServerHandshakeError):
+        return exc.status in (408, 429, 500, 502, 503, 504)
     return isinstance(exc, (ConnectionError, TimeoutError, OSError, NoAudioReceived))
 
 
@@ -416,7 +430,8 @@ def generate_audio_files(
             if isinstance(last_exc, FileNotFoundError):
                 hint = " (this often means ffmpeg is missing - install it and ensure it's on PATH)"
             raise TTSGenerationError(
-                f"Failed to generate audio for slide {slide_num}{hint}: {last_exc}"
+                f"Failed to generate audio for slide {slide_num} after {attempt} attempt(s){hint}: "
+                f"{describe_tts_error(last_exc)}"
             ) from last_exc
 
         word_boundaries_file = None

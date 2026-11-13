@@ -27,7 +27,7 @@ VTT 不改動 MP3、不補尾端靜音、不插入字幕或設定 PowerPoint 播
   --subtitles-output= `
   --rate=+0% `
   --pitch=+0Hz `
-  --tts-max-retries 3 `
+  --tts-max-retries 10 `
   --tts-retry-delay 5 `
   --log-dir "output\logs" `
   --verbose
@@ -50,7 +50,13 @@ VTT 不改動 MP3、不補尾端靜音、不插入字幕或設定 PowerPoint 播
 
 ## TTS 無音訊回應與限制
 
-`No audio was received` 表示 TTS 未回傳音訊，不等於 CLI 參數錯誤。此例外已納入重試：`--tts-max-retries 3 --tts-retry-delay 5` 表示每頁最多嘗試 4 次，間隔 5 秒；CLI 預設間隔仍為 2 秒。實測重試可恢復，但根因未確認，不能保證不再發生。
+WebSocket 握手回傳 HTTP 408／429／500／502／503／504 時，也使用相同的有限次重試及固定等待間隔；403 等其他 HTTP 狀態不自動重試。這不保證解除服務或網路問題。首次整批生成若在中途失敗且尚無 manifest，請保留原設定完整重跑；只指定剩餘頁面會使新 manifest 缺少先前完成頁面的紀錄。
+
+`No audio was received` 表示 TTS 未回傳音訊，不等於 CLI 參數錯誤。CLI 與模組預設額外重試 10 次，每頁最多嘗試 11 次，預設間隔為 5 秒；可用 `--tts-max-retries` 與 `--tts-retry-delay` 覆蓋預設，例如 `--tts-retry-delay 10` 改為 10 秒。實測重試可恢復，但根因未確認，不能保證不再發生或避免服務限流。
+
+每頁成功後顯示 `Generated audio`；重試訊息顯示失敗嘗試編號與總上限。無音訊訊息使用「原因未確定」，HTTP 握手失敗顯示狀態碼，終端不顯示完整握手 URL。原始例外與 traceback 保留於 DEBUG 紀錄；使用 `--verbose` 也會在終端顯示 DEBUG 細節。
+
+2026-11-13 使用者以 `--tts-max-retries 5 --tts-retry-delay 10` 重跑 2026HRTv3：9 頁旁白生成完成，其中第 7／11 頁的無音訊回應及第 10 頁 HTTP 503 均在重試後成功。此為該次線上生成紀錄，尚不代表聲音完整性或後續 VTT／影片驗收通過，也不保證服務穩定性。
 
 重試耗盡會中止整批，可能留下空白或不完整 MP3；manifest 僅在整批成功後寫出，失敗後既有 manifest 也可能與已覆寫音檔不一致。因此不能只看檔案存在就判定成功，也不能假設失敗批次可直接續跑。首次整批失敗時，建議完整重跑。成功後保留 MP3、word-boundary JSON 與 manifest，後續產生 VTT／嵌入音訊不要加 `--generate-audio`，可避免再次呼叫線上服務。
 
