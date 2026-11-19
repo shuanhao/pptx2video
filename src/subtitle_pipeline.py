@@ -229,6 +229,15 @@ def _build_slide_captions(
             })
             continue
 
+        # Version-1 direct WebSocket files predate XML text normalization.
+        # Adapt only that backend's legacy data in memory, using narration
+        # notes (not edited subtitle_text). Never rewrite audio or timings.
+        tts_metadata = entry.get("tts") or {}
+        if (tts_metadata.get("backend") == "edge-websocket"
+                and not tts_metadata.get("boundary_text_normalization")):
+            from src.tts_boundary_text import normalize_boundary_text
+            word_boundaries = normalize_boundary_text(str(slide.get("notes") or ""), word_boundaries)
+
         # ``subtitle_text`` (when present and non-empty) is the text used
         # for the *subtitle line breaking/timing* below - ``notes`` is what
         # was actually sent to edge-tts (see tts.py) and is what the audio

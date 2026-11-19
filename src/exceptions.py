@@ -33,7 +33,7 @@ class PptParseError(Pptx2VideoError):
 
 
 class TTSGenerationError(Pptx2VideoError):
-    """Raised when edge-tts fails to generate audio for a slide.
+    """Raised when the selected TTS backend or audio publication fails.
 
     Covers network failures, service errors, and missing-ffmpeg failures
     during MP3 generation. The error message includes which slide failed.

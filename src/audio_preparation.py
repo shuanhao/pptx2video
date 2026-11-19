@@ -141,6 +141,11 @@ def prepare_audio_file(source, output, options) -> Dict[str, Any]:
 
 def validate_audio_manifest(manifest):
     """Reject unfinished fixed-name batches; accept original and legacy manifests."""
+    generation = manifest.get("generation")
+    if generation is not None and (
+        not isinstance(generation, dict) or generation.get("status") != "ready"
+    ):
+        raise AudioPreparationError("TTS audio manifest is incomplete; rerun audio generation")
     metadata = manifest.get("preparation") or {}
     if not isinstance(metadata, dict):
         raise AudioPreparationError("Invalid prepared audio metadata")
@@ -167,6 +172,7 @@ def prepare_audio_manifest(manifest, source_dir, output_dir, options,
     Caller supplies the already merged original manifest. Missing WordBoundary is
     supported. Unknown manifest/slide fields are preserved. No TTS is invoked.
     """
+    validate_audio_manifest(manifest)
     source, output = Path(source_dir).resolve(), Path(output_dir).resolve()
     enabled = validate_preparation_options(options, source, output, explicit_options)
     if not enabled:
