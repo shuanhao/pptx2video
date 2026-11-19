@@ -11,7 +11,7 @@ if __package__ in {None, ""}:
 
 from src import ppt_automation
 from src.subtitle_candidates import SubtitleCandidateRun
-from src.audio_preparation import AudioPreparationOptions, prepare_audio_manifest, validate_preparation_options
+from src.audio_preparation import AudioPreparationOptions, prepare_audio_manifest, validate_preparation_options, validate_audio_manifest
 from src.audio_position_locator import DEFAULT_GLOBAL_SCALE_CORRECTION
 from src.exceptions import Pptx2VideoError, PptParseError, TTSGenerationError
 from src.logging_config import setup_logging
@@ -21,6 +21,7 @@ from src.tts import (
     DEFAULT_MAX_RETRIES, DEFAULT_RATE, DEFAULT_RETRY_DELAY_SECONDS,
     describe_tts_error, generate_audio_files,
 )
+from src.tts_backend import BACKEND_NAMES
 from src.subtitle_vtt import write_slide_vtt
 
 
@@ -202,7 +203,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--generate-audio",
         action="store_true",
-        help="Generate MP3 audio files from slide notes using edge-tts",
+        help="Generate MP3 audio files from slide notes using the selected TTS backend",
     )
     parser.add_argument(
         "--audio-output-dir",
@@ -231,6 +232,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Default: generate every slide with notes."
         ),
     )
+    parser.add_argument("--tts-backend", choices=BACKEND_NAMES, default="edge-tts",
+                        help="TTS transport (default: edge-tts; edge-websocket is experimental)")
     parser.add_argument(
         "--voice",
         default="Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)",
@@ -244,7 +247,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--pitch",
         default="+0Hz",
-        help="Pitch for edge-tts (use +0Hz to keep the pitch unchanged)",
+        help="Pitch: signed Hz for edge-tts; percentage or +0Hz for edge-websocket",
     )
     parser.add_argument(
         "--tts-max-retries",
@@ -510,7 +513,7 @@ def main() -> None:
             if len(preview) > 120:
                 preview = preview[:120] + "..."
             logger.warning(
-                f"POSSIBLE DROPPED NARRATION - slide {slide_num}: edge-tts's audio has only "
+                f"POSSIBLE DROPPED NARRATION - slide {slide_num}: {args.tts_backend}'s audio has only "
                 f"{suspect['gap_seconds']:.1f}s around {suspect['audio_position_seconds']:.1f}s "
                 f"where ~{suspect['expected_seconds']:.0f}s was expected for this much source text. "
                 f"Listen to slide_{slide_num:03d}.mp3 around {suspect['audio_position_seconds']:.1f}s "
@@ -519,15 +522,8 @@ def main() -> None:
 
         manifest_path = Path(args.audio_output_dir) / "manifest.json"
 
-        # --slides scopes this run to a subset of slides (see its help
-        # text) - typically to cheaply re-check/re-generate one slide that
-        # threw a POSSIBLE DROPPED NARRATION warning, rather than paying for
-        # a full-deck edge-tts run again. generate_audio_files() itself has
-        # no concept of "only some slides" - it always writes a fresh
-        # manifest.json from whatever slide list it's given - so the
-        # narrowing and the manifest-merge-back-in both happen here, not
-        # inside tts.py, to keep that function's contract simple (it always
-        # fully describes exactly the slides it was asked to generate).
+        # CLI selects slides; the TTS workflow merges their new entries with
+        # previous_manifest before publishing audio, timings and metadata.
         if args.slides is not None:
             slides_to_generate = [s for s in slides if int(s.get("slide_num") or 0) in args.slides]
             found_slide_nums = {int(s.get("slide_num") or 0) for s in slides_to_generate}
@@ -539,6 +535,9 @@ def main() -> None:
             if manifest_path.exists():
                 try:
                     previous_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    validate_audio_manifest(previous_manifest)
+                except Pptx2VideoError as exc:
+                    _fail(parser, logger, f"Cannot merge unfinished audio: {exc}; regenerate the full deck")
                 except (OSError, json.JSONDecodeError) as exc:
                     logger.warning(
                         f"--slides was given but existing {manifest_path} could not be read/parsed "
@@ -562,33 +561,18 @@ def main() -> None:
                 retry_delay_seconds=args.tts_retry_delay,
                 on_retry=_print_audio_retry,
                 on_narration_gap=_print_narration_gap,
+                backend=args.tts_backend,
+                previous_manifest=previous_manifest,
             )
         except TTSGenerationError as exc:
             logger.debug("Full TTS generation failure", exc_info=True)
             _fail(parser, logger, str(exc))
 
-        regenerated_count = len(audio_manifest["slides"])
+        regenerated_count = sum(bool(s.get("notes") and str(s["notes"]).strip()) for s in slides_to_generate)
 
         if previous_manifest is not None:
             assert args.slides is not None, "A previous manifest is loaded only for --slides"
-            # Merge: entries for slides that were just (re)generated replace
-            # the old ones; every other slide's entry from the prior run is
-            # kept as-is, so a --slides run never silently truncates
-            # manifest.json down to just the slides it touched (which would
-            # otherwise break --subtitles-output/--insert-audio for every
-            # other slide until a full re-run).
-            merged_by_slide_num = {
-                int(entry.get("slide_num", 0)): entry
-                for entry in previous_manifest.get("slides", [])
-            }
-            for entry in audio_manifest["slides"]:
-                merged_by_slide_num[int(entry.get("slide_num", 0))] = entry
-            audio_manifest["slides"] = [
-                merged_by_slide_num[num] for num in sorted(merged_by_slide_num)
-            ]
-            manifest_path.write_text(
-                json.dumps(audio_manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            # generate_audio_files merges before publishing its staged batch.
             logger.info(
                 f"Regenerated {regenerated_count} audio file(s) for slide(s) {sorted(args.slides)}; "
                 f"merged into existing manifest.json ({len(audio_manifest['slides'])} slide(s) total) "

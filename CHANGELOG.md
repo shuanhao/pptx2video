@@ -6,6 +6,16 @@
 
 ## [未發布]
 
+- 新增 [完整操作手冊](docs/FULL_WORKFLOW.md)：原始音訊共用、PPTX／VTT 與影片兩條路徑、選用校正及獨立燒錄的流程圖、相依性與完整 PowerShell 命令。
+- 2026-11-19 驗證更新：使用者回報以實際教材執行完整流程；MPU_WK04 log 確認 27 頁新後端音訊、27 份 VTT、27 頁音訊插入且 0 跳過。完整影片階段的逐頁精度與品質未另取得詳細紀錄，不推定為全面驗收。
+- XML 修正後歷史完整回歸 281 項通過。仍待處理 Python 3.9 TLS transport 清理例外、429 等待策略，以及 PowerPoint Close／Quit 失敗未記錄；本次僅更新文件，未重跑測試。
+
+- 修正新 WebSocket 後端 WordBoundary 的 XML 跳脫文字；以原文驗證解碼，並限縮修復可由跳脫字串切片精確重現的 `System`／`mp; Sy` 案例。保留原始 metadata 文字與時間戳；既有新後端 sidecar 在字幕讀取時轉換，不需重生音訊。未知不匹配仍由 VTT 嚴格檢查阻擋。
+
+- 抽出可選 TTS 後端：保留預設 `edge-tts`，新增實驗性 `--tts-backend edge-websocket`；共用重試、WordBoundary、疑似漏講檢查及 manifest。
+- TTS 每頁記錄後端及設定；`--slides` 在共用流程內合併舊 entries 後再發布，保留未重生頁面的來源。
+- TTS 改為整批暫存，合成失敗保留舊成品；固定檔名發布以 incomplete／ready manifest 阻擋中斷後的不一致資料。詳細限制見 `docs/TTS_BACKENDS.md`。
+
 - 修正 Edge-TTS WebSocket 握手 HTTP 503 未觸發重試：408／429／500／502／503／504 納入有限次重試，其他狀態（含 403）仍立即失敗。CLI 與模組共用預設：額外重試 10 次（最多嘗試 11 次）、間隔 5 秒；明確 CLI 參數仍優先。增加間隔不代表已證實可避免服務限流。
 - 成功進度改為 `Generated audio`；無音訊不再暗示參數必然錯誤，HTTP 握手錯誤顯示狀態碼，完整例外保留於 DEBUG。使用者實測 2026HRTv3 的 9 頁旁白在有限重試後生成完成，聲音完整性與後續流程待驗收。
 

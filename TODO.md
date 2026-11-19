@@ -6,7 +6,12 @@
 
 ## 待進行
 
-- **合併前驗收**：原始 MP3／0 秒、M4A 1／4／8／10 秒、4:3 手動黑條、720p／1080p auto、1080p 部分覆寫與 VTT 回歸已獲使用者確認。大型簡報墊秒及內容完整，本片係數 1.00008 校正後抽查同步；不修改全域校正預設。WAV 生成與 fixed 模式依回饋移除。YunJhe -10% TTS 無音訊根因仍待查；使用者已決定預設語速改為 +0%，保留手動設定及有限重試，見 [語速診斷](docs/TTS_RATE_DIAGNOSTIC.md)。實機範圍詳見 [Stage 6](docs/AUDIO_PREPARATION_STAGE6.md)。尚未 merge main。
+- **WebSocket 後端連線清理**：MPU_WK04 的 Python 3.9 真實批次出現 27 次 `Event loop is closed` transport 解構例外，合成仍完成。需確認 session／TLS transport 在 event loop 關閉前完成收尾，涵蓋成功、握手失敗及 timeout；假 transport 測試及 Python 3.13 單頁成功不能代替該情境驗證。與 Codex sandbox 的 socket pair 初始化卡住分開追蹤。
+- **429 限流等待策略**：目前僅失敗後固定等待，成功頁面間沒有固定節流；評估 Retry-After、有上限的 backoff 與必要的批次間隔。MPU_WK04 第 16、26 頁各兩次 429 後成功，不代表限流問題已根治。
+- **PowerPoint 清理可觀測性**：`_open_presentation()` 的 Close 及 `_powerpoint_session()` 的 Quit 例外目前直接忽略；補上警告與原始例外，區分儲存成功及視窗／程序清理結果。MPU_WK04 使用者 log 確認 27 頁插入及儲存完成，但視窗保留；確切 COM 失敗原因尚未取得，不應直接強制結束 PowerPoint。
+- **擴充新後端驗收紀錄**：使用者已回報實際教材全流程執行，記錄見 [完整操作手冊](docs/FULL_WORKFLOW.md)。更多教材／環境的穩定性、影片對齊報告、採用的校正值與成品品質仍需持續累積；長影片切割依使用者決定維持暫緩。
+
+- **既有整合驗收紀錄與後續覆蓋**：原始 MP3／0 秒、M4A 1／4／8／10 秒、4:3 手動黑條、720p／1080p auto、1080p 部分覆寫與 VTT 回歸已獲使用者確認。大型簡報墊秒及內容完整，本片係數 1.00008 校正後抽查同步；不修改全域校正預設。WAV 生成與 fixed 模式依回饋移除。YunJhe -10% TTS 無音訊根因仍待查；使用者已決定預設語速改為 +0%，保留手動設定及有限重試，見 [語速診斷](docs/TTS_RATE_DIAGNOSTIC.md)。實機範圍詳見 [Stage 6](docs/AUDIO_PREPARATION_STAGE6.md)。既有音訊準備／VTT 已由 `df9cd98` 合回 main；本輪後端重構另依目前 Git 狀態及完整流程手冊追蹤。
 - **已知文字對齊警告**：MPU_WK01 第 16／20／23 頁孤立 `」`、第 22／23 頁 `mp; Connecti` 曾有警告。本輪使用者確認指定頁面無漏句；警告根因仍待釐清，不能僅因影片可播放就判定演算法問題已解決。
 
 - **定位 `global_scale_correction` 的確切根因**（見 CHANGELOG v0.6.1 第四輪修正、`audio_position_locator.py` 的 `DEFAULT_GLOBAL_SCALE_CORRECTION` docstring）——目前已經有一個經真實 deck 驗證過、精準到次秒等級的經驗校準值可用，但 `find_best_offset_seconds()` 互相關比對內部究竟是哪個環節造成這個跟已播放時間成正比的系統性偏差，還沒有定位到程式碼層級。不影響目前可用性（有校準流程可以繞過，見 `scripts/calibrate_scale.py`），但如果之後要讓工具「不需要每份 deck 手動校準就準」，需要先解決這個。

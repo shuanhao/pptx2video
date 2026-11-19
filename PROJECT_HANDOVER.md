@@ -5,12 +5,19 @@ pptx2video (PPTX Auto Presenter)
 
 ## 文件版本
 
+2026-11-19 現況：TTS 後端模組化與 XML WordBoundary 相容修正已實作；原 `edge-tts` 維持預設，
+`edge-websocket` 需明確選擇。使用者已回報以實際教材執行兩種產出完整流程；已有 MPU_WK04
+27 頁音訊與 PPTX／VTT log，影片品質及同步精度不超出使用者已提供的結論。
+操作命令與證據範圍見 [完整流程](docs/FULL_WORKFLOW.md)，介面及發布契約見
+[後端設計](docs/TTS_BACKENDS.md)。XML 修正後 281 項測試通過是歷史紀錄。
+尚待處理 transport 清理、429 策略與 PowerPoint 清理錯誤紀錄，詳見 TODO。
+
 TTS 預設語速已依使用者決定由 -10% 改為 +0%，CLI 與模組共用 `DEFAULT_RATE`。YunJhe 與部分語速組合在 edge-tts 7.3.1 下可重現無音訊；根因尚未確認，保留明確語速輸入及有限重試，不自動換語速／語音。舊 MP3 與 manifest 不因預設調整而變更。詳見 [語速診斷](docs/TTS_RATE_DIAGNOSTIC.md)。
 
 驗收範圍更新：因 WAV 檔案過大，prepared 音訊生成只保留 M4A／AAC-LC；CLI／模組拒絕 WAV 準備要求，舊檔與既有 manifest 讀取維持相容。實機進度見 Stage 6 的整合分支驗收更新。
 
 現行新增模組：`audio_preparation.py` 每次以原始 MP3 全批重轉為固定檔名，schema 2 manifest 先 incomplete 再 ready；`validate_audio_manifest()` 由載入／插入、字幕與定位入口共用。`subtitle_candidates.py` 管理三份 SRT、來源追溯與逐檔提交，定位失敗不冒充成功。資料流為原始來源 → optional prepared → effective manifest → preview → 插入／匯出 → initial／captions／報告 → 人工選字幕 → 獨立燒錄。參數及失敗政策見 [音訊準備手冊](docs/AUDIO_PREPARATION.md)。
-對應 feature/audio-preparation-subtitle-workflow 現行實作（含固定檔名全批重轉）。功能已實作；自動化與人工驗收範圍分開記錄，尚未合併 main。歷史 v0.x 描述僅作設計背景。
+既有音訊準備／VTT 整合已由 `df9cd98` 合入 main；本輪後端重構屬未發布變更，合併狀態以 Git 紀錄為準。歷史 v0.x 與 Stage 文件描述保留原設計背景，自動化及人工驗收範圍分開記錄。
 
 ## 目標對象
 接手開發者、AI 協作 Agent
@@ -137,6 +144,13 @@ v0.4.1 修正的 `insert_audio()` 逾時保護與 `--tts-max-retries` 負值防�
 - 解析失敗時拋出 `PptParseError`
 
 ### 4.2 tts.py
+
+**目前後端重構**：共同流程在 `tts.py`，後端合約為 `tts_backend.py`，實作分成
+`tts_edge.py` 與實驗性 `tts_websocket.py`。`--slides` 的選頁及舊 manifest 載入仍在
+`main.py`；entries 合併已移入 `generate_audio_files(previous_manifest=...)`，以便與
+音訊／時間資料一起受發布狀態保護。下方舊紀錄提到「合併在 main.py」已被此設計取代。
+兩後端共用漏講檢查；舊自訂 generator 的 audio-only 行為保留。
+完整合約、CLI、限制及 incomplete 恢復方式見 [TTS_BACKENDS.md](docs/TTS_BACKENDS.md)。
 
 **Input**：每頁備忘稿文字
 **Output**：MP3 音檔（依頁碼命名）、`manifest.json`、`slide_XXX.wordboundaries.json`（逐字時間資料）

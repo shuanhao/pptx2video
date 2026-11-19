@@ -186,7 +186,7 @@ class CliEndToEndTests(unittest.TestCase):
 
     def test_partial_tts_is_merged_before_preparation(self):
         root, source, prepared, original, derived, argv = self._preparation_fixture()
-        regenerated = {"slides": [{"slide_num": 2, "audio_file": "changed.mp3"}]}
+        regenerated = {"slides": [original["slides"][0], {"slide_num": 2, "audio_file": "changed.mp3"}]}
         with mock.patch("src.main.generate_audio_files", return_value=regenerated) as tts, \
              mock.patch("src.main.prepare_audio_manifest", return_value={"manifest": derived, "audio_dir": prepared,
                         "converted": [1, 2]}) as prepare, \
@@ -195,6 +195,7 @@ class CliEndToEndTests(unittest.TestCase):
                                                    "--prepared-audio-dir", str(prepared)])
         self.assertIsNone(code, stderr)
         self.assertEqual([s["slide_num"] for s in tts.call_args.args[0]], [2])
+        self.assertEqual(tts.call_args.kwargs["previous_manifest"], original)
         self.assertEqual(prepare.call_args.args[0]["slides"], [original["slides"][0], regenerated["slides"][1]])
         self.assertEqual(subtitles.call_args.kwargs["audio_dir"], str(prepared))
 
@@ -387,18 +388,16 @@ class CliEndToEndTests(unittest.TestCase):
             }
             (audio_dir / "manifest.json").write_text(json.dumps(existing_manifest), encoding="utf-8")
 
-            regenerated_manifest = {
-                "voice": "new-voice",
-                "rate": "-10%",
-                "pitch": "+0Hz",
-                "output_dir": str(audio_dir),
-                "slides": [
-                    {"slide_num": 2, "title": "Two", "audio_file": "slide_002.mp3", "word_boundaries_file": "slide_002.wordboundaries.json", "narration_gap_warnings": []},
-                ],
-            }
-
-            with mock.patch(
-                "src.main.generate_audio_files", return_value=regenerated_manifest
+            from src.tts import generate_audio_files
+            from src.tts_backend import SynthesisResult
+            backend = mock.Mock()
+            def synthesize(request, path):
+                path.write_bytes(b"complete-audio")
+                return SynthesisResult([{"text": request.text, "offset_seconds": 0.0,
+                                         "duration_seconds": 0.5}], {"backend": "edge-websocket"})
+            backend.synthesize.side_effect = synthesize
+            with mock.patch("src.tts.create_backend", return_value=backend), mock.patch(
+                "src.main.generate_audio_files", wraps=generate_audio_files
             ) as mock_generate:
                 _, _, exit_code = self._invoke([
                     str(pptx_path),
@@ -413,7 +412,8 @@ class CliEndToEndTests(unittest.TestCase):
             self.assertIsNone(exit_code)
             # generate_audio_files should only have been asked to generate
             # slide 2, not all three.
-            call_args, _ = mock_generate.call_args
+            call_args, kwargs = mock_generate.call_args
+            self.assertEqual(kwargs["previous_manifest"], existing_manifest)
             generated_slides = call_args[0]
             self.assertEqual([s["slide_num"] for s in generated_slides], [2])
 
