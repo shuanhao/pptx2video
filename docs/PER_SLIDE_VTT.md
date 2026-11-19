@@ -1,5 +1,9 @@
 # 每頁 VTT（PPTX 用途）
 
+完整教材操作命令與相依圖見 [完整流程](FULL_WORKFLOW.md)。MPU_WK04 的新後端 XML metadata
+相容修正後，使用者 log 確認產生 27 份 VTT 並插入 27 頁音訊、0 跳過；不據此推定本教材
+已完成逐頁手動掛載及字幕聽檢。既有新後端 sidecar 可在讀取時轉換，不必重新生成音訊。
+
 沿用原始 MP3 與 word-boundary sidecar，每頁輸出 `slide_NNN.vtt`，時間相對於該頁音訊起點。無旁白頁不產生 VTT。自行在 PowerPoint 音訊物件加入字幕，並調整播放屬性。
 
 ```powershell

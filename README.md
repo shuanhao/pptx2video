@@ -26,6 +26,10 @@
 
 ## 🚀 快速開始（Windows）
 
+實際教材的分階段操作請先看 [完整流程、相依圖與 PowerShell 命令](docs/FULL_WORKFLOW.md)：
+共用原始音訊 → 含音訊 PPTX／逐頁 VTT，或影片／候選字幕 → 必要時校正 → 人工選字幕後燒錄。
+TTS 後端選擇與已知限制見 [TTS_BACKENDS.md](docs/TTS_BACKENDS.md)。
+
 以下步驟適合 Windows PowerShell。每個 working copy 都要各自建立 `.venv`；不要複製或沿用另一個 working copy 的虛擬環境（editable install 可能指向另一個資料夾）。
 
 ### 1. 下載專案
@@ -120,6 +124,10 @@ python -m pptx2video examples/sample_test.pptx --output output/slides.json
 這會讀取簡報檔，解析每頁的標題與 notes，並輸出 JSON 到 [output/slides.json](output/slides.json)。
 
 ### 7. 生成語音（TTS）
+
+預設使用原有 `edge-tts`；新增 `--tts-backend edge-websocket` 可明確選擇實驗性傳輸。
+兩者共用重試、逐頁 WordBoundary、VTT／SRT 流程，不會自動切換。
+設定差異、逐頁來源紀錄與失敗恢復方式見 [TTS 後端說明](docs/TTS_BACKENDS.md)。
 
 ```powershell
 python -m pptx2video examples/sample_test.pptx --generate-audio --audio-output-dir output/audio --voice "zh-TW-YunJheNeural" --rate=+0% --pitch="+0Hz" --subtitles-output=
@@ -282,7 +290,7 @@ Alignment report: output\captions_alignment_report.json
 ```
 
 **注意事項：**
-- 生成語音需要能連上 Edge-TTS 服務（`speech.platform.bing.com`）
+- 生成語音需要連上所選 Microsoft TTS 服務：原後端為 `speech.platform.bing.com`，實驗性 `edge-websocket` 為 `api.msedgeservices.com`。
 - 插入音訊與匯出 MP4 都需要 Windows + 已安裝 PowerPoint + `pywin32`
 - 這一行指令裡 PowerPoint 實際上會被開關兩次：`--insert-audio` 用一次、`--export-video` 又用一次，不是同一個 PowerPoint session 做完兩件事。不影響結果，只是多花一點點時間（優化方向見 [PROJECT_HANDOVER.md](PROJECT_HANDOVER.md) 的「未來擴充方向」）。
 - preview 在匯出前生成；initial 與 captions 在匯出後生成。預設額外校正係數 1.0 時，後兩份相同。程式完成後停在人工檢查，不自動燒錄。
@@ -316,7 +324,8 @@ python -m pptx2video <pptx_path> [選項...]
 | `--indent` | `2` | JSON 輸出的縮排空白數 |
 | `--verbose` | `False`（flag） | 印出更詳細的執行進度訊息 |
 | `--strict` | `False`（flag） | 若任何一頁沒有 notes，直接中止並回報錯誤（適合用於檢查簡報是否漏寫備忘稿） |
-| `--generate-audio` | `False`（flag） | 啟用語音生成，會呼叫 edge-tts 把每頁 notes 轉成 MP3 |
+| `--generate-audio` | `False`（flag） | 啟用語音生成，呼叫所選 TTS 後端把每頁 notes 轉成 MP3 |
+| `--tts-backend` | `edge-tts` | 可選 `edge-tts` 或實驗性 `edge-websocket`；不會自動切換 |
 | `--audio-output-dir` | `output/audio` | 原始 MP3、WordBoundary 與 manifest 的來源／輸出目錄；不加 generate-audio 時讀取既有來源 |
 | `--slides` | 全部頁面 | 僅限 TTS 重生頁碼，如 `2,4-6`；補秒仍全批重轉 |
 | `--audio-tail-silence` | `0` | 0 關閉；1～10 秒啟用 M4A 準備，允許範圍內小數 |
@@ -327,7 +336,7 @@ python -m pptx2video <pptx_path> [選項...]
 | `--prepared-audio-channels` | `1` | 聲道數 1 或 2；補秒為 0 時不可明確指定 prepared 參數 |
 | `--voice` | `Microsoft Server Speech Text to Speech Voice (zh-TW, YunJheNeural)` | edge-tts 使用的語音。也可用簡短格式如 `zh-TW-YunJheNeural`，若完整格式在你的環境報錯可改用簡短格式 |
 | `--rate` | `+0%` | 預設原速；正值加快、負值放慢，例如 `+10%`、`-20%`。部分語音與語速組合可能無音訊，見下方限制。⚠️ **負值務必用 `--rate=-20%` 等號寫法**，不要用空格分隔的 `--rate "-20%"`（見下方說明） |
-| `--pitch` | `+0Hz` | 音高調整，預設不改變音高 |
+| `--pitch` | `+0Hz` | 原後端使用 signed Hz；`edge-websocket` 使用百分比或零值 Hz，非零 Hz 會拒絕 |
 | `--tts-max-retries` | `10` | edge-tts 暫時性失敗（含 `NoAudioReceived`、握手 HTTP 408／429／500／502／503／504）後的額外重試次數；預設每頁最多嘗試 11 次，設為 `0` 停用。**必須是 0 或正整數**，負值會被 CLI 拒絕 |
 | `--tts-retry-delay` | `5.0`（秒） | 兩次重試之間的等待秒數，可明確指定其他間隔 |
 | `--subtitles-output` | `output/captions.srt` | 未匯出時輸出單份預測字幕；匯出時衍生 preview、initial、captions 與 JSON 報告。空字串停用 |
